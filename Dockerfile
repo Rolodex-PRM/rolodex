@@ -10,4 +10,6 @@ COPY packages ./packages
 COPY apps/api ./apps/api
 COPY apps/carddav ./apps/carddav
 RUN pnpm install --frozen-lockfile
+COPY scripts/docker-app.mjs ./scripts/docker-app.mjs
 ENV NODE_ENV=production
+CMD ["node", "scripts/docker-app.mjs"]

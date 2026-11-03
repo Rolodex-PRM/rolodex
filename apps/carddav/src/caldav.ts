@@ -12,7 +12,7 @@ import {
   upsertCalendarFromIcs,
   upsertTodoFromIcs,
 } from '@rolodex/core'
-import type { DavRequest, DavResult } from './dav-types'
+import { absoluteHref, requestOrigin, type DavRequest, type DavResult } from './dav-types'
 
 const headers = {
   DAV: '1, 3, addressbook, calendar-access',
@@ -24,12 +24,13 @@ export async function handleCalendar(db: Database, request: DavRequest, userId: 
   const route = matchCalendar(request.path)
   if (!route) return null
   if (route.userId !== userId) return text(403, 'Forbidden')
+  const origin = requestOrigin(request.headers)
   const method = request.method.toUpperCase()
   try {
-    if (method === 'PROPFIND' && route.kind === 'home') return propfindHome(db, userId, depth(request))
-    if (method === 'PROPFIND' && route.kind === 'collection') return propfindCollection(db, userId, route.collection, depth(request))
-    if (method === 'PROPFIND' && route.kind === 'event') return propfindEvent(db, userId, route.collection, route.uid)
-    if (method === 'REPORT' && route.kind === 'collection') return report(db, userId, route.collection, request.body)
+    if (method === 'PROPFIND' && route.kind === 'home') return propfindHome(db, origin, userId, depth(request))
+    if (method === 'PROPFIND' && route.kind === 'collection') return propfindCollection(db, origin, userId, route.collection, depth(request))
+    if (method === 'PROPFIND' && route.kind === 'event') return propfindEvent(db, origin, userId, route.collection, route.uid)
+    if (method === 'REPORT' && route.kind === 'collection') return report(db, origin, userId, route.collection, request.body)
     if ((method === 'GET' || method === 'HEAD') && route.kind === 'event') return getEvent(db, userId, route.collection, route.uid, method === 'HEAD')
     if (method === 'PUT' && route.kind === 'event') {
       if (route.collection === 'tasks') {
@@ -54,42 +55,42 @@ export async function handleCalendar(db: Database, request: DavRequest, userId: 
   }
 }
 
-async function propfindHome(db: Database, userId: string, deep: boolean) {
+async function propfindHome(db: Database, origin: string, userId: string, deep: boolean) {
   const context = await calendarContext(db, userId)
-  const self = ok(`/calendars/${userId}/`, '<d:resourcetype><d:collection/></d:resourcetype><d:displayname>Calendars</d:displayname>')
+  const self = ok(absoluteHref(origin, `/calendars/${userId}/`), '<d:resourcetype><d:collection/></d:resourcetype><d:displayname>Calendars</d:displayname>')
   if (!deep) return multi(self)
   const events = await listCalendarFeed(db, userId, context.workspaceId)
   const todos = await listTodoFeed(db, userId, context.workspaceId)
   return multi(
     self +
-      ok(`/calendars/${userId}/rolodex/`, collectionProperties('Rolodex', 'VEVENT', 'Events from Rolodex', context.canWrite, events.token)) +
-      ok(`/calendars/${userId}/tasks/`, collectionProperties('Tasks', 'VTODO', 'Tasks from Rolodex', context.canWrite, todos.token)),
+      ok(absoluteHref(origin, `/calendars/${userId}/rolodex/`), collectionProperties('Rolodex', 'VEVENT', 'Events from Rolodex', context.canWrite, events.token)) +
+      ok(absoluteHref(origin, `/calendars/${userId}/tasks/`), collectionProperties('Tasks', 'VTODO', 'Tasks from Rolodex', context.canWrite, todos.token)),
   )
 }
 
-async function propfindCollection(db: Database, userId: string, collection: 'rolodex' | 'tasks', deep: boolean) {
+async function propfindCollection(db: Database, origin: string, userId: string, collection: 'rolodex' | 'tasks', deep: boolean) {
   const context = await calendarContext(db, userId)
   if (collection === 'tasks') {
     const feed = await listTodoFeed(db, userId, context.workspaceId)
-    const self = ok(`/calendars/${userId}/tasks/`, collectionProperties('Tasks', 'VTODO', 'Tasks from Rolodex', context.canWrite, feed.token))
+    const self = ok(absoluteHref(origin, `/calendars/${userId}/tasks/`), collectionProperties('Tasks', 'VTODO', 'Tasks from Rolodex', context.canWrite, feed.token))
     if (!deep) return multi(self)
-    const children = feed.items.map((item) => ok(itemHref(userId, 'tasks', item.uid), todoProperties(item))).join('')
+    const children = feed.items.map((item) => ok(absoluteHref(origin, itemHref(userId, 'tasks', item.uid)), todoProperties(item))).join('')
     return multi(self + children)
   }
   const feed = await listCalendarFeed(db, userId, context.workspaceId)
-  const self = ok(`/calendars/${userId}/rolodex/`, collectionProperties('Rolodex', 'VEVENT', 'Events from Rolodex', context.canWrite, feed.token))
+  const self = ok(absoluteHref(origin, `/calendars/${userId}/rolodex/`), collectionProperties('Rolodex', 'VEVENT', 'Events from Rolodex', context.canWrite, feed.token))
   if (!deep) return multi(self)
-  const children = feed.items.map((item) => ok(itemHref(userId, 'rolodex', item.uid), eventProperties(item))).join('')
+  const children = feed.items.map((item) => ok(absoluteHref(origin, itemHref(userId, 'rolodex', item.uid)), eventProperties(item))).join('')
   return multi(self + children)
 }
 
-async function propfindEvent(db: Database, userId: string, collection: 'rolodex' | 'tasks', uid: string) {
+async function propfindEvent(db: Database, origin: string, userId: string, collection: 'rolodex' | 'tasks', uid: string) {
   if (collection === 'tasks') {
     const item = await oneTodo(db, userId, uid)
-    return multi(ok(itemHref(userId, 'tasks', uid), todoProperties(item)))
+    return multi(ok(absoluteHref(origin, itemHref(userId, 'tasks', uid)), todoProperties(item)))
   }
   const item = await oneEvent(db, userId, uid)
-  return multi(ok(itemHref(userId, 'rolodex', uid), eventProperties(item)))
+  return multi(ok(absoluteHref(origin, itemHref(userId, 'rolodex', uid)), eventProperties(item)))
 }
 
 async function getEvent(db: Database, userId: string, collection: 'rolodex' | 'tasks', uid: string, head: boolean) {
@@ -109,17 +110,18 @@ async function getEvent(db: Database, userId: string, collection: 'rolodex' | 't
   }
 }
 
-async function report(db: Database, userId: string, collection: 'rolodex' | 'tasks', body: string) {
+async function report(db: Database, origin: string, userId: string, collection: 'rolodex' | 'tasks', body: string) {
   const context = await calendarContext(db, userId)
   if (collection === 'tasks') {
     const feed = await listTodoFeed(db, userId, context.workspaceId)
-    return reportItems(userId, 'tasks', body, feed.token, context.workspaceId, feed.items, feed.stored, (item) => todoProperties(item, body.toLowerCase().includes('calendar-data')))
+    return reportItems(origin, userId, 'tasks', body, feed.token, context.workspaceId, feed.items, feed.stored, (item) => todoProperties(item, body.toLowerCase().includes('calendar-data')))
   }
   const feed = await listCalendarFeed(db, userId, context.workspaceId)
-  return reportItems(userId, 'rolodex', body, feed.token, context.workspaceId, feed.items, feed.stored, (item) => eventProperties(item, body.toLowerCase().includes('calendar-data')))
+  return reportItems(origin, userId, 'rolodex', body, feed.token, context.workspaceId, feed.items, feed.stored, (item) => eventProperties(item, body.toLowerCase().includes('calendar-data')))
 }
 
 function reportItems<T extends { uid: string; updatedAt: Date }>(
+  origin: string,
   userId: string,
   collection: 'rolodex' | 'tasks',
   body: string,
@@ -139,11 +141,11 @@ function reportItems<T extends { uid: string; updatedAt: Date }>(
   if (root.includes('sync-collection') && Number.isFinite(since) && since > 0) {
     rows = rows.filter((item) => item.updatedAt.getTime() > since)
   }
-  const responses = rows.map((item) => ok(itemHref(userId, collection, item.uid), properties(item))).join('')
+  const responses = rows.map((item) => ok(absoluteHref(origin, itemHref(userId, collection, item.uid)), properties(item))).join('')
   const removed = root.includes('sync-collection')
     ? stored
         .filter((row) => row.deletedAt && (!since || row.updatedAt.getTime() > since) && !isDerivedUid(row.uid))
-        .map((row) => missing(itemHref(userId, collection, row.uid)))
+        .map((row) => missing(absoluteHref(origin, itemHref(userId, collection, row.uid))))
         .join('')
     : ''
   return multi(responses + removed, `https://rolodex.local/calendars/${workspaceId}/${collection}/${token}`)
