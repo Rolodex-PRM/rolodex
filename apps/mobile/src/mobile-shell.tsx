@@ -1,21 +1,23 @@
 import { useRouter, usePathname } from 'expo-router'
-import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ComponentProps, type ComponentType, type ReactNode } from 'react'
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { agendaLines } from './agenda'
 import { api, type Agenda } from './api'
 import { useAccent } from './accent'
 import { useAuth } from './auth'
+import { useColorScheme } from './color-scheme'
+import { AiMenu } from './ai-enrich'
 import { Icon } from './icons'
 import { RolodexMark } from './logo'
 import { font, theme } from './theme'
 
-type Menu = 'notifications' | 'profile' | 'more' | 'create' | null
+type Menu = 'notifications' | 'ai' | 'profile' | 'more' | 'create' | null
 
 const moreLinks = [
-  { href: '/organizations', label: 'Organizations', icon: 'building' },
+  { href: '/search', label: 'Search', icon: 'search' },
+  { href: '/calendar', label: 'Calendar', icon: 'calendar' },
   { href: '/tasks', label: 'Tasks', icon: 'task' },
-  { href: '/books', label: 'Address books', icon: 'contacts' },
   { href: '/settings', label: 'Settings', icon: 'settings' },
 ] as const
 
@@ -24,6 +26,7 @@ export function MobileShell({ children }: { children: ReactNode }) {
   const canManage = workspace?.role === 'owner' || workspace?.role === 'administrator'
   const menuLinks = [...moreLinks, ...(canManage ? [{ href: '/admin', label: 'Admin', icon: 'briefcase' as const }] : [])]
   const { accent, onAccent } = useAccent()
+  const { scheme, toggleScheme } = useColorScheme()
   const router = useRouter()
   const path = usePathname()
   const insets = useSafeAreaInsets()
@@ -39,7 +42,7 @@ export function MobileShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return
     const node = document.createElement('style')
-    node.textContent = '[data-rolodex-row]:hover{background-color:#f0f0f0}'
+    node.textContent = '[data-rolodex-row]:hover{background-color:var(--rx-hover)}'
     document.head.appendChild(node)
     return () => node.remove()
   }, [])
@@ -75,7 +78,10 @@ export function MobileShell({ children }: { children: ReactNode }) {
             <RolodexMark size={28} tone="paper" />
           </Pressable>
           <View style={styles.headerActions}>
-            <Pressable onPress={() => toggle('notifications')} style={[styles.iconButton, menu === 'notifications' && styles.iconButtonOn]}>
+            <Pressable accessibilityLabel="AI features" onPress={() => toggle('ai')} style={[styles.iconButton, menu === 'ai' && styles.iconButtonOn]}>
+              <Icon name="sparkle" color={theme.text} size={20} />
+            </Pressable>
+            <Pressable accessibilityLabel="Notifications" onPress={() => toggle('notifications')} style={[styles.iconButton, menu === 'notifications' && styles.iconButtonOn]}>
               <Icon name="bell" color={theme.text} size={20} />
             </Pressable>
             <Pressable onPress={() => toggle('profile')} style={[styles.avatar, menu === 'profile' && styles.avatarOn]}>
@@ -84,6 +90,11 @@ export function MobileShell({ children }: { children: ReactNode }) {
           </View>
         </View>
       </View>
+      {menu === 'ai' && workspace ? (
+        <View style={[styles.popover, styles.popoverRight, { top: 64 + insets.top + 8 }]}>
+          <AiMenu workspaceId={workspace.id} canManage={canManage} onOpen={(href) => { setMenu(null); router.push(href) }} />
+        </View>
+      ) : null}
       {menu === 'notifications' ? (
         <View style={[styles.popover, styles.popoverRight, { top: 64 + insets.top + 8 }]}>
           <Text style={styles.popoverTitle}>Notifications</Text>
@@ -135,6 +146,10 @@ export function MobileShell({ children }: { children: ReactNode }) {
             <Icon name="settings" color={theme.text} size={18} />
             <Text style={styles.rowText}>Settings</Text>
           </MenuRow>
+          <MenuRow onPress={toggleScheme}>
+            <Icon name={scheme === 'dark' ? 'moon' : 'sun'} color={theme.text} size={18} />
+            <Text style={styles.rowText}>{scheme === 'dark' ? 'Dark mode' : 'Light mode'}</Text>
+          </MenuRow>
           <MenuRow
             onPress={() => {
               void signOut().then(() => router.replace('/sign-in'))
@@ -182,9 +197,9 @@ export function MobileShell({ children }: { children: ReactNode }) {
       <View style={[styles.dockWrap, { bottom: 16 + insets.bottom }]}>
         <View style={styles.dock}>
           <DockButton label="Home" icon="home" active={path === '/'} accent={accent} onAccent={onAccent} onPress={() => router.push('/')} />
-          <DockButton label="Contacts" icon="contacts" active={path.startsWith('/contacts')} accent={accent} onAccent={onAccent} onPress={() => router.push('/')} />
+          <DockButton label="Contacts" icon="contacts" active={path.startsWith('/contacts')} accent={accent} onAccent={onAccent} onPress={() => router.push('/contacts')} />
           <Pressable accessibilityLabel="Add" onPress={() => toggle('create')} style={styles.plus}>
-            <Icon name="plus" color="#3f3f46" size={24} />
+            <Icon name="plus" color={theme.plusIcon} size={24} />
           </Pressable>
           <DockButton label="Interactions" icon="interactions" active={path.startsWith('/interactions')} accent={accent} onAccent={onAccent} onPress={() => router.push('/interactions')} />
           <DockButton label="More" icon="more" active={menu === 'more' || menuLinks.some((link) => path.startsWith(link.href))} accent={accent} onAccent={onAccent} onPress={() => toggle('more')} />
@@ -196,22 +211,22 @@ export function MobileShell({ children }: { children: ReactNode }) {
 
 const glass = Platform.OS === 'web'
   ? ({
-      backgroundColor: 'rgba(255,255,255,0.62)',
+      backgroundColor: 'var(--rx-glass)',
       backdropFilter: 'blur(22px)',
       WebkitBackdropFilter: 'blur(22px)',
       boxShadow: '0 18px 50px rgba(17,17,17,0.14)',
     } as object)
-  : { backgroundColor: 'rgba(255,255,255,0.94)' }
+  : { backgroundColor: 'var(--rx-glass)' }
 
 const styles = StyleSheet.create({
   shell: { flex: 1, backgroundColor: theme.bg },
   backdrop: { ...StyleSheet.absoluteFill, zIndex: 2 },
-  headerClip: { overflow: 'hidden', zIndex: 4, backgroundColor: 'rgba(255,255,255,0.9)' },
-  header: { height: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
+  headerClip: { overflow: 'hidden', zIndex: 4, backgroundColor: theme.header },
+  header: { height: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, backgroundColor: theme.header },
   logoButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: theme.ink, alignItems: 'center', justifyContent: 'center' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  iconButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#f3f3f3', alignItems: 'center', justifyContent: 'center' },
-  iconButtonOn: { backgroundColor: '#e7e7e7' },
+  iconButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: theme.accentMuted, alignItems: 'center', justifyContent: 'center' },
+  iconButtonOn: { backgroundColor: theme.hover },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#2a2a2a', alignItems: 'center', justifyContent: 'center' },
   avatarOn: { backgroundColor: theme.ink },
   avatarText: { color: '#fff', fontFamily: font, fontWeight: '700', fontSize: 16 },
@@ -222,40 +237,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    backgroundColor: 'rgba(255,255,255,0.94)',
+    backgroundColor: theme.dock,
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.8)',
+    borderColor: theme.dockBorder,
   },
   dockHit: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  plus: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', marginTop: -12, marginHorizontal: 2, backgroundColor: '#e4e4e7' },
+  plus: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', marginTop: -12, marginHorizontal: 2, backgroundColor: theme.plus },
   createWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center', zIndex: 5 },
   createPopover: { width: 230 },
   createCard: { position: 'relative' },
-  popover: { position: 'absolute', width: 280, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', padding: 14, gap: 8, zIndex: 5, ...glass },
+  popover: { position: 'absolute', width: 280, borderRadius: 22, borderWidth: 1, borderColor: theme.popoverBorder, padding: 14, gap: 8, zIndex: 5, ...glass },
   popoverRight: { right: 12 },
   morePopover: { right: 24 },
   popoverTitle: { fontFamily: font, fontSize: 16, fontWeight: '700', color: theme.text },
-  identity: { flexDirection: 'row', gap: 12, alignItems: 'center', paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(17,17,17,0.08)' },
+  identity: { flexDirection: 'row', gap: 12, alignItems: 'center', paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: theme.line },
   name: { fontFamily: font, fontSize: 16, fontWeight: '700', color: theme.text },
   role: { fontFamily: font, fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase', color: theme.muted },
   muted: { fontFamily: font, color: theme.muted, fontSize: 13 },
-  section: { gap: 2, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(17,17,17,0.08)' },
+  section: { gap: 2, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: theme.line },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 8, borderRadius: 10 },
-  rowHover: { backgroundColor: '#f0f0f0' },
+  rowHover: { backgroundColor: theme.hover },
   rowText: { fontFamily: font, color: theme.text, fontSize: 15 },
   rowTextOn: { fontWeight: '700' },
   danger: { fontFamily: font, color: theme.danger, fontSize: 15, fontWeight: '600' },
 })
 
+const RowButton = Pressable as ComponentType<ComponentProps<typeof Pressable> & { dataSet?: Record<string, string> }>
+
 function MenuRow({ children, onPress }: { children: ReactNode; onPress: () => void }) {
   const [hover, setHover] = useState(false)
   return (
-    <Pressable dataSet={{ rolodexRow: '1' }} onPress={onPress} onHoverIn={() => setHover(true)} onHoverOut={() => setHover(false)} style={[styles.row, hover && styles.rowHover]}>
+    <RowButton dataSet={{ rolodexRow: '1' }} onPress={onPress} onHoverIn={() => setHover(true)} onHoverOut={() => setHover(false)} style={[styles.row, hover && styles.rowHover]}>
       {children}
-    </Pressable>
+    </RowButton>
   )
 }
 
@@ -283,7 +300,7 @@ function DockButton({
       onHoverOut={() => setHover(false)}
       style={[styles.dockHit, hover && !active && { backgroundColor: accentTint(accent, 0.16) }, active && { backgroundColor: accent }]}
     >
-      <Icon name={icon} color={active ? onAccent : hover ? accent : '#737373'} size={22} />
+      <Icon name={icon} color={active ? onAccent : hover ? accent : theme.muted} size={22} />
     </Pressable>
   )
 }

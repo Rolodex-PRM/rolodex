@@ -2,7 +2,14 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { Platform } from 'react-native'
 import { api, setToken, setUnauthorized, type Workspace } from './api'
 
-type Session = { id: string; email: string; displayName: string; carddavUrl: string }
+type Session = { id: string; email: string; displayName: string; carddavUrl: string; carddavPhoneUrl: string | null }
+
+function withCarddav(
+  user: { id: string; email: string; displayName: string },
+  me: { carddavUrl: string; carddavPhoneUrl?: string | null },
+): Session {
+  return { ...user, carddavUrl: me.carddavUrl, carddavPhoneUrl: me.carddavPhoneUrl ?? null }
+}
 
 type AuthValue = {
   ready: boolean
@@ -64,8 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
     setToken(stored.token)
-    api<{ user: { id: string; email: string; displayName: string }; carddavUrl: string }>('/api/auth/me')
-      .then((me) => loadWorkspaces(stored.token, { ...me.user, carddavUrl: me.carddavUrl }, stored.workspaceId))
+    api<{ user: { id: string; email: string; displayName: string }; carddavUrl: string; carddavPhoneUrl?: string | null }>('/api/auth/me')
+      .then((me) => loadWorkspaces(stored.token, withCarddav(me.user, me), stored.workspaceId))
       .catch(() => writeStored(null))
       .finally(() => setReady(true))
   }, [])
@@ -81,21 +88,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           method: 'POST',
           body: JSON.stringify({ email, password }),
         })
-        const me = await api<{ carddavUrl: string }>('/api/auth/me')
-        await loadWorkspaces(result.token, { ...result.user, carddavUrl: me.carddavUrl })
+        const me = await api<{ carddavUrl: string; carddavPhoneUrl?: string | null }>('/api/auth/me')
+        await loadWorkspaces(result.token, withCarddav(result.user, me))
       },
       async signUp(email, password, displayName, invite) {
         const result = await api<{ token: string; user: { id: string; email: string; displayName: string } }>(
           '/api/auth/register',
           { method: 'POST', body: JSON.stringify({ email, password, displayName, invite: invite || undefined }) },
         )
-        const me = await api<{ carddavUrl: string }>('/api/auth/me')
-        await loadWorkspaces(result.token, { ...result.user, carddavUrl: me.carddavUrl })
+        const me = await api<{ carddavUrl: string; carddavPhoneUrl?: string | null }>('/api/auth/me')
+        await loadWorkspaces(result.token, withCarddav(result.user, me))
       },
       async completeOauth(authToken) {
         setToken(authToken)
-        const me = await api<{ user: { id: string; email: string; displayName: string }; carddavUrl: string }>('/api/auth/me')
-        await loadWorkspaces(authToken, { ...me.user, carddavUrl: me.carddavUrl })
+        const me = await api<{ user: { id: string; email: string; displayName: string }; carddavUrl: string; carddavPhoneUrl?: string | null }>('/api/auth/me')
+        await loadWorkspaces(authToken, withCarddav(me.user, me))
       },
       async signOut() {
         let endSession = ''

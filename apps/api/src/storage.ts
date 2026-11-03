@@ -39,6 +39,10 @@ export async function deleteObject(client: S3Client, key: string) {
 }
 
 export function photoKey(workspaceId: string, contactId: string, filename: string) {
-  const safe = filename.replace(/[^\w.-]+/g, '_').slice(0, 80) || 'photo'
-  return `workspaces/${workspaceId}/contacts/${contactId}/${randomUUID()}-${safe}`
+  return fileKey(workspaceId, `contacts/${contactId}`, filename)
+}
+
+export function fileKey(workspaceId: string, scope: string, filename: string) {
+  const safe = filename.replace(/[^\w.-]+/g, '_').slice(0, 80) || 'file'
+  return `workspaces/${workspaceId}/${scope}/${randomUUID()}-${safe}`
 }

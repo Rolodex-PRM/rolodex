@@ -7,6 +7,7 @@ export { getNotificationSettings, setNotificationSettings, pushPublic, savePushS
 export { createWorkspace, listWorkspaces, listMembers, addMember, updateMemberRole, removeMember } from './workspaces'
 export { listUserGroups, createUserGroup, updateUserGroup, deleteUserGroup, addUserGroupMember, removeUserGroupMember } from './groups'
 export { registrationPolicy, setRegistrationPolicy, inviteUser, previewInvite, acceptInvite, sendPasswordReset, resetPassword } from './invites'
+export { publicAppearance, setAppearance, cleanCss } from './appearance'
 export {
   listContacts,
   locateContact,
@@ -15,6 +16,8 @@ export {
   updateContact,
   deleteContact,
   setContactPhoto,
+  setContactCover,
+  setContactCoverMode,
   listTags,
   createTag,
   upsertFromVCard,
@@ -96,12 +99,18 @@ export {
   completeTask,
   deleteTask,
   createReminder,
+  linkInteractionFile,
+  unlinkInteractionFile,
+  readableInteractionFile,
   listCustomFields,
   createCustomField,
   setCustomValue,
   agenda,
 } from './crm'
-export { parseBody, registerSchema, passwordResetSchema, registrationPolicySchema, loginSchema, workspaceSchema, memberSchema, memberRoleSchema, addressBookSchema, tagSchema, contactSchema, importSchema, appPasswordSchema, relationshipSchema, relationshipTypeSchema, organizationSchema, organizationMemberSchema, noteSchema, activitySchema, taskSchema, reminderSchema, completeSchema, customFieldSchema, customValueSchema, mapSettingsSchema, addressLocationSchema, addonSchema, immichInstanceSchema, immichTestSchema, immichLinkSchema, immichPhotoSchema, immichAssetSchema, contactVisibilitySchema, contactOwnerSchema, contactGrantSchema, userGroupSchema, userGroupUpdateSchema, userGroupMemberSchema, contactDateSchema, oauthSettingsSchema, notificationSettingsSchema, notificationTestSchema, pushSubscriptionSchema, oauthExchangeSchema } from './validation'
+export { parseBody, registerSchema, passwordResetSchema, registrationPolicySchema, appearanceSchema, loginSchema, workspaceSchema, memberSchema, memberRoleSchema, addressBookSchema, tagSchema, contactSchema, importSchema, appPasswordSchema, relationshipSchema, relationshipTypeSchema, organizationSchema, organizationMemberSchema, noteSchema, activitySchema, taskSchema, reminderSchema, completeSchema, customFieldSchema, customValueSchema, mapSettingsSchema, addressLocationSchema, addonSchema, aiSettingsSchema, calendarEventSchema, immichInstanceSchema, immichTestSchema, immichLinkSchema, immichPhotoSchema, immichAssetSchema, contactVisibilitySchema, contactOwnerSchema, coverModeSchema, contactGrantSchema, userGroupSchema, userGroupUpdateSchema, userGroupMemberSchema, contactDateSchema, oauthSettingsSchema, notificationSettingsSchema, notificationTestSchema, pushSubscriptionSchema, oauthExchangeSchema } from './validation'
 export { parseVcards, serializeVcard } from './vcard'
+export { findDuplicates, mergeContacts, workspaceNetwork, egoNetwork, contactSummary, enrichContact, calendarMonth, calendarIcs, photoMemories, groupDuplicates, enrichFromEmail, buildSummary } from './phase5'
+export { eventTypes, buildVevent, parseVevent, buildVtodo, parseVtodo, calendarContext, listCalendarFeed, listTodoFeed, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, upsertCalendarFromIcs, upsertTodoFromIcs, deleteCalendarUid, deleteTodoUid, isDerivedUid, datesInMonth } from './calendar'
+export { getAiSettings, setAiSettings, testAiConnection, listSuggestions, suggestContactFields, approveSuggestion, rejectSuggestion, publicHttpUrl, pageContains, htmlToText } from './ai'
 export { createRateLimiter } from './rate-limit'
 export { loadEnv } from './env'

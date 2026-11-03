@@ -20,6 +20,11 @@ export const registrationPolicySchema = z.object({
   inviteOnly: z.boolean(),
 })
 
+export const appearanceSchema = z.object({
+  css: z.string().max(20000),
+  userCss: z.boolean(),
+})
+
 export const loginSchema = z.object({
   email: z.string().trim().email().max(200),
   password: z.string().min(1).max(200),
@@ -178,6 +183,9 @@ export const activitySchema = z.object({
 export const taskSchema = z.object({
   title: z.string().trim().min(1).max(200),
   dueAt: z.string().min(4).max(40).nullish(),
+  priority: z.number().int().min(0).max(9).optional(),
+  notes: z.string().trim().max(4000).optional().default(''),
+  rrule: z.string().trim().max(200).nullish(),
   contactId: z.string().uuid().nullish(),
   activityId: z.string().uuid().nullish(),
   visibility: z.enum(['private', 'workspace']).optional(),
@@ -189,6 +197,10 @@ export const contactVisibilitySchema = z.object({
 
 export const contactOwnerSchema = z.object({
   userId: z.string().uuid(),
+})
+
+export const coverModeSchema = z.object({
+  mode: z.enum(['image', 'cycle']),
 })
 
 export const contactGrantSchema = z
@@ -253,6 +265,29 @@ export const addressLocationSchema = z.object({
 
 export const addonSchema = z.object({
   enabled: z.boolean(),
+})
+
+export const aiSettingsSchema = z.object({
+  baseUrl: z.string().trim().min(1).max(300),
+  model: z.string().trim().min(1).max(120),
+  apiKey: z.string().max(500).optional().default(''),
+})
+
+export const calendarEventSchema = z.object({
+  type: z.string().trim().min(1).max(40),
+  summary: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(4000).optional().default(''),
+  date: z.string().trim().min(10).max(40),
+  endDate: z.string().trim().min(10).max(40).optional(),
+  allDay: z.boolean().optional().default(true),
+  startTime: z.string().trim().max(8).nullish(),
+  endTime: z.string().trim().max(8).nullish(),
+  location: z.string().trim().max(300).optional().default(''),
+  status: z.enum(['CONFIRMED', 'TENTATIVE', 'CANCELLED']).optional().default('CONFIRMED'),
+  priority: z.number().int().min(0).max(9).optional().default(0),
+  rrule: z.string().trim().max(200).nullish(),
+  url: z.string().trim().max(500).optional().default(''),
+  contactId: z.string().uuid().nullable().optional(),
 })
 
 export const immichInstanceSchema = z.object({

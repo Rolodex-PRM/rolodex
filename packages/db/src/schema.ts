@@ -138,6 +138,8 @@ export const contacts = pgTable(
     followUpFrequency: text('follow_up_frequency'),
     customAttributes: jsonb('custom_attributes').notNull().default({}),
     photoAttachmentId: uuid('photo_attachment_id').references(() => attachments.id, { onDelete: 'set null' }),
+    coverAttachmentId: uuid('cover_attachment_id').references(() => attachments.id, { onDelete: 'set null' }),
+    coverMode: text('cover_mode').notNull().default('cycle'),
     visibility: text('visibility').notNull().default('workspace'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -393,13 +395,34 @@ export const relationships = pgTable(
     type: text('type').notNull(),
     reciprocalType: text('reciprocal_type'),
     description: text('description'),
+    origin: text('origin').notNull().default('explicit'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index('relationships_from_idx').on(table.fromContactId),
     index('relationships_to_idx').on(table.toContactId),
+    uniqueIndex('relationships_edge_idx').on(table.workspaceId, table.fromContactId, table.toContactId, sql`lower(${table.type})`),
   ],
+)
+
+export const relationshipDismissals = pgTable(
+  'relationship_dismissals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    fromContactId: uuid('from_contact_id')
+      .notNull()
+      .references(() => contacts.id, { onDelete: 'cascade' }),
+    toContactId: uuid('to_contact_id')
+      .notNull()
+      .references(() => contacts.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('relationship_dismissals_edge_idx').on(table.workspaceId, table.fromContactId, table.toContactId, sql`lower(${table.type})`)],
 )
 
 export const households = pgTable('households', {
@@ -559,23 +582,39 @@ export const notes = pgTable(
   (table) => [index('notes_contact_idx').on(table.contactId)],
 )
 
-export const tasks = pgTable('tasks', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
-    .notNull()
-    .references(() => workspaces.id, { onDelete: 'cascade' }),
-  title: text('title').notNull(),
-  visibility: text('visibility').notNull().default('workspace'),
-  dueAt: timestamp('due_at', { withTimezone: true }),
-  completedAt: timestamp('completed_at', { withTimezone: true }),
-  assigneeId: uuid('assignee_id').references(() => users.id, { onDelete: 'set null' }),
-  contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'set null' }),
-  activityId: uuid('activity_id').references(() => activities.id, { onDelete: 'set null' }),
-  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+export const interactionFiles = pgTable('interaction_files', {
+  attachmentId: uuid('attachment_id')
+    .primaryKey()
+    .references(() => attachments.id, { onDelete: 'cascade' }),
+  activityId: uuid('activity_id').references(() => activities.id, { onDelete: 'cascade' }),
+  noteId: uuid('note_id').references(() => notes.id, { onDelete: 'cascade' }),
 })
+
+export const tasks = pgTable(
+  'tasks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    uid: text('uid').notNull(),
+    title: text('title').notNull(),
+    visibility: text('visibility').notNull().default('workspace'),
+    dueAt: timestamp('due_at', { withTimezone: true }),
+    priority: integer('priority').notNull().default(0),
+    notes: text('notes'),
+    rrule: text('rrule'),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    assigneeId: uuid('assignee_id').references(() => users.id, { onDelete: 'set null' }),
+    contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'set null' }),
+    activityId: uuid('activity_id').references(() => activities.id, { onDelete: 'set null' }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => [uniqueIndex('tasks_uid_idx').on(table.workspaceId, table.uid)],
+)
 
 export const reminders = pgTable('reminders', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -800,6 +839,62 @@ export const notificationDeliveries = pgTable(
     sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex('notification_delivery_idx').on(table.channel, table.dedupeKey)],
+)
+
+export const calendarEvents = pgTable(
+  'calendar_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    ownerId: uuid('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    uid: text('uid').notNull(),
+    type: text('type').notNull(),
+    summary: text('summary').notNull(),
+    description: text('description'),
+    location: text('location'),
+    status: text('status').notNull().default('CONFIRMED'),
+    priority: integer('priority').notNull().default(0),
+    rrule: text('rrule'),
+    url: text('url'),
+    startAt: timestamp('start_at', { withTimezone: true }).notNull(),
+    endAt: timestamp('end_at', { withTimezone: true }),
+    allDay: boolean('all_day').notNull().default(false),
+    contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('calendar_events_uid_idx').on(table.workspaceId, table.uid),
+    index('calendar_events_start_idx').on(table.workspaceId, table.startAt),
+  ],
+)
+
+export const aiSuggestions = pgTable(
+  'ai_suggestions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    contactId: uuid('contact_id')
+      .notNull()
+      .references(() => contacts.id, { onDelete: 'cascade' }),
+    field: text('field').notNull(),
+    value: text('value').notNull(),
+    sourceUrl: text('source_url').notNull(),
+    excerpt: text('excerpt').notNull(),
+    status: text('status').notNull().default('pending'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    reviewedBy: uuid('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  },
+  (table) => [index('ai_suggestions_contact_idx').on(table.contactId, table.status)],
 )
 
 export const auditLogs = pgTable(

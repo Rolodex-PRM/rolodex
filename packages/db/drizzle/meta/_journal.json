@@ -50,6 +50,34 @@
       "when": 1793462797065,
       "tag": "0006_wild_phil_sheldon",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793606400000,
+      "tag": "0007_contact_cover_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793700000000,
+      "tag": "0008_relationship_inference",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793800000000,
+      "tag": "0009_calendar_ai",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793900000000,
+      "tag": "0010_caldav_event_todo",
+      "breakpoints": true
     }
   ]
 }

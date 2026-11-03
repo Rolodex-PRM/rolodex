@@ -18,6 +18,7 @@ import {
   acceptInvite,
   passwordResetSchema,
   previewInvite,
+  publicAppearance,
   registrationPolicy,
   registerSchema,
   registerUser,
@@ -27,8 +28,38 @@ import {
 } from '@rolodex/core'
 import type { Database } from '@rolodex/db'
 import { Body, Controller, Delete, Get, Inject, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common'
+import { networkInterfaces } from 'node:os'
 import type { Response } from 'express'
 import { AuthGuard, clearSessionCookie, DB, loginLimiter, sessionCookie, type AuthedRequest } from './http'
+
+function carddavPhoneUrl(configured: string) {
+  let url: URL
+  try {
+    url = new URL(configured)
+  } catch {
+    return null
+  }
+  const local = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '::1'
+  if (!local) return configured.replace(/\/$/, '')
+  const ip = lanIpv4()
+  if (!ip) return null
+  url.hostname = ip
+  return url.toString().replace(/\/$/, '')
+}
+
+function lanIpv4() {
+  const skip = /virtual|vethernet|wsl|hyper-v|vmware|virtualbox|loopback|bluetooth|tailscale/i
+  const found: string[] = []
+  for (const [name, entries] of Object.entries(networkInterfaces())) {
+    if (skip.test(name)) continue
+    for (const entry of entries ?? []) {
+      const family = entry.family as string | number
+      if (entry.internal || (family !== 'IPv4' && family !== 4)) continue
+      found.push(entry.address)
+    }
+  }
+  return found.find((ip) => ip.startsWith('192.168.') || ip.startsWith('10.') || /^172\.(1[6-9]|2\d|3[0-1])\./.test(ip)) ?? found[0] ?? null
+}
 
 @Controller()
 export class AuthController {
@@ -37,6 +68,11 @@ export class AuthController {
   @Get('health')
   health() {
     return { ok: true }
+  }
+
+  @Get('appearance')
+  appearance() {
+    return publicAppearance(this.db)
   }
 
   @Get('auth/registration')
@@ -134,9 +170,11 @@ export class AuthController {
   @Get('auth/me')
   @UseGuards(AuthGuard)
   me(@Req() req: AuthedRequest) {
+    const carddavUrl = process.env.PUBLIC_CARDDAV_URL || 'http://localhost:3001'
     return {
       user: req.user,
-      carddavUrl: process.env.PUBLIC_CARDDAV_URL || 'http://localhost:3001',
+      carddavUrl,
+      carddavPhoneUrl: carddavPhoneUrl(carddavUrl),
     }
   }
 
@@ -160,3 +198,4 @@ export class AuthController {
     return { ok: true }
   }
 }
+

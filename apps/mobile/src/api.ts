@@ -54,6 +54,8 @@ export type ContactSummary = {
   primaryPhone: string | null
   updatedAt: string
   hasPhoto: boolean
+  hasCover?: boolean
+  coverMode?: string
   street: string | null
   city: string | null
   region: string | null
@@ -126,12 +128,13 @@ export type WorkspaceGroup = {
   members: { userId: string; displayName: string; email: string }[]
 }
 export type AppPassword = { id: string; label: string; createdAt: string; lastUsedAt: string | null }
-export type Relationship = { id: string; category: string; type: string; description: string | null; contactId: string; displayName: string }
+export type Relationship = { id: string; category: string; type: string; description: string | null; contactId: string; displayName: string; inferred?: boolean }
 export type RelationshipType = { id: string; label: string; reciprocalLabel: string }
 export type Organization = { id: string; name: string; industry: string | null; website: string | null; email: string | null; phone: string | null; city: string | null; logoUrl: string | null }
 export type OrgMembership = { id: string; name: string; title: string | null; department: string | null; website: string | null; logoUrl: string | null }
 export type OrgMember = { contactId: string; displayName: string; title: string | null; department: string | null }
-export type Note = { id: string; body: string; visibility: string; authorId: string | null; contactId: string | null; contactName?: string | null; createdAt: string }
+export type InteractionFile = { id: string; filename: string; contentType: string }
+export type Note = { id: string; body: string; visibility: string; authorId: string | null; contactId: string | null; contactName?: string | null; createdAt: string; files?: InteractionFile[] }
 export type Activity = {
   id: string
   type: string
@@ -140,8 +143,20 @@ export type Activity = {
   location: string | null
   visibility: string
   people: { contactId: string; displayName: string }[]
+  files?: InteractionFile[]
 }
-export type Task = { id: string; title: string; visibility: string; dueAt: string | null; completedAt: string | null; contactId: string | null }
+export type Task = {
+  id: string
+  uid: string
+  title: string
+  visibility: string
+  dueAt: string | null
+  priority: number
+  notes: string
+  rrule: string | null
+  completedAt: string | null
+  contactId: string | null
+}
 export type AuditEvent = { id: string; action: string; entityType: string; entityId: string | null; actorName: string; createdAt: string }
 export type CustomField = { id: string; label: string; fieldType: string; value: string | number | boolean | null }
 export type ImmichInstance = {

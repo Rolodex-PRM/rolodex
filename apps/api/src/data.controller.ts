@@ -10,6 +10,7 @@ import {
   contactAccess,
   contactGrantSchema,
   contactOwnerSchema,
+  coverModeSchema,
   contactVisibilitySchema,
   contactOrganizations,
   completeTask,
@@ -23,6 +24,9 @@ import {
   createRelationship,
   createRelationshipType,
   createReminder,
+  linkInteractionFile,
+  unlinkInteractionFile,
+  readableInteractionFile,
   createTag,
   createTask,
   createWorkspace,
@@ -53,6 +57,7 @@ import {
   userGroupSchema,
   userGroupUpdateSchema,
   registrationPolicySchema,
+  appearanceSchema,
   userGroupMemberSchema,
   contactDateSchema,
   listAudit,
@@ -96,6 +101,27 @@ import {
   listAddressBooks,
   listBookShares,
   listContacts,
+  findDuplicates,
+  mergeContacts,
+  workspaceNetwork,
+  egoNetwork,
+  contactSummary,
+  enrichContact,
+  calendarMonth,
+  calendarIcs,
+  createCalendarEvent,
+  updateCalendarEvent,
+  deleteCalendarEvent,
+  calendarEventSchema,
+  getAiSettings,
+  setAiSettings,
+  testAiConnection,
+  listSuggestions,
+  suggestContactFields,
+  approveSuggestion,
+  rejectSuggestion,
+  aiSettingsSchema,
+  photoMemories,
   locateContact,
   listCustomFields,
   listMembers,
@@ -103,6 +129,8 @@ import {
   sendPasswordReset,
   registrationPolicy,
   setRegistrationPolicy,
+  publicAppearance,
+  setAppearance,
   listNotes,
   listWorkspaceNotes,
   listRelationshipTypes,
@@ -132,6 +160,8 @@ import {
   addMember,
   removeMember,
   setContactPhoto,
+  setContactCover,
+  setContactCoverMode,
   setCustomValue,
   shareAddressBook,
   tagSchema,
@@ -169,7 +199,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express'
 import type { Response } from 'express'
 import { AuthGuard, DB, STORAGE, type AuthedRequest } from './http'
-import { deleteObject, getObject, photoKey, putObject, type objectStorage } from './storage'
+import { deleteObject, fileKey, getObject, photoKey, putObject, type objectStorage } from './storage'
 
 type Storage = ReturnType<typeof objectStorage>
 
@@ -277,10 +307,22 @@ export class DataController {
     @Query('addressBookId') addressBookId?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
+    @Query('city') city?: string,
+    @Query('organization') organization?: string,
+    @Query('relationship') relationship?: string,
+    @Query('tag') tag?: string,
+    @Query('birthdayMonth') birthdayMonth?: string,
+    @Query('quietDays') quietDays?: string,
   ) {
     return listContacts(this.db, req.user.id, workspaceId, {
       q,
       addressBookId,
+      city,
+      organization,
+      relationship,
+      tag,
+      birthdayMonth: birthdayMonth ? Number(birthdayMonth) : undefined,
+      quietDays: quietDays ? Number(quietDays) : undefined,
       limit: limit ? Number(limit) : undefined,
       offset: offset ? Number(offset) : undefined,
     })
@@ -475,6 +517,60 @@ export class DataController {
     res.send(object.bytes)
   }
 
+  @Post('workspaces/:workspaceId/contacts/:contactId/cover')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 8 * 1024 * 1024 } }))
+  async uploadCover(
+    @Req() req: AuthedRequest,
+    @Param('workspaceId') workspaceId: string,
+    @Param('contactId') contactId: string,
+    @UploadedFile() file?: { mimetype: string; buffer: Buffer; originalname: string; size: number },
+  ) {
+    if (!file) throw new AppError(400, 'Choose an image file')
+    if (!images.has(file.mimetype)) throw new AppError(400, 'Use a JPEG, PNG, WebP, or GIF image')
+    const contact = await getContact(this.db, req.user.id, workspaceId, contactId)
+    const key = fileKey(workspaceId, `contacts/${contactId}/cover`, file.originalname || 'cover')
+    await putObject(this.storage, key, file.buffer, file.mimetype)
+    const [attachment] = await this.db
+      .insert(attachments)
+      .values({ workspaceId, ownerId: req.user.id, storageKey: key, filename: file.originalname || 'cover', contentType: file.mimetype, sizeBytes: file.buffer.length })
+      .returning()
+    if (!attachment) throw new AppError(500, 'Could not store the cover')
+    await setContactCover(this.db, req.user.id, workspaceId, contactId, attachment.id)
+    if (contact.coverAttachmentId && contact.coverAttachmentId !== attachment.id) await this.removeAttachment(contact.coverAttachmentId)
+    return getContact(this.db, req.user.id, workspaceId, contactId)
+  }
+
+  @Get('workspaces/:workspaceId/contacts/:contactId/cover')
+  async cover(
+    @Req() req: AuthedRequest,
+    @Param('workspaceId') workspaceId: string,
+    @Param('contactId') contactId: string,
+    @Res() res: Response,
+  ) {
+    const contact = await getContact(this.db, req.user.id, workspaceId, contactId)
+    if (!contact.coverAttachmentId) throw new AppError(404, 'No cover photo')
+    const [attachment] = await this.db.select().from(attachments).where(eq(attachments.id, contact.coverAttachmentId)).limit(1)
+    if (!attachment) throw new AppError(404, 'No cover photo')
+    const object = await getObject(this.storage, attachment.storageKey)
+    res.setHeader('Content-Type', object.contentType)
+    res.setHeader('Cache-Control', 'private, max-age=300')
+    res.send(object.bytes)
+  }
+
+  @Put('workspaces/:workspaceId/contacts/:contactId/cover')
+  setCoverMode(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('contactId') contactId: string, @Body() body: unknown) {
+    const input = parseBody(coverModeSchema, body)
+    return setContactCoverMode(this.db, req.user.id, workspaceId, contactId, input.mode)
+  }
+
+  @Delete('workspaces/:workspaceId/contacts/:contactId/cover')
+  async deleteCover(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('contactId') contactId: string) {
+    const contact = await getContact(this.db, req.user.id, workspaceId, contactId)
+    await setContactCover(this.db, req.user.id, workspaceId, contactId, null)
+    if (contact.coverAttachmentId) await this.removeAttachment(contact.coverAttachmentId)
+    return getContact(this.db, req.user.id, workspaceId, contactId)
+  }
+
   @Delete('workspaces/:workspaceId/contacts/:contactId/photo')
   async deletePhoto(
     @Req() req: AuthedRequest,
@@ -542,6 +638,108 @@ export class DataController {
   @Get('workspaces/:workspaceId/agenda')
   workspaceAgenda(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
     return agenda(this.db, req.user.id, workspaceId)
+  }
+
+  @Get('workspaces/:workspaceId/network')
+  network(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
+    return workspaceNetwork(this.db, req.user.id, workspaceId)
+  }
+
+  @Get('workspaces/:workspaceId/contacts/:contactId/network')
+  contactNetwork(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('contactId') contactId: string) {
+    return egoNetwork(this.db, req.user.id, workspaceId, contactId)
+  }
+
+  @Get('workspaces/:workspaceId/duplicates')
+  duplicates(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
+    return findDuplicates(this.db, req.user.id, workspaceId)
+  }
+
+  @Post('workspaces/:workspaceId/contacts/:contactId/merge')
+  merge(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('contactId') contactId: string, @Body() body: { duplicateId?: string }) {
+    if (!body.duplicateId) throw new AppError(400, 'Choose the duplicate to merge')
+    return mergeContacts(this.db, req.user.id, workspaceId, contactId, body.duplicateId)
+  }
+
+  @Get('workspaces/:workspaceId/contacts/:contactId/summary')
+  summary(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('contactId') contactId: string) {
+    return contactSummary(this.db, req.user.id, workspaceId, contactId)
+  }
+
+  @Post('workspaces/:workspaceId/contacts/:contactId/enrich')
+  enrich(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('contactId') contactId: string) {
+    return enrichContact(this.db, req.user.id, workspaceId, contactId)
+  }
+
+  @Get('workspaces/:workspaceId/calendar')
+  calendar(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Query('year') year?: string, @Query('month') month?: string) {
+    const now = new Date()
+    return calendarMonth(this.db, req.user.id, workspaceId, year ? Number(year) : now.getFullYear(), month ? Number(month) : now.getMonth() + 1)
+  }
+
+  @Get('workspaces/:workspaceId/calendar.ics')
+  async calendarFile(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Query('year') year: string, @Query('month') month: string, @Res() res: Response) {
+    const now = new Date()
+    const data = await calendarMonth(this.db, req.user.id, workspaceId, year ? Number(year) : now.getFullYear(), month ? Number(month) : now.getMonth() + 1)
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8')
+    res.setHeader('Content-Disposition', 'attachment; filename="rolodex.ics"')
+    res.send(calendarIcs(data.events))
+  }
+
+  @Post('workspaces/:workspaceId/calendar/events')
+  createEvent(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Body() body: unknown) {
+    return createCalendarEvent(this.db, req.user.id, workspaceId, parseBody(calendarEventSchema, body))
+  }
+
+  @Patch('workspaces/:workspaceId/calendar/events/:eventId')
+  editEvent(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('eventId') eventId: string, @Body() body: unknown) {
+    return updateCalendarEvent(this.db, req.user.id, workspaceId, eventId, parseBody(calendarEventSchema, body))
+  }
+
+  @Delete('workspaces/:workspaceId/calendar/events/:eventId')
+  async removeEvent(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('eventId') eventId: string) {
+    await deleteCalendarEvent(this.db, req.user.id, workspaceId, eventId)
+    return { ok: true }
+  }
+
+  @Get('workspaces/:workspaceId/ai')
+  aiSettings(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
+    return getAiSettings(this.db, req.user.id, workspaceId)
+  }
+
+  @Put('workspaces/:workspaceId/ai')
+  saveAi(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Body() body: unknown) {
+    return setAiSettings(this.db, req.user.id, workspaceId, parseBody(aiSettingsSchema, body))
+  }
+
+  @Post('workspaces/:workspaceId/ai/test')
+  testAi(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
+    return testAiConnection(this.db, req.user.id, workspaceId)
+  }
+
+  @Get('workspaces/:workspaceId/ai/suggestions')
+  suggestions(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Query('contactId') contactId?: string, @Query('status') status?: string) {
+    return listSuggestions(this.db, req.user.id, workspaceId, contactId, status || 'pending')
+  }
+
+  @Post('workspaces/:workspaceId/contacts/:contactId/ai/suggest')
+  suggest(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('contactId') contactId: string) {
+    return suggestContactFields(this.db, req.user.id, workspaceId, contactId)
+  }
+
+  @Post('workspaces/:workspaceId/ai/suggestions/:suggestionId/approve')
+  approve(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('suggestionId') suggestionId: string) {
+    return approveSuggestion(this.db, req.user.id, workspaceId, suggestionId)
+  }
+
+  @Post('workspaces/:workspaceId/ai/suggestions/:suggestionId/reject')
+  reject(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('suggestionId') suggestionId: string) {
+    return rejectSuggestion(this.db, req.user.id, workspaceId, suggestionId)
+  }
+
+  @Get('workspaces/:workspaceId/memories')
+  memories(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
+    return photoMemories(this.db, req.user.id, workspaceId)
   }
 
   @Get('workspaces/:workspaceId/contacts/:contactId/relationships')
@@ -638,6 +836,17 @@ export class DataController {
     return createNote(this.db, req.user.id, workspaceId, parseBody(noteSchema, body))
   }
 
+  @Post('workspaces/:workspaceId/notes/:noteId/files')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  addNoteFile(
+    @Req() req: AuthedRequest,
+    @Param('workspaceId') workspaceId: string,
+    @Param('noteId') noteId: string,
+    @UploadedFile() file?: { mimetype: string; buffer: Buffer; originalname: string; size: number },
+  ) {
+    return this.storeInteractionFile(req.user.id, workspaceId, { noteId }, file)
+  }
+
   @Delete('workspaces/:workspaceId/notes/:noteId')
   async removeNote(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('noteId') noteId: string) {
     await deleteNote(this.db, req.user.id, workspaceId, noteId)
@@ -647,6 +856,40 @@ export class DataController {
   @Get('workspaces/:workspaceId/activities')
   activities(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Query('contactId') contactId?: string) {
     return listActivities(this.db, req.user.id, workspaceId, contactId)
+  }
+
+  @Post('workspaces/:workspaceId/activities/:activityId/files')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  addActivityFile(
+    @Req() req: AuthedRequest,
+    @Param('workspaceId') workspaceId: string,
+    @Param('activityId') activityId: string,
+    @UploadedFile() file?: { mimetype: string; buffer: Buffer; originalname: string; size: number },
+  ) {
+    return this.storeInteractionFile(req.user.id, workspaceId, { activityId }, file)
+  }
+
+  @Get('workspaces/:workspaceId/files/:attachmentId')
+  async interactionFile(
+    @Req() req: AuthedRequest,
+    @Param('workspaceId') workspaceId: string,
+    @Param('attachmentId') attachmentId: string,
+    @Res() res: Response,
+  ) {
+    const file = await readableInteractionFile(this.db, req.user.id, workspaceId, attachmentId)
+    const object = await getObject(this.storage, file.storageKey)
+    const name = file.filename.replace(/["\r\n]/g, '')
+    res.setHeader('Content-Type', object.contentType || file.contentType)
+    res.setHeader('Content-Disposition', `inline; filename="${name}"`)
+    res.setHeader('Cache-Control', 'private, max-age=300')
+    res.send(object.bytes)
+  }
+
+  @Delete('workspaces/:workspaceId/files/:attachmentId')
+  async removeInteractionFile(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('attachmentId') attachmentId: string) {
+    const id = await unlinkInteractionFile(this.db, req.user.id, workspaceId, attachmentId)
+    await this.removeAttachment(id)
+    return { ok: true }
   }
 
   @Post('workspaces/:workspaceId/activities')
@@ -778,6 +1021,19 @@ export class DataController {
     return { ok: true, path: dir }
   }
 
+  @Get('workspaces/:workspaceId/appearance')
+  appearance(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
+    return publicAppearance(this.db).then(async (appearance) => {
+      await listMembers(this.db, req.user.id, workspaceId)
+      return appearance
+    })
+  }
+
+  @Put('workspaces/:workspaceId/appearance')
+  saveAppearance(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Body() body: unknown) {
+    return setAppearance(this.db, req.user.id, workspaceId, parseBody(appearanceSchema, body))
+  }
+
   @Get('workspaces/:workspaceId/addons')
   addons(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
     return listAddons(this.db, req.user.id, workspaceId)
@@ -903,6 +1159,36 @@ export class DataController {
   ) {
     await detachImmichAsset(this.db, req.user.id, workspaceId, activityId, assetId)
     return { ok: true }
+  }
+
+  private async storeInteractionFile(
+    userId: string,
+    workspaceId: string,
+    target: { noteId?: string; activityId?: string },
+    file?: { mimetype: string; buffer: Buffer; originalname: string; size: number },
+  ) {
+    if (!file?.buffer?.length) throw new AppError(400, 'Choose a file')
+    const scope = target.noteId ? `notes/${target.noteId}` : `activities/${target.activityId}`
+    const key = fileKey(workspaceId, scope, file.originalname || 'file')
+    await putObject(this.storage, key, file.buffer, file.mimetype || 'application/octet-stream')
+    const [attachment] = await this.db
+      .insert(attachments)
+      .values({
+        workspaceId,
+        ownerId: userId,
+        storageKey: key,
+        filename: file.originalname || 'file',
+        contentType: file.mimetype || 'application/octet-stream',
+        sizeBytes: file.buffer.length,
+      })
+      .returning()
+    if (!attachment) throw new AppError(500, 'Could not store the file')
+    try {
+      return await linkInteractionFile(this.db, userId, workspaceId, target, attachment.id)
+    } catch (error) {
+      await this.removeAttachment(attachment.id)
+      throw error
+    }
   }
 
   private async storeContactPhoto(userId: string, workspaceId: string, contactId: string, bytes: Buffer, contentType: string, filename: string) {

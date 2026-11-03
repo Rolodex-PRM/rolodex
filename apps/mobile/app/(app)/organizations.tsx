@@ -9,7 +9,7 @@ import { PersonPicker } from '../../src/people'
 import { font, theme } from '../../src/theme'
 import { Button, Field, Notice, Panel } from '../../src/ui'
 
-export default function OrganizationsPage() {
+export function OrganizationsPage() {
   const { workspace } = useAuth()
   const canWrite = workspace?.role === 'owner' || workspace?.role === 'administrator' || workspace?.role === 'editor'
   const [rows, setRows] = useState<Organization[]>([])
@@ -183,5 +183,13 @@ const styles = StyleSheet.create({
   chip: { borderWidth: 1, borderColor: theme.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
   chipOn: { backgroundColor: theme.text, borderColor: theme.text },
   chipText: { fontFamily: font, color: theme.text, fontSize: 13 },
-  chipTextOn: { color: '#fff' },
+  chipTextOn: { color: theme.on },
 })
+
+export default function OrganizationsRoute() {
+  const router = useRouter()
+  useEffect(() => {
+    router.replace('/settings?tab=organizations')
+  }, [router])
+  return null
+}

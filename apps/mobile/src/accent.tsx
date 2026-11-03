@@ -63,3 +63,20 @@ export function AccentProvider({ userId, children }: { userId?: string | null; c
 export function useAccent() {
   return useContext(AccentContext)
 }
+
+export function enrichmentColors(accent: string, scheme: 'light' | 'dark') {
+  const background = mixHex(accent, scheme === 'dark' ? '#121212' : '#ffffff', 0.22)
+  return { backgroundColor: background, color: readable(background) }
+}
+
+function mixHex(from: string, to: string, weight: number) {
+  const left = rgb(from)
+  const right = rgb(to)
+  const channel = (index: number) => Math.round((left[index] ?? 0) * weight + (right[index] ?? 0) * (1 - weight)).toString(16).padStart(2, '0')
+  return `#${channel(0)}${channel(1)}${channel(2)}`
+}
+
+function rgb(hex: string) {
+  const raw = hex.replace('#', '')
+  return [0, 2, 4].map((start) => Number.parseInt(raw.slice(start, start + 2), 16))
+}

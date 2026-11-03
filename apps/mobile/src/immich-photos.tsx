@@ -39,12 +39,14 @@ export function ImmichPhotos({
   workspaceId,
   contactId,
   canWrite,
+  canChangePhoto = false,
   onAttachments,
   onPhoto,
 }: {
   workspaceId: string
   contactId: string
   canWrite: boolean
+  canChangePhoto?: boolean
   onAttachments?: (rows: ImmichGallery['attachments']) => void
   onPhoto?: () => void
 }) {
@@ -131,7 +133,7 @@ export function ImmichPhotos({
           </View>
           <View style={styles.actions}>
             <Button label="Open in Immich" tone="ghost" onPress={() => void Linking.openURL(link.personUrl)} />
-            {canWrite ? <Button label="Use face as photo" tone="ghost" onPress={() => void send(`/api/workspaces/${workspaceId}/contacts/${contactId}/immich/photo`, 'POST', { personId: link.personId }).then(() => onPhoto?.()).catch((caught: Error) => setError(caught.message))} /> : null}
+            {canChangePhoto ? <Button label="Use face as photo" tone="ghost" onPress={() => void send(`/api/workspaces/${workspaceId}/contacts/${contactId}/immich/photo`, 'POST', { personId: link.personId }).then(() => onPhoto?.()).catch((caught: Error) => setError(caught.message))} /> : null}
             {canWrite ? <Button label="Unlink" tone="ghost" onPress={() => void send(`/api/workspaces/${workspaceId}/contacts/${contactId}/immich/${link.identityId}`, 'DELETE').then(load).catch((caught: Error) => setError(caught.message))} /> : null}
           </View>
           <View style={styles.grid}>
@@ -149,8 +151,8 @@ export function ImmichPhotos({
       ))}
       {selectedAsset && canWrite ? (
         <View style={styles.block}>
-          <Text style={styles.meta}>Use this photo as the contact photo, or attach it to an interaction. Immich itself stays the same.</Text>
-          <Button label="Use as contact photo" tone="ghost" onPress={() => void send(`/api/workspaces/${workspaceId}/contacts/${contactId}/immich/photo`, 'POST', { assetId: selectedAsset.id }).then(() => onPhoto?.()).catch((caught: Error) => setError(caught.message))} />
+          <Text style={styles.meta}>{canChangePhoto ? 'Use this photo as the contact photo, or attach it to an interaction. Immich itself stays the same.' : 'Attach this photo to an interaction. Immich itself stays the same.'}</Text>
+          {canChangePhoto ? <Button label="Use as contact photo" tone="ghost" onPress={() => void send(`/api/workspaces/${workspaceId}/contacts/${contactId}/immich/photo`, 'POST', { assetId: selectedAsset.id }).then(() => onPhoto?.()).catch((caught: Error) => setError(caught.message))} /> : null}
           {events.slice(0, 6).map((event) => (
             <Button
               key={event.id}

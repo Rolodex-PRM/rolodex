@@ -1,23 +1,28 @@
 import {
   activities,
   activityContacts,
+  attachments,
   contacts,
   customFieldDefinitions,
   customFieldValues,
+  interactionFiles,
   notes,
   organizationMemberships,
   organizations,
+  relationshipDismissals,
   relationshipTypes,
   relationships,
   reminders,
   tasks,
   type Database,
 } from '@rolodex/db'
+import { randomUUID } from 'node:crypto'
 import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 import { requireManager, requireMembership, requireWriter, type Db } from './access'
 import { getContact, requireContactWrite, visibleContactSql, writeAudit } from './contacts'
 import { AppError } from './errors'
+import { inferRelationships } from './relationships'
 import { organizationLogoUrl } from './organization-logo'
 import {
   activitySchema,
@@ -36,8 +41,14 @@ const reverseType: Record<string, string> = {
   spouse: 'spouse',
   parent: 'child',
   child: 'parent',
+  grandparent: 'grandchild',
+  grandchild: 'grandparent',
   sibling: 'sibling',
+  'aunt/uncle': 'niece/nephew',
+  'niece/nephew': 'aunt/uncle',
   cousin: 'cousin',
+  coworker: 'coworker',
+  'boyfriend/girlfriend': 'boyfriend/girlfriend',
   relative: 'relative',
   friend: 'friend',
   neighbor: 'neighbor',
@@ -64,6 +75,9 @@ const defaultRelationshipTypes = [
   ['spouse', 'spouse'],
   ['parent', 'child'],
   ['grandparent', 'grandchild'],
+  ['sibling', 'sibling'],
+  ['aunt/uncle', 'niece/nephew'],
+  ['cousin', 'cousin'],
   ['boyfriend/girlfriend', 'boyfriend/girlfriend'],
   ['coworker', 'coworker'],
   ['friend', 'friend'],
@@ -92,12 +106,19 @@ function visible(userId: string, visibility: string, ownerId: string | null) {
 
 export async function listRelationships(db: Database, userId: string, workspaceId: string, contactId: string) {
   await getContact(db, userId, workspaceId, contactId)
+  try {
+    await requireWriter(db, userId, workspaceId)
+    await syncInferredRelationships(db, workspaceId)
+  } catch (error) {
+    if (!(error instanceof AppError) || error.status !== 403) throw error
+  }
   const rows = await db
     .select({
       id: relationships.id,
       category: relationships.category,
       type: relationships.type,
       description: relationships.description,
+      origin: relationships.origin,
       contactId: contacts.id,
       displayName: contacts.displayName,
     })
@@ -105,20 +126,25 @@ export async function listRelationships(db: Database, userId: string, workspaceI
     .innerJoin(contacts, eq(contacts.id, relationships.toContactId))
     .where(and(eq(relationships.fromContactId, contactId), eq(relationships.workspaceId, workspaceId), isNull(contacts.deletedAt)))
     .orderBy(asc(contacts.displayName))
-  return rows
+  return rows.map((row) => ({ ...row, inferred: row.origin === 'inferred' }))
 }
 
 export async function listRelationshipTypes(db: Database, userId: string, workspaceId: string) {
   await reader(db, userId, workspaceId)
-  let rows = await db.select().from(relationshipTypes).where(eq(relationshipTypes.workspaceId, workspaceId)).orderBy(asc(relationshipTypes.label))
-  if (!rows.length) {
-    await db
-      .insert(relationshipTypes)
-      .values(defaultRelationshipTypes.map(([label, reciprocalLabel]) => ({ workspaceId, label, reciprocalLabel })))
-      .onConflictDoNothing()
-    rows = await db.select().from(relationshipTypes).where(eq(relationshipTypes.workspaceId, workspaceId)).orderBy(asc(relationshipTypes.label))
-  }
+  await ensureRelationshipTypes(db, workspaceId)
+  const rows = await db.select().from(relationshipTypes).where(eq(relationshipTypes.workspaceId, workspaceId)).orderBy(asc(relationshipTypes.label))
   return rows.map(presentRelationshipType)
+}
+
+async function ensureRelationshipTypes(db: Database, workspaceId: string) {
+  const rows = await db.select().from(relationshipTypes).where(eq(relationshipTypes.workspaceId, workspaceId))
+  const used = new Set(rows.flatMap((row) => [row.label.toLowerCase(), row.reciprocalLabel.toLowerCase()]))
+  const missing = defaultRelationshipTypes.filter(([label, reciprocalLabel]) => !used.has(label) && !used.has(reciprocalLabel))
+  if (!missing.length) return
+  await db
+    .insert(relationshipTypes)
+    .values(missing.map(([label, reciprocalLabel]) => ({ workspaceId, label, reciprocalLabel })))
+    .onConflictDoNothing()
 }
 
 export async function createRelationshipType(db: Database, userId: string, workspaceId: string, input: z.infer<typeof relationshipTypeSchema>) {
@@ -151,6 +177,8 @@ export async function createRelationship(db: Database, userId: string, workspace
   if (!definition) throw new AppError(404, 'Choose a relationship defined in Admin')
   const type = input.side === 'label' ? definition.label : definition.reciprocalLabel
   const back = input.side === 'label' ? definition.reciprocalLabel : definition.label
+  await db.delete(relationships).where(and(eq(relationships.workspaceId, workspaceId), eq(relationships.origin, 'inferred'), pairEither(contactId, input.toContactId)))
+  await clearDismissals(db, workspaceId, contactId, input.toContactId)
   const existing = await db
     .select({ id: relationships.id })
     .from(relationships)
@@ -167,6 +195,7 @@ export async function createRelationship(db: Database, userId: string, workspace
       category: 'custom',
       type,
       reciprocalType: back,
+      origin: 'explicit',
     })
     .returning()
   await db.insert(relationships).values({
@@ -177,7 +206,9 @@ export async function createRelationship(db: Database, userId: string, workspace
     category: 'custom',
     type: back,
     reciprocalType: type,
-  })
+    origin: 'explicit',
+  }).onConflictDoNothing()
+  await syncInferredRelationships(db, workspaceId)
   return row
 }
 
@@ -185,14 +216,71 @@ export async function deleteRelationship(db: Database, userId: string, workspace
   await writer(db, userId, workspaceId)
   const [row] = await db.select().from(relationships).where(and(eq(relationships.id, relationshipId), eq(relationships.workspaceId, workspaceId))).limit(1)
   if (!row) throw new AppError(404, 'Relationship not found')
+  const backType = row.reciprocalType ?? reciprocal(row.type)
+  if (row.origin === 'inferred') {
+    await db
+      .insert(relationshipDismissals)
+      .values([
+        { workspaceId, fromContactId: row.fromContactId, toContactId: row.toContactId, type: row.type },
+        { workspaceId, fromContactId: row.toContactId, toContactId: row.fromContactId, type: backType },
+      ])
+      .onConflictDoNothing()
+  }
   await db
     .delete(relationships)
     .where(
       or(
         eq(relationships.id, row.id),
-        and(eq(relationships.fromContactId, row.toContactId), eq(relationships.toContactId, row.fromContactId), eq(relationships.type, row.reciprocalType ?? reciprocal(row.type))),
+        and(eq(relationships.fromContactId, row.toContactId), eq(relationships.toContactId, row.fromContactId), eq(relationships.type, backType)),
       ),
     )
+  await syncInferredRelationships(db, workspaceId)
+}
+
+function pairEither(left: string, right: string) {
+  return or(
+    and(eq(relationships.fromContactId, left), eq(relationships.toContactId, right)),
+    and(eq(relationships.fromContactId, right), eq(relationships.toContactId, left)),
+  )
+}
+
+async function clearDismissals(db: Database, workspaceId: string, left: string, right: string) {
+  await db.delete(relationshipDismissals).where(and(
+    eq(relationshipDismissals.workspaceId, workspaceId),
+    or(
+      and(eq(relationshipDismissals.fromContactId, left), eq(relationshipDismissals.toContactId, right)),
+      and(eq(relationshipDismissals.fromContactId, right), eq(relationshipDismissals.toContactId, left)),
+    ),
+  ))
+}
+
+export async function syncInferredRelationships(db: Database, workspaceId: string) {
+  await ensureRelationshipTypes(db, workspaceId)
+  const types = await db.select().from(relationshipTypes).where(eq(relationshipTypes.workspaceId, workspaceId))
+  const rows = await db.select().from(relationships).where(eq(relationships.workspaceId, workspaceId))
+  const explicit = rows.filter((row) => row.origin !== 'inferred')
+  const inferred = rows.filter((row) => row.origin === 'inferred')
+  const dismissals = await db.select().from(relationshipDismissals).where(eq(relationshipDismissals.workspaceId, workspaceId))
+  const dismissed = new Set(dismissals.map((row) => `${row.fromContactId}\0${row.toContactId}\0${row.type.toLowerCase()}`))
+  const desired = inferRelationships(explicit.map((row) => ({ from: row.fromContactId, to: row.toContactId, type: row.type })))
+  const desiredKey = (from: string, to: string, type: string) => `${from}\0${to}\0${type.toLowerCase()}`
+  const wanted = new Set(desired.map((edge) => desiredKey(edge.from, edge.to, edge.type)))
+  const stale = inferred.filter((row) => !wanted.has(desiredKey(row.fromContactId, row.toContactId, row.type)))
+  if (stale.length) await db.delete(relationships).where(inArray(relationships.id, stale.map((row) => row.id)))
+  const present = new Set(rows.map((row) => desiredKey(row.fromContactId, row.toContactId, row.type)))
+  const missing = desired.filter((edge) => !present.has(desiredKey(edge.from, edge.to, edge.type)) && !dismissed.has(desiredKey(edge.from, edge.to, edge.type)))
+  if (!missing.length) return
+  const typeId = (type: string) => types.find((row) => row.label.toLowerCase() === type || row.reciprocalLabel.toLowerCase() === type)?.id ?? null
+  await db.insert(relationships).values(missing.map((edge) => ({
+    workspaceId,
+    relationshipTypeId: typeId(edge.type),
+    fromContactId: edge.from,
+    toContactId: edge.to,
+    category: 'inferred',
+    type: edge.type,
+    reciprocalType: reciprocal(edge.type),
+    origin: 'inferred',
+  }))).onConflictDoNothing()
 }
 
 export async function listOrganizations(db: Database, userId: string, workspaceId: string) {
@@ -265,7 +353,8 @@ export async function contactOrganizations(db: Database, userId: string, workspa
 export async function listNotes(db: Database, userId: string, workspaceId: string, contactId: string) {
   await getContact(db, userId, workspaceId, contactId)
   const rows = await db.select().from(notes).where(and(eq(notes.contactId, contactId), eq(notes.workspaceId, workspaceId), isNull(notes.deletedAt))).orderBy(desc(notes.createdAt))
-  return rows.filter((row) => visible(userId, row.visibility, row.authorId)).map(presentNote)
+  const visibleNotes = rows.filter((row) => visible(userId, row.visibility, row.authorId)).map(presentNote)
+  return attachFiles(db, visibleNotes, 'note')
 }
 
 export async function createNote(db: Database, userId: string, workspaceId: string, input: z.infer<typeof noteSchema>) {
@@ -275,7 +364,8 @@ export async function createNote(db: Database, userId: string, workspaceId: stri
     .values({ workspaceId, contactId: input.contactId, authorId: userId, body: input.body.trim(), visibility: input.visibility ?? 'private' })
     .returning()
   await writeAudit(db, workspaceId, userId, 'note.create', input.contactId, 'note')
-  return presentNote(row!)
+  const [presented] = await attachFiles(db, [presentNote(row!)], 'note')
+  return presented!
 }
 
 export async function deleteNote(db: Database, userId: string, workspaceId: string, noteId: string) {
@@ -369,9 +459,13 @@ export async function createTask(db: Database, userId: string, workspaceId: stri
     .insert(tasks)
     .values({
       workspaceId,
+      uid: randomUUID(),
       title: input.title.trim(),
       visibility: input.visibility ?? 'workspace',
       dueAt: input.dueAt ? new Date(input.dueAt) : null,
+      priority: input.priority ?? 0,
+      notes: input.notes?.trim() || null,
+      rrule: input.rrule?.trim() || null,
       contactId: input.contactId ?? null,
       activityId: input.activityId ?? null,
       createdBy: userId,
@@ -546,7 +640,7 @@ async function attachActivityPeople(db: Database, rows: Array<typeof activities.
     .from(activityContacts)
     .innerJoin(contacts, eq(contacts.id, activityContacts.contactId))
     .where(inArray(activityContacts.activityId, rows.map((row) => row.id)))
-  return rows.map((row) => ({
+  const presented = rows.map((row) => ({
     id: row.id,
     type: row.type,
     occurredAt: row.occurredAt.toISOString(),
@@ -555,6 +649,7 @@ async function attachActivityPeople(db: Database, rows: Array<typeof activities.
     visibility: row.visibility,
     people: people.filter((person) => person.activityId === row.id).map(({ activityId: _id, ...person }) => person),
   }))
+  return attachFiles(db, presented, 'activity')
 }
 
 function presentRelationshipType(row: typeof relationshipTypes.$inferSelect) {
@@ -599,6 +694,102 @@ function presentNote(row: typeof notes.$inferSelect) {
   return { id: row.id, body: row.body, visibility: row.visibility, authorId: row.authorId, contactId: row.contactId, createdAt: row.createdAt.toISOString() }
 }
 
+type FileInfo = { id: string; filename: string; contentType: string }
+
+async function attachFiles<T extends { id: string }>(db: Database, rows: T[], parent: 'note' | 'activity') {
+  if (!rows.length) return rows.map((row) => ({ ...row, files: [] as FileInfo[] }))
+  const column = parent === 'note' ? interactionFiles.noteId : interactionFiles.activityId
+  const stored = await db
+    .select({ parentId: column, id: attachments.id, filename: attachments.filename, contentType: attachments.contentType })
+    .from(interactionFiles)
+    .innerJoin(attachments, eq(attachments.id, interactionFiles.attachmentId))
+    .where(inArray(column, rows.map((row) => row.id)))
+  const grouped = new Map<string, FileInfo[]>()
+  for (const file of stored) {
+    if (!file.parentId) continue
+    const list = grouped.get(file.parentId) ?? []
+    list.push({ id: file.id, filename: file.filename, contentType: file.contentType })
+    grouped.set(file.parentId, list)
+  }
+  return rows.map((row) => ({ ...row, files: grouped.get(row.id) ?? [] }))
+}
+
+export async function assertCanAttach(db: Database, userId: string, workspaceId: string, target: { noteId?: string; activityId?: string }) {
+  if (target.noteId) {
+    const [row] = await db.select().from(notes).where(and(eq(notes.id, target.noteId), eq(notes.workspaceId, workspaceId), isNull(notes.deletedAt))).limit(1)
+    if (!row || !visible(userId, row.visibility, row.authorId)) throw new AppError(404, 'Note not found')
+    if (row.contactId) await requireContactWrite(db, userId, workspaceId, row.contactId)
+    else await writer(db, userId, workspaceId)
+    return
+  }
+  if (target.activityId) {
+    const [row] = await db.select().from(activities).where(and(eq(activities.id, target.activityId), eq(activities.workspaceId, workspaceId), isNull(activities.deletedAt))).limit(1)
+    if (!row || !visible(userId, row.visibility, row.createdBy)) throw new AppError(404, 'Interaction not found')
+    const people = await db.select({ contactId: activityContacts.contactId }).from(activityContacts).where(eq(activityContacts.activityId, row.id))
+    if (people.length) {
+      for (const person of people) await requireContactWrite(db, userId, workspaceId, person.contactId)
+    } else await writer(db, userId, workspaceId)
+    return
+  }
+  throw new AppError(400, 'Choose an interaction')
+}
+
+export async function linkInteractionFile(db: Database, userId: string, workspaceId: string, target: { noteId?: string; activityId?: string }, attachmentId: string) {
+  await assertCanAttach(db, userId, workspaceId, target)
+  await db.insert(interactionFiles).values({ attachmentId, noteId: target.noteId ?? null, activityId: target.activityId ?? null })
+  const [file] = await db.select({ id: attachments.id, filename: attachments.filename, contentType: attachments.contentType }).from(attachments).where(eq(attachments.id, attachmentId)).limit(1)
+  if (!file) throw new AppError(500, 'Could not store the file')
+  return file
+}
+
+export async function unlinkInteractionFile(db: Database, userId: string, workspaceId: string, attachmentId: string) {
+  const file = await readableInteractionFile(db, userId, workspaceId, attachmentId)
+  await assertCanAttach(db, userId, workspaceId, { noteId: file.noteId ?? undefined, activityId: file.activityId ?? undefined })
+  await db.delete(interactionFiles).where(eq(interactionFiles.attachmentId, attachmentId))
+  return file.attachmentId
+}
+
+export async function readableInteractionFile(db: Database, userId: string, workspaceId: string, attachmentId: string) {
+  const [link] = await db
+    .select({
+      attachmentId: attachments.id,
+      storageKey: attachments.storageKey,
+      filename: attachments.filename,
+      contentType: attachments.contentType,
+      noteId: interactionFiles.noteId,
+      activityId: interactionFiles.activityId,
+    })
+    .from(interactionFiles)
+    .innerJoin(attachments, eq(attachments.id, interactionFiles.attachmentId))
+    .where(and(eq(interactionFiles.attachmentId, attachmentId), eq(attachments.workspaceId, workspaceId)))
+    .limit(1)
+  if (!link) throw new AppError(404, 'File not found')
+  if (link.noteId) {
+    const [row] = await db.select().from(notes).where(and(eq(notes.id, link.noteId), eq(notes.workspaceId, workspaceId), isNull(notes.deletedAt))).limit(1)
+    if (!row || !visible(userId, row.visibility, row.authorId)) throw new AppError(404, 'File not found')
+    if (row.contactId) await getContact(db, userId, workspaceId, row.contactId)
+    else await reader(db, userId, workspaceId)
+  } else if (link.activityId) {
+    const [row] = await db.select().from(activities).where(and(eq(activities.id, link.activityId), eq(activities.workspaceId, workspaceId), isNull(activities.deletedAt))).limit(1)
+    if (!row || !visible(userId, row.visibility, row.createdBy)) throw new AppError(404, 'File not found')
+    const people = await db.select({ contactId: activityContacts.contactId }).from(activityContacts).where(eq(activityContacts.activityId, row.id))
+    if (people.length) {
+      let allowed = false
+      for (const person of people) {
+        try {
+          await getContact(db, userId, workspaceId, person.contactId)
+          allowed = true
+          break
+        } catch {
+          allowed = false
+        }
+      }
+      if (!allowed) throw new AppError(404, 'File not found')
+    } else await reader(db, userId, workspaceId)
+  }
+  return link
+}
+
 export async function listWorkspaceNotes(db: Database, userId: string, workspaceId: string) {
   await reader(db, userId, workspaceId)
   const rows = await db
@@ -608,13 +799,25 @@ export async function listWorkspaceNotes(db: Database, userId: string, workspace
     .where(and(eq(notes.workspaceId, workspaceId), isNull(notes.deletedAt)))
     .orderBy(desc(notes.createdAt))
     .limit(100)
-  return rows
+  const visibleNotes = rows
     .filter((row) => visible(userId, row.note.visibility, row.note.authorId))
     .map((row) => ({ ...presentNote(row.note), contactName: row.contactName }))
+  return attachFiles(db, visibleNotes, 'note')
 }
 
 function presentTask(row: typeof tasks.$inferSelect) {
-  return { id: row.id, title: row.title, visibility: row.visibility, dueAt: row.dueAt?.toISOString() ?? null, completedAt: row.completedAt?.toISOString() ?? null, contactId: row.contactId }
+  return {
+    id: row.id,
+    uid: row.uid,
+    title: row.title,
+    visibility: row.visibility,
+    dueAt: row.dueAt?.toISOString() ?? null,
+    priority: row.priority,
+    notes: row.notes ?? '',
+    rrule: row.rrule,
+    completedAt: row.completedAt?.toISOString() ?? null,
+    contactId: row.contactId,
+  }
 }
 
 function taskVisibleSql(userId: string) {

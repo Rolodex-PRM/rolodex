@@ -13,7 +13,7 @@ type Access = {
 }
 
 type UserGroup = { id: string; name: string; members: { userId: string; displayName: string; email: string }[] }
-type AuditRow = { id: string; action: string; actorName: string; createdAt: string }
+type AuditRow = { id: string; action: string; actorName: string; createdAt: string; detail?: string | null }
 
 const labels: Record<string, string> = {
   'contact.create': 'created this contact',
@@ -30,6 +30,12 @@ const labels: Record<string, string> = {
   'task.create': 'added a task',
   'task.complete': 'completed a task',
   'task.delete': 'deleted a task',
+  'contact.ai_suggest': 'asked AI for field suggestions',
+  'contact.ai_approve': 'approved an AI suggestion',
+  'contact.ai_reject': 'dismissed an AI suggestion',
+  'contact.ai_discard': 'refused an unverified AI suggestion',
+  'calendar.create': 'added a calendar event',
+  'calendar.delete': 'removed a calendar event',
 }
 
 export function ContactHistory({ workspaceId, contactId }: { workspaceId: string; contactId: string }) {
@@ -44,7 +50,7 @@ export function ContactHistory({ workspaceId, contactId }: { workspaceId: string
       <Text style={styles.section}>History</Text>
       {history.map((row, index) => (
         <View key={row.id} style={[styles.historyRow, index < history.length - 1 && styles.historyDivider]}>
-          <Text style={styles.historyAction}>{row.actorName} {labels[row.action] ?? row.action}</Text>
+          <Text style={styles.historyAction}>{row.actorName} {labels[row.action] ?? row.action}{row.detail ? ` · ${row.detail}` : ''}</Text>
           <Text style={styles.historyTime}>{when(row.createdAt)}</Text>
         </View>
       ))}
@@ -58,6 +64,7 @@ export function ContactShare({ workspaceId, contactId }: { workspaceId: string; 
   const [members, setMembers] = useState<Member[]>([])
   const [groups, setGroups] = useState<UserGroup[]>([])
   const [query, setQuery] = useState('')
+  const [ownerQuery, setOwnerQuery] = useState('')
   const [error, setError] = useState('')
   const aligning = useRef(false)
 
@@ -108,6 +115,8 @@ export function ContactShare({ workspaceId, contactId }: { workspaceId: string; 
   const people = members.filter((member) => member.userId !== access?.owner?.userId && !grantedUsers.has(member.userId) && (!needle || member.displayName.toLowerCase().includes(needle) || member.email.toLowerCase().includes(needle)))
   const groupChoices = groups.filter((group) => !grantedGroups.has(group.id) && (!needle || group.name.toLowerCase().includes(needle)))
   const suggestions = needle ? [...groupChoices.map((group) => ({ kind: 'group' as const, id: group.id, label: group.name })), ...people.map((member) => ({ kind: 'user' as const, id: member.userId, label: member.displayName }))] : []
+  const ownerNeedle = ownerQuery.trim().toLowerCase()
+  const ownerChoices = members.filter((member) => member.userId !== access?.owner?.userId && (!ownerNeedle || member.displayName.toLowerCase().includes(ownerNeedle) || member.email.toLowerCase().includes(ownerNeedle)))
 
   return (
     <Panel>
@@ -115,11 +124,35 @@ export function ContactShare({ workspaceId, contactId }: { workspaceId: string; 
       {error ? <Notice text={error} /> : null}
       <View style={styles.owner}>
         <Avatar name={access?.owner?.displayName ?? '?'} />
-        <View>
+        <View style={styles.ownerText}>
           <Text style={styles.ownerName}>{access?.owner?.displayName ?? 'Unassigned'}</Text>
           <Text style={styles.meta}>Owner</Text>
         </View>
       </View>
+      {access?.canManage ? (
+        <View style={styles.form}>
+          <Field label="Change Contact Owner" value={ownerQuery} onChangeText={setOwnerQuery} placeholder="Workspace member" />
+          {ownerQuery.trim() ? (
+            ownerChoices.length ? (
+              <View style={styles.suggestions}>
+                {ownerChoices.slice(0, 6).map((member) => (
+                  <Pressable
+                    key={member.userId}
+                    onPress={() => void run(async () => {
+                      await send(`/api/workspaces/${workspaceId}/contacts/${contactId}/owner`, 'PUT', { userId: member.userId })
+                      setOwnerQuery('')
+                    })}
+                    style={styles.suggestion}
+                  >
+                    <Text style={styles.body}>{member.displayName}</Text>
+                    <Text style={styles.meta}>Make owner</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : <Text style={styles.meta}>No other member matches.</Text>
+          ) : null}
+        </View>
+      ) : null}
       <Text style={styles.meta}>
         {access && (access.grants.length || access.groups.length)
           ? 'Only the owner, workspace administrators, and the people or groups below can open this contact.'
@@ -248,6 +281,7 @@ const styles = StyleSheet.create({
   meta: { fontFamily: font, color: theme.muted, fontSize: 13 },
   form: { gap: 10, marginTop: 12 },
   owner: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
+  ownerText: { flex: 1 },
   ownerName: { fontFamily: font, color: theme.text, fontSize: 16, fontWeight: '700' },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.accentMuted, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: font, color: theme.text, fontWeight: '700' },
@@ -259,7 +293,7 @@ const styles = StyleSheet.create({
   option: { paddingVertical: 6, paddingHorizontal: 10 },
   optionOn: { backgroundColor: theme.text },
   optionText: { fontFamily: font, color: theme.text, fontSize: 12 },
-  optionTextOn: { color: '#fff' },
+  optionTextOn: { color: theme.on },
   info: { width: 18, height: 18, borderRadius: 9, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center' },
   infoMark: { fontFamily: font, color: theme.muted, fontSize: 11, fontStyle: 'italic' },
   tip: { position: 'absolute', bottom: 24, left: 0, zIndex: 8, minWidth: 140, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 10, padding: 8, gap: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8 },

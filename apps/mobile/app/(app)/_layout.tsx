@@ -1,6 +1,8 @@
 import { Link, Slot, usePathname, useRouter } from 'expo-router'
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { useAuth } from '../../src/auth'
+import { useColorScheme } from '../../src/color-scheme'
+import { Icon } from '../../src/icons'
 import { RolodexMark } from '../../src/logo'
 import { MobileShell } from '../../src/mobile-shell'
 import { font, theme } from '../../src/theme'
@@ -20,6 +22,7 @@ export default function AppLayout() {
   const router = useRouter()
   const wide = useWindowDimensions().width >= 880
   const canManage = workspace?.role === 'owner' || workspace?.role === 'administrator'
+  const { scheme, toggleScheme } = useColorScheme()
   const nav = [...links.slice(0, -1), ...(canManage ? [{ href: '/admin' as const, label: 'Admin' }] : []), links[links.length - 1]]
 
   if (!wide) {
@@ -59,6 +62,9 @@ export default function AppLayout() {
         ) : (
           <Text style={styles.workspace}>{workspace?.name}</Text>
         )}
+        <Pressable accessibilityLabel={scheme === 'dark' ? 'Dark mode' : 'Light mode'} onPress={toggleScheme} style={styles.scheme}>
+          <Icon name={scheme === 'dark' ? 'moon' : 'sun'} color={theme.text} size={18} />
+        </Pressable>
         <Text style={styles.user}>{session?.displayName}</Text>
         <Pressable
           onPress={() => {
@@ -92,7 +98,8 @@ const styles = StyleSheet.create({
   brandText: { color: theme.text, fontFamily: font, fontSize: 20, fontWeight: '700', letterSpacing: -0.4 },
   links: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
   link: { color: theme.muted, fontFamily: font, fontSize: 14, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 },
-  linkActive: { backgroundColor: theme.text, color: '#fff' },
+  linkActive: { backgroundColor: theme.text, color: theme.on },
+  scheme: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   spacer: { flex: 1 },
   workspace: { color: theme.muted, fontFamily: font, fontSize: 13 },
   switcher: { flexDirection: 'row', gap: 8 },

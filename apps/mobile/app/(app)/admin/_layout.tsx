@@ -1,18 +1,17 @@
 import { Link, Slot, usePathname } from 'expo-router'
-import { useCallback, useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
-import { api, type Addon } from '../../../src/api'
 import { AdminNavContext } from '../../../src/admin-nav'
 import { useAuth } from '../../../src/auth'
 import { font, theme } from '../../../src/theme'
 
-const baseLinks = [
+const links = [
   { href: '/admin/members' as const, label: 'Users' },
   { href: '/admin/sso' as const, label: 'Sign-in' },
   { href: '/admin/notifications' as const, label: 'Notifications' },
   { href: '/admin/map' as const, label: 'Map' },
   { href: '/admin/relationships' as const, label: 'Relationships' },
   { href: '/admin/addons' as const, label: 'Add-ons' },
+  { href: '/admin/appearance' as const, label: 'Appearance' },
 ]
 
 export default function AdminLayout() {
@@ -20,15 +19,6 @@ export default function AdminLayout() {
   const path = usePathname()
   const wide = useWindowDimensions().width >= 880
   const canManage = workspace?.role === 'owner' || workspace?.role === 'administrator'
-  const [addons, setAddons] = useState<Addon[]>([])
-  const refresh = useCallback(() => {
-    if (!workspace || !canManage) return
-    api<Addon[]>(`/api/workspaces/${workspace.id}/addons`).then(setAddons).catch(() => setAddons([]))
-  }, [workspace, canManage])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
 
   if (!canManage) {
     return (
@@ -39,7 +29,6 @@ export default function AdminLayout() {
     )
   }
 
-  const links = [...baseLinks, ...(addons.some((addon) => addon.id === 'immich' && addon.enabled) ? [{ href: '/admin/immich' as const, label: 'Immich' }] : [])]
   const nav = links.map((link) => {
     const active = path === link.href
     return (
@@ -50,7 +39,7 @@ export default function AdminLayout() {
   })
 
   return (
-    <AdminNavContext.Provider value={{ refresh }}>
+    <AdminNavContext.Provider value={{ refresh: () => {} }}>
       <View style={styles.page}>
         <Text style={styles.title}>Admin</Text>
         <View style={[styles.body, !wide && styles.bodyStacked]}>
@@ -74,6 +63,6 @@ const styles = StyleSheet.create({
   sidebarScroll: { flexGrow: 0, maxHeight: 52 },
   sidebarRow: { gap: 8, alignItems: 'center' },
   link: { color: theme.muted, fontFamily: font, fontSize: 15, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, alignSelf: 'flex-start' },
-  linkActive: { backgroundColor: theme.text, color: '#fff' },
+  linkActive: { backgroundColor: theme.text, color: theme.on },
   main: { flex: 1, gap: 14, minWidth: 0 },
 })

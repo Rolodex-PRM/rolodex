@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
   notice: { fontFamily: font, color: theme.text, fontSize: 14 },
   table: { borderWidth: 1, borderColor: theme.border, borderRadius: 16, backgroundColor: theme.surface, overflow: 'hidden', minWidth: 760 },
   tr: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: theme.border },
-  head: { borderTopWidth: 0, backgroundColor: '#fafafa' },
+  head: { borderTopWidth: 0, backgroundColor: theme.raised },
   th: { fontFamily: font, color: theme.muted, fontSize: 12, fontWeight: '700' },
   td: { fontFamily: font, color: theme.text, fontSize: 14 },
   name: { width: 140 },

@@ -1,32 +1,45 @@
 import { createElement, useEffect, useState } from 'react'
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
-import { api, type Relationship } from './api'
+import { api } from './api'
 import { font, theme } from './theme'
 import { Panel } from './ui'
 
 const palette = ['#2563eb', '#b45309', '#047857', '#7c3aed', '#be123c', '#0f766e', '#c2410c', '#4338ca']
 
+type Node = { id: string; name: string }
+type Edge = { id: string; from: string; to: string; type: string; inferred: boolean }
+
 export function RelationshipGraph({ workspaceId, contactId, name }: { workspaceId: string; contactId: string; name: string }) {
   const router = useRouter()
-  const [links, setLinks] = useState<Relationship[]>([])
+  const [nodes, setNodes] = useState<Node[]>([])
+  const [edges, setEdges] = useState<Edge[]>([])
 
   useEffect(() => {
-    api<Relationship[]>(`/api/workspaces/${workspaceId}/contacts/${contactId}/relationships`).then(setLinks).catch(() => setLinks([]))
-  }, [workspaceId, contactId])
+    api<{ nodes: Node[]; edges: Edge[] }>(`/api/workspaces/${workspaceId}/contacts/${contactId}/network`)
+      .then((result) => {
+        setNodes(result.nodes.some((node) => node.id === contactId) ? result.nodes : [{ id: contactId, name }, ...result.nodes])
+        setEdges(result.edges)
+      })
+      .catch(() => {
+        setNodes([])
+        setEdges([])
+      })
+  }, [workspaceId, contactId, name])
 
-  const types = [...new Set(links.map((link) => link.type))]
+  const others = nodes.filter((node) => node.id !== contactId)
+  const types = [...new Set(edges.map((edge) => edge.type))]
   const colorFor = (type: string) => palette[Math.abs(hash(type)) % palette.length] ?? palette[0]
 
   return (
     <Panel>
       <Text style={styles.section}>Relationships</Text>
-      {!links.length ? <Text style={styles.meta}>No relationships yet.</Text> : null}
-      {links.length && Platform.OS === 'web' ? <Graph name={name} links={links} colorFor={colorFor} onOpen={(id) => router.push(`/contacts/${id}`)} /> : null}
-      {links.length && Platform.OS !== 'web'
-        ? links.map((link) => (
-          <Pressable key={link.id} onPress={() => router.push(`/contacts/${link.contactId}`)}>
-            <Text style={styles.link}><Text style={{ color: colorFor(link.type) }}>● </Text>{link.type} · {link.displayName}</Text>
+      {!others.length ? <Text style={styles.meta}>No relationships yet.</Text> : null}
+      {others.length && Platform.OS === 'web' ? <Graph name={name} contactId={contactId} nodes={others} edges={edges} colorFor={colorFor} onOpen={(id) => router.push(`/contacts/${id}`)} /> : null}
+      {others.length && Platform.OS !== 'web'
+        ? edges.filter((edge) => edge.from === contactId).map((edge) => (
+          <Pressable key={edge.id} onPress={() => router.push(`/contacts/${edge.to}`)}>
+            <Text style={styles.link}><Text style={{ color: colorFor(edge.type) }}>● </Text>{edge.type} · {nodes.find((node) => node.id === edge.to)?.name}</Text>
           </Pressable>
         ))
         : null}
@@ -44,34 +57,33 @@ export function RelationshipGraph({ workspaceId, contactId, name }: { workspaceI
   )
 }
 
-function Graph({ name, links, colorFor, onOpen }: { name: string; links: Relationship[]; colorFor: (type: string) => string; onOpen: (id: string) => void }) {
+function Graph({ name, contactId, nodes, edges, colorFor, onOpen }: { name: string; contactId: string; nodes: Node[]; edges: Edge[]; colorFor: (type: string) => string; onOpen: (id: string) => void }) {
   const width = 560
-  const height = 280
+  const height = 320
   const cx = width / 2
   const cy = height / 2
-  const radius = 96
+  const radius = 110
+  const spot = (index: number) => {
+    const angle = -Math.PI / 2 + (index * 2 * Math.PI) / nodes.length
+    return { x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius }
+  }
+  const at = new Map<string, { x: number; y: number }>([[contactId, { x: cx, y: cy }], ...nodes.map((node, index) => [node.id, spot(index)] as const)])
   return (
     <View style={styles.graph}>
-      {createElement(
-        'svg',
-        { width: '100%', height, viewBox: `0 0 ${width} ${height}` },
-        links.map((link, index) => {
-          const angle = -Math.PI / 2 + (index * 2 * Math.PI) / links.length
-          const x = cx + Math.cos(angle) * radius
-          const y = cy + Math.sin(angle) * radius
-          return createElement('line', { key: link.id, x1: cx, y1: cy, x2: x, y2: y, stroke: colorFor(link.type), strokeWidth: 2 })
-        }),
-      )}
+      {createElement('svg', { width: '100%', height, viewBox: `0 0 ${width} ${height}` }, edges.map((edge) => {
+        const from = at.get(edge.from)
+        const to = at.get(edge.to)
+        if (!from || !to) return null
+        return createElement('line', { key: edge.id, x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke: colorFor(edge.type), strokeWidth: 2, strokeDasharray: edge.inferred ? '5 4' : undefined })
+      }))}
       <View style={[styles.node, styles.center]}>
         <Text style={styles.nodeText} numberOfLines={2}>{name}</Text>
       </View>
-      {links.map((link, index) => {
-        const angle = -Math.PI / 2 + (index * 2 * Math.PI) / links.length
-        const left = `${((cx + Math.cos(angle) * radius) / width) * 100}%`
-        const top = `${((cy + Math.sin(angle) * radius) / height) * 100}%`
+      {nodes.map((node, index) => {
+        const point = spot(index)
         return (
-          <Pressable key={link.id} onPress={() => onOpen(link.contactId)} style={[styles.node, { left, top, borderColor: colorFor(link.type) }]}>
-            <Text style={styles.nodeText} numberOfLines={2}>{link.displayName}</Text>
+          <Pressable key={node.id} onPress={() => onOpen(node.id)} style={[styles.node, { left: `${(point.x / width) * 100}%`, top: `${(point.y / height) * 100}%` }]}>
+            <Text style={styles.nodeText} numberOfLines={2}>{node.name}</Text>
           </Pressable>
         )
       })}
@@ -87,7 +99,7 @@ const styles = StyleSheet.create({
   section: { fontFamily: font, fontSize: 13, color: theme.muted, marginBottom: 8, letterSpacing: 0.4 },
   meta: { fontFamily: font, color: theme.muted, fontSize: 13 },
   link: { fontFamily: font, color: theme.text, fontSize: 15, marginBottom: 6 },
-  graph: { height: 280, position: 'relative' },
+  graph: { height: 320, position: 'relative' },
   node: { position: 'absolute', width: 92, marginLeft: -46, marginTop: -22, paddingVertical: 8, paddingHorizontal: 8, borderRadius: 12, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, alignItems: 'center' },
   center: { left: '50%', top: '50%', borderColor: theme.text },
   nodeText: { fontFamily: font, color: theme.text, fontSize: 12, fontWeight: '700', textAlign: 'center' },

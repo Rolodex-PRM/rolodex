@@ -349,8 +349,19 @@ function mountLeaflet(node: HTMLDivElement, settings: MapSettings) {
     })
     let layer: ReturnType<typeof L.layerGroup> | null = null
     let fitted = ''
+    let sizeTimer = 0
+    const refreshSize = () => {
+      window.clearTimeout(sizeTimer)
+      sizeTimer = window.setTimeout(() => {
+        if (!node.isConnected) return
+        view.invalidateSize()
+      }, 200)
+    }
     const api = {
-      remove: () => view.remove(),
+      remove: () => {
+        window.clearTimeout(sizeTimer)
+        view.remove()
+      },
       focus: (lat: number, lon: number) => view.flyTo([lat, lon], Math.max(view.getZoom(), 11), { duration: 0.5 }),
       draw: (pins: Pin[], openKey: string, photos: Record<string, string>, selectedId: string) => {
         layer?.remove()
@@ -377,10 +388,10 @@ function mountLeaflet(node: HTMLDivElement, settings: MapSettings) {
           fitted = signature
           view.fitBounds(L.latLngBounds(pins.map((pin) => [pin.lat, pin.lon])), { padding: [48, 48], maxZoom: 14 })
         }
-        window.setTimeout(() => view.invalidateSize(), 200)
+        refreshSize()
       },
     }
-    window.setTimeout(() => view.invalidateSize(), 200)
+    refreshSize()
     return api
   })
 }
@@ -484,7 +495,7 @@ const styles = StyleSheet.create({
   meta: { fontFamily: font, color: theme.muted, fontSize: 13 },
   stage: { flexDirection: 'row', borderWidth: 1, borderColor: theme.border, borderRadius: 22, overflow: 'hidden', backgroundColor: theme.surface },
   stageStacked: { flexDirection: 'column' },
-  mapPane: { flex: 1.6, minWidth: 0, minHeight: 420, position: 'relative', backgroundColor: '#e5e7eb' },
+  mapPane: { flex: 1.6, minWidth: 0, minHeight: 420, position: 'relative', backgroundColor: theme.raised },
   empty: { flex: 1, backgroundColor: theme.bg },
   mapSearch: { position: 'absolute', top: 14, alignSelf: 'center', width: '70%', maxWidth: 420, zIndex: 500, backgroundColor: theme.surface, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontFamily: font, fontSize: 15, color: theme.text, borderWidth: 1, borderColor: theme.border },
   finding: { position: 'absolute', left: 14, bottom: 14, zIndex: 500, backgroundColor: theme.surface, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, fontFamily: font, color: theme.muted, fontSize: 13 },
@@ -498,6 +509,6 @@ const styles = StyleSheet.create({
   personCopy: { flex: 1, gap: 2 },
   personName: { fontFamily: font, fontSize: 15, fontWeight: '700', color: theme.text },
   personMeta: { fontFamily: font, fontSize: 13, color: theme.muted },
-  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#ececec', alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.raised, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: font, fontSize: 12, fontWeight: '700', color: theme.text },
 })

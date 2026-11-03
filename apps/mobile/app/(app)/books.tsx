@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router'
 import { createElement, useEffect, useState } from 'react'
 import { Platform, StyleSheet, Text, View } from 'react-native'
 import { api, type AddressBook, type Member } from '../../src/api'
@@ -11,7 +12,7 @@ type Preview = {
   contacts: { fingerprint: string; displayName: string; duplicates: { displayName: string; reason: string }[] }[]
 }
 
-export default function Books() {
+export function AddressBooksPage() {
   const { workspace } = useAuth()
   const [books, setBooks] = useState<AddressBook[]>([])
   const [name, setName] = useState('')
@@ -295,3 +296,11 @@ const styles = StyleSheet.create({
   choiceActive: { color: theme.accent },
   shareRow: { flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
 })
+
+export default function AddressBooksRoute() {
+  const router = useRouter()
+  useEffect(() => {
+    router.replace('/settings?tab=books')
+  }, [router])
+  return null
+}

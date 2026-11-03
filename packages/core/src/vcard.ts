@@ -36,6 +36,7 @@ export type ParsedCard = {
   anniversary?: string
   emails: VCardValue[]
   phones: VCardValue[]
+  socials: VCardValue[]
   addresses: VCardAddress[]
   unknown: string[]
 }
@@ -60,6 +61,7 @@ const KNOWN = new Set([
   'TEL',
   'EMAIL',
   'ADR',
+  'X-SOCIALPROFILE',
   'REV',
 ])
 
@@ -101,6 +103,7 @@ export function emptyCard(): ParsedCard {
     n: { last: '', first: '', middle: '', prefix: '', suffix: '' },
     emails: [],
     phones: [],
+    socials: [],
     addresses: [],
     unknown: [],
   }
@@ -156,6 +159,17 @@ export function serializeVcard(card: ParsedCard): string {
   }
   for (const email of card.emails) pushMethod('EMAIL', email, EMAIL_TYPES)
   for (const phone of card.phones) pushMethod('TEL', phone, PHONE_TYPES)
+  for (const social of card.socials) {
+    const type = social.label.trim().toLowerCase()
+    const value = escapeText(social.value.trim())
+    if (/^[a-z0-9-]+$/.test(type)) {
+      lines.push(`X-SOCIALPROFILE;TYPE=${type}:${value}`)
+    } else {
+      const group = `item${item++}`
+      lines.push(`${group}.X-SOCIALPROFILE:${value}`)
+      lines.push(`${group}.X-ABLabel:${escapeText(social.label.trim() || 'Other')}`)
+    }
+  }
   for (const address of card.addresses) {
     const type = ADDRESS_TYPES[address.label.trim().toLowerCase()]
     const value = ['', address.street2, address.street, address.city, address.region, address.postalCode, address.country]
@@ -220,7 +234,7 @@ function parseCard(lines: string[]): ParsedCard {
   const consumed = new Set<LogicalLine>()
   for (const bucket of groups.values()) {
     for (const line of bucket.lines) {
-      if (line.prop === 'TEL' || line.prop === 'EMAIL' || line.prop === 'ADR') {
+      if (line.prop === 'TEL' || line.prop === 'EMAIL' || line.prop === 'ADR' || line.prop === 'X-SOCIALPROFILE') {
         applyContactLine(card, line, bucket.label)
         consumed.add(line)
       }
@@ -292,6 +306,9 @@ function applyKnown(card: ParsedCard, line: LogicalLine) {
     case 'ADR':
       applyContactLine(card, line)
       return
+    case 'X-SOCIALPROFILE':
+      applyContactLine(card, line)
+      return
     default:
       return
   }
@@ -316,6 +333,10 @@ function applyContactLine(card: ParsedCard, line: LogicalLine, groupLabel?: stri
       postalCode: postal.trim(),
       country: country.trim(),
     })
+  } else if (line.prop === 'X-SOCIALPROFILE') {
+    const types = typesOf(line.params)
+    const value = unescapeText(line.value).trim().replace(/^x-apple:/i, '')
+    if (value) card.socials.push({ label: groupLabel || types[0] || 'other', value })
   }
 }
 

@@ -53,7 +53,7 @@ export async function listContacts(
   db: Database,
   userId: string,
   workspaceId: string,
-  query: { q?: string | undefined; addressBookId?: string | undefined; limit?: number | undefined; offset?: number | undefined },
+  query: { q?: string | undefined; addressBookId?: string | undefined; limit?: number | undefined; offset?: number | undefined; city?: string | undefined; organization?: string | undefined; relationship?: string | undefined; tag?: string | undefined; birthdayMonth?: number | undefined; quietDays?: number | undefined },
 ) {
   const limit = Math.min(Math.max(query.limit ?? 50, 1), 200)
   const offset = Math.max(query.offset ?? 0, 0)
@@ -93,6 +93,22 @@ export async function listContacts(
     }
     const combined = or(...search)
     if (combined) filters.push(combined)
+  }
+  const like = (value?: string) => {
+    const text = value?.trim()
+    return text ? `%${text.replace(/[%_]/g, '')}%` : ''
+  }
+  if (like(query.city)) filters.push(sql`exists (select 1 from addresses a where a.contact_id = ${contacts.id} and a.city ilike ${like(query.city)})`)
+  if (like(query.organization)) {
+    const pattern = like(query.organization)
+    filters.push(sql`(${contacts.organizationName} ilike ${pattern} or exists (select 1 from organization_memberships om join organizations o on o.id = om.organization_id where om.contact_id = ${contacts.id} and o.deleted_at is null and o.name ilike ${pattern}))`)
+  }
+  if (like(query.relationship)) filters.push(sql`exists (select 1 from relationships r where r.workspace_id = ${workspaceId} and (r.from_contact_id = ${contacts.id} or r.to_contact_id = ${contacts.id}) and r.type ilike ${like(query.relationship)})`)
+  if (like(query.tag)) filters.push(sql`exists (select 1 from contact_tags ct join tags t on t.id = ct.tag_id where ct.contact_id = ${contacts.id} and t.name ilike ${like(query.tag)})`)
+  if (query.birthdayMonth && query.birthdayMonth >= 1 && query.birthdayMonth <= 12) filters.push(sql`extract(month from ${contacts.birthday}) = ${query.birthdayMonth}`)
+  if (query.quietDays && query.quietDays > 0) {
+    const days = Math.min(Math.round(query.quietDays), 3650)
+    filters.push(sql`(${contacts.lastInteractionAt} is null or ${contacts.lastInteractionAt} < now() - make_interval(days => ${days}))`)
   }
   const where = and(...filters)
   const [countRow] = await db.select({ total: sql<number>`count(*)::int` }).from(contacts).where(where)
@@ -238,6 +254,23 @@ export async function setContactPhoto(db: Database, userId: string, workspaceId:
   const bundle = await loadBundle(db, contactId)
   await assertCanWriteContact(db, userId, workspaceId, bundle)
   await db.update(contacts).set({ photoAttachmentId: attachmentId, updatedAt: new Date() }).where(eq(contacts.id, contactId))
+}
+
+export async function setContactCover(db: Database, userId: string, workspaceId: string, contactId: string, attachmentId: string | null) {
+  const bundle = await loadBundle(db, contactId)
+  await assertCanWriteContact(db, userId, workspaceId, bundle)
+  await db
+    .update(contacts)
+    .set({ coverAttachmentId: attachmentId, coverMode: attachmentId ? 'image' : 'cycle', updatedAt: new Date() })
+    .where(eq(contacts.id, contactId))
+}
+
+export async function setContactCoverMode(db: Database, userId: string, workspaceId: string, contactId: string, mode: 'image' | 'cycle') {
+  const bundle = await loadBundle(db, contactId)
+  await assertCanWriteContact(db, userId, workspaceId, bundle)
+  if (mode === 'image' && !bundle.contact.coverAttachmentId) throw new AppError(400, 'Choose a cover photo first')
+  await db.update(contacts).set({ coverMode: mode, updatedAt: new Date() }).where(eq(contacts.id, contactId))
+  return getContact(db, userId, workspaceId, contactId)
 }
 
 export async function listTags(db: Database, userId: string, workspaceId: string) {
@@ -593,6 +626,7 @@ function cardToInput(card: ParsedCard): ContactBody {
     methods: [
       ...card.emails.map((entry) => ({ kind: 'email' as const, label: entry.label, value: entry.value })),
       ...card.phones.map((entry) => ({ kind: 'phone' as const, label: entry.label, value: entry.value })),
+      ...card.socials.map((entry) => ({ kind: 'social' as const, label: entry.label, value: entry.value })),
     ],
     addresses: card.addresses.map((entry) => ({
       label: entry.label,
@@ -631,8 +665,8 @@ async function applyCard(db: Db, contactId: string, card: ParsedCard) {
     .where(eq(contacts.id, contactId))
   await db
     .delete(contactMethods)
-    .where(and(eq(contactMethods.contactId, contactId), inArray(contactMethods.kind, ['email', 'phone'])))
-  const methods = (input.methods ?? []).filter((method) => method.kind === 'email' || method.kind === 'phone')
+    .where(and(eq(contactMethods.contactId, contactId), inArray(contactMethods.kind, ['email', 'phone', 'social'])))
+  const methods = (input.methods ?? []).filter((method) => method.kind === 'email' || method.kind === 'phone' || method.kind === 'social')
   if (methods.length) await insertMethods(db, contactId, methods, 0)
   await replaceAddresses(db, contactId, input.addresses ?? [])
 }
@@ -873,6 +907,9 @@ function presentContact(bundle: Bundle) {
     ownerId: contact.ownerId,
     hasPhoto: Boolean(contact.photoAttachmentId),
     photoAttachmentId: contact.photoAttachmentId,
+    hasCover: Boolean(contact.coverAttachmentId),
+    coverAttachmentId: contact.coverAttachmentId,
+    coverMode: contact.coverMode === 'image' ? 'image' : 'cycle',
     addressBookId: book?.id ?? null,
     addressBookName: book?.name ?? null,
     addressBooks: books.map((item) => ({ id: item.id, name: item.name })),
@@ -1010,6 +1047,7 @@ function toParsed(
     anniversary: contact.anniversary ?? undefined,
     emails: methods.filter((method) => method.kind === 'email').map((method) => ({ label: method.label, value: method.value })),
     phones: methods.filter((method) => method.kind === 'phone').map((method) => ({ label: method.label, value: method.value })),
+    socials: methods.filter((method) => method.kind === 'social').map((method) => ({ label: method.label, value: method.value })),
     addresses: addressRows.map((row) => ({
       label: row.label,
       street: row.street,
@@ -1023,8 +1061,8 @@ function toParsed(
   }
 }
 
-export async function writeAudit(db: Db, workspaceId: string, actorId: string, action: string, entityId: string, entityType = 'contact') {
-  await db.insert(auditLogs).values({ workspaceId, actorId, action, entityType, entityId })
+export async function writeAudit(db: Db, workspaceId: string, actorId: string, action: string, entityId: string, entityType = 'contact', diff?: Record<string, unknown>) {
+  await db.insert(auditLogs).values({ workspaceId, actorId, action, entityType, entityId, diff: diff ?? null })
 }
 
 async function recordAudit(db: Db, workspaceId: string, actorId: string, action: string, entityId: string) {
@@ -1074,13 +1112,15 @@ export async function setContactVisibility(db: Database, userId: string, workspa
 }
 
 export async function setContactOwner(db: Database, userId: string, workspaceId: string, contactId: string, nextOwnerId: string) {
-  await requireContactManage(db, userId, workspaceId, contactId)
+  const bundle = await requireContactManage(db, userId, workspaceId, contactId)
+  if (bundle.contact.ownerId === nextOwnerId) return contactAccess(db, userId, workspaceId, contactId)
   const [member] = await db
     .select()
     .from(workspaceMembers)
     .where(and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, nextOwnerId)))
     .limit(1)
   if (!member) throw new AppError(400, 'Choose a member of this workspace')
+  await db.delete(contactGrants).where(and(eq(contactGrants.contactId, contactId), eq(contactGrants.userId, nextOwnerId)))
   await db.update(contacts).set({ ownerId: nextOwnerId, updatedAt: new Date() }).where(eq(contacts.id, contactId))
   await writeAudit(db, workspaceId, userId, 'contact.owner', contactId)
   return contactAccess(db, userId, workspaceId, contactId)
@@ -1153,6 +1193,13 @@ export async function deleteContactDate(db: Database, userId: string, workspaceI
   if (!row) throw new AppError(404, 'Date not found')
 }
 
+function auditDetail(diff: unknown) {
+  if (!diff || typeof diff !== 'object') return null
+  const row = diff as { field?: unknown; sourceUrl?: unknown; outcome?: unknown }
+  const parts = [row.outcome, row.field, row.sourceUrl].filter((part): part is string => typeof part === 'string' && part.length > 0)
+  return parts.length ? parts.join(' · ') : null
+}
+
 export async function listAudit(db: Database, userId: string, workspaceId: string, contactId?: string) {
   if (contactId) await getContact(db, userId, workspaceId, contactId)
   else await requireManager(db, userId, workspaceId)
@@ -1166,13 +1213,22 @@ export async function listAudit(db: Database, userId: string, workspaceId: strin
       entityId: auditLogs.entityId,
       createdAt: auditLogs.createdAt,
       actorName: users.displayName,
+      diff: auditLogs.diff,
     })
     .from(auditLogs)
     .leftJoin(users, eq(users.id, auditLogs.actorId))
     .where(and(...filters))
     .orderBy(desc(auditLogs.createdAt))
     .limit(contactId ? 30 : 40)
-  return rows.map((row) => ({ ...row, createdAt: row.createdAt.toISOString(), actorName: row.actorName ?? 'Someone' }))
+  return rows.map((row) => ({
+    id: row.id,
+    action: row.action,
+    entityType: row.entityType,
+    entityId: row.entityId,
+    createdAt: row.createdAt.toISOString(),
+    actorName: row.actorName ?? 'Someone',
+    detail: auditDetail(row.diff),
+  }))
 }
 
 export async function readableContactIds(db: Database, userId: string, bookRole: WorkspaceRole, contactIds: string[]) {

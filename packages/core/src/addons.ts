@@ -9,6 +9,11 @@ export const addonCatalog = [
     name: 'Immich',
     description: 'Link recognized people and their photos. The photos stay in Immich.',
   },
+  {
+    id: 'ai',
+    name: 'AI',
+    description: 'Suggest contact fields from public pages. Nothing is saved until you approve it.',
+  },
 ] as const
 
 export type AddonId = (typeof addonCatalog)[number]['id']

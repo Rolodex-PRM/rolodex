@@ -7,6 +7,7 @@ import { cadences } from './cadence'
 import { TagField } from './fields'
 import { Choice } from './people'
 import { MethodList, type MethodDraft } from './methods'
+import { SocialList } from './socials'
 import { OrganizationField } from './organization-field'
 import { font, theme } from './theme'
 import { Button, DateField, Field, Notice } from './ui'
@@ -45,6 +46,11 @@ export function ContactForm({
       { label: 'home', value: '' },
     ],
   )
+  const [socials, setSocials] = useState<MethodDraft[]>(
+    contact?.methods.filter((method) => method.kind === 'social').map((method) => ({ label: method.label, value: method.value })) ?? [
+      { label: 'linkedin', value: '' },
+    ],
+  )
   const [street, setStreet] = useState(contact?.addresses[0]?.street ?? '')
   const [city, setCity] = useState(contact?.addresses[0]?.city ?? '')
   const [region, setRegion] = useState(contact?.addresses[0]?.region ?? '')
@@ -79,6 +85,7 @@ export function ContactForm({
     const methods = [
       ...emails.map((method) => ({ kind: 'email' as const, ...method })),
       ...phones.map((method) => ({ kind: 'phone' as const, ...method })),
+      ...socials.map((method) => ({ kind: 'social' as const, ...method })),
     ].filter((method) => method.value.trim())
     const body = {
       addressBookIds,
@@ -125,6 +132,7 @@ export function ContactForm({
       <OrganizationField value={organizationName} onChange={setOrganizationName} onError={setError} />
       <MethodList key="email" kind="email" rows={emails} onChange={setEmails} />
       <MethodList key="phone" kind="phone" rows={phones} onChange={setPhones} />
+      <SocialList rows={socials.length ? socials : [{ label: 'linkedin', value: '' }]} onChange={setSocials} />
       <AddressEditor
         workspaceId={workspace?.id}
         value={{ street, city, region, postalCode, country }}
@@ -226,5 +234,5 @@ const bookStyles = StyleSheet.create({
   optionText: { fontFamily: font, fontSize: 15, color: theme.text },
   box: { width: 18, height: 18, borderRadius: 4, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center' },
   boxOn: { backgroundColor: theme.text, borderColor: theme.text },
-  check: { color: '#fff', fontSize: 12, fontWeight: '700', lineHeight: 14 },
+  check: { color: theme.on, fontSize: 12, fontWeight: '700', lineHeight: 14 },
 })

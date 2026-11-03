@@ -195,5 +195,5 @@ const styles = StyleSheet.create({
   dayOn: { backgroundColor: theme.text },
   dayText: { fontFamily: font, fontSize: 14, color: theme.text },
   dayMuted: { color: theme.muted },
-  dayTextOn: { color: '#fff' },
+  dayTextOn: { color: theme.on },
 })

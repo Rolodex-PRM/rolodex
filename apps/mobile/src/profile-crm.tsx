@@ -126,7 +126,7 @@ export function ProfileCrm({
         {links.map((link) => (
           <View key={link.id} style={styles.row}>
             <Pressable onPress={() => router.push(`/contacts/${link.contactId}`)}>
-              <Text style={styles.link}>is the {link.type} of {link.displayName}</Text>
+              <Text style={styles.link}>is the {link.type} of {link.displayName}{link.inferred ? ' · suggested' : ''}</Text>
             </Pressable>
             {canWrite ? <Button label="Remove" tone="ghost" onPress={() => void run(() => send(`/api/workspaces/${workspaceId}/relationships/${link.id}`, 'DELETE'))} /> : null}
           </View>

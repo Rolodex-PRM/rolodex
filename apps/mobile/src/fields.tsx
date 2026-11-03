@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   label: { color: theme.muted, fontSize: 11, fontFamily: font, letterSpacing: 0.8, textTransform: 'uppercase' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center', backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 16, padding: 8 },
   chip: { backgroundColor: theme.text, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
-  chipText: { color: '#fff', fontFamily: font, fontSize: 13 },
+  chipText: { color: theme.on, fontFamily: font, fontSize: 13 },
   input: { minWidth: 140, flexGrow: 1, fontFamily: font, fontSize: 15, color: theme.text, paddingVertical: 6, paddingHorizontal: 6 },
   search: { borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontFamily: font, fontSize: 15, color: theme.text },
   menu: { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 16, overflow: 'hidden' },

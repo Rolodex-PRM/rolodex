@@ -12,6 +12,9 @@ export default function TasksPage() {
   const [rows, setRows] = useState<Task[]>([])
   const [title, setTitle] = useState('')
   const [due, setDue] = useState('')
+  const [notes, setNotes] = useState('')
+  const [priority, setPriority] = useState(0)
+  const [repeat, setRepeat] = useState('')
   const [shared, setShared] = useState(true)
   const [error, setError] = useState('')
 
@@ -34,7 +37,13 @@ export default function TasksPage() {
         return (
           <Panel key={row.id}>
             <Text style={styles.name}>{row.title}</Text>
-            <Text style={styles.meta}>{row.dueAt ? (overdue ? `Overdue · ${row.dueAt.slice(0, 10)}` : `Due ${row.dueAt.slice(0, 10)}`) : 'No due date'} · {row.visibility === 'private' ? 'private' : 'shared'}</Text>
+            <Text style={styles.meta}>
+              {row.dueAt ? (overdue ? `Overdue · ${row.dueAt.slice(0, 10)}` : `Due ${row.dueAt.slice(0, 10)}`) : 'No due date'}
+              {` · ${priorityLabel(row.priority)}`}
+              {row.rrule ? ` · ${repeatLabel(row.rrule)}` : ''}
+              {` · ${row.visibility === 'private' ? 'private' : 'shared'}`}
+            </Text>
+            {row.notes ? <Text style={styles.meta}>{row.notes}</Text> : null}
             {canWrite ? (
               <Button label="Complete" onPress={() => void send(`/api/workspaces/${workspace?.id}/tasks/${row.id}/complete`, 'POST', { completed: true }).then(load)} />
             ) : null}
@@ -49,11 +58,42 @@ export default function TasksPage() {
         <Panel>
           <Field label="Title" value={title} onChangeText={setTitle} />
           <Field label="Due date" value={due} onChangeText={setDue} placeholder="YYYY-MM-DD" />
+          <Text style={styles.meta}>Priority</Text>
+          <View style={styles.chips}>
+            {priorities.map((item) => (
+              <Choice key={item.label} label={item.label} on={priority === item.value} onPress={() => setPriority(item.value)} />
+            ))}
+          </View>
+          <Text style={styles.meta}>Repeats</Text>
+          <View style={styles.chips}>
+            {repeats.map((item) => (
+              <Choice key={item.label} label={item.label} on={repeat === item.value} onPress={() => setRepeat(item.value)} />
+            ))}
+          </View>
+          <Field label="Notes" value={notes} onChangeText={setNotes} multiline />
           <Choice label={shared ? 'Shared with the workspace' : 'Private'} on={shared} onPress={() => setShared((current) => !current)} />
           <Button
             label="Add task"
             disabled={!title.trim()}
-            onPress={() => void send(`/api/workspaces/${workspace.id}/tasks`, 'POST', { title: title.trim(), dueAt: due || null, visibility: shared ? 'workspace' : 'private' }).then(() => { setTitle(''); setDue(''); load() }).catch((caught: Error) => setError(caught.message))}
+            onPress={() =>
+              void send(`/api/workspaces/${workspace.id}/tasks`, 'POST', {
+                title: title.trim(),
+                dueAt: due || null,
+                priority,
+                notes,
+                rrule: repeat ? `FREQ=${repeat}` : null,
+                visibility: shared ? 'workspace' : 'private',
+              })
+                .then(() => {
+                  setTitle('')
+                  setDue('')
+                  setNotes('')
+                  setPriority(0)
+                  setRepeat('')
+                  load()
+                })
+                .catch((caught: Error) => setError(caught.message))
+            }
           />
         </Panel>
       ) : null}
@@ -61,9 +101,34 @@ export default function TasksPage() {
   )
 }
 
+const priorities = [
+  { value: 0, label: 'None' },
+  { value: 1, label: 'High' },
+  { value: 5, label: 'Medium' },
+  { value: 9, label: 'Low' },
+]
+
+const repeats = [
+  { value: '', label: 'Does not repeat' },
+  { value: 'DAILY', label: 'Daily' },
+  { value: 'WEEKLY', label: 'Weekly' },
+  { value: 'MONTHLY', label: 'Monthly' },
+  { value: 'YEARLY', label: 'Yearly' },
+]
+
+function priorityLabel(value: number) {
+  return priorities.find((item) => item.value === value)?.label ?? 'None'
+}
+
+function repeatLabel(rule: string) {
+  const freq = /FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/i.exec(rule)?.[1]?.toUpperCase() || ''
+  return repeats.find((item) => item.value === freq)?.label || 'Repeats'
+}
+
 const styles = StyleSheet.create({
   page: { gap: 16 },
   title: { fontFamily: font, fontSize: 32, fontWeight: '700', color: theme.text },
   name: { fontFamily: font, fontSize: 18, fontWeight: '700', color: theme.text },
   meta: { fontFamily: font, color: theme.muted },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 })

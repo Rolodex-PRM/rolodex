@@ -1,8 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
+import { EnrichedText, useApprovedFields } from './ai-enrich'
 import { AddressMap } from './address-map'
 import { api, send, type Contact, type OrgMembership } from './api'
 import { Icon } from './icons'
+import { socialHref, socialTitle, SocialIcon } from './socials'
 import { font, theme } from './theme'
 import { DateField, Field, Panel } from './ui'
 
@@ -11,6 +13,7 @@ type ImportantDate = { id: string; label: string; occursOn: string }
 export function ContactOverview({ workspaceId, contact }: { workspaceId: string; contact: Contact }) {
   const [orgs, setOrgs] = useState<OrgMembership[]>([])
   const [dates, setDates] = useState<ImportantDate[]>([])
+  const enriched = useApprovedFields(workspaceId, contact.id)
 
   useEffect(() => {
     api<OrgMembership[]>(`/api/workspaces/${workspaceId}/contacts/${contact.id}/organizations`).then(setOrgs).catch(() => setOrgs([]))
@@ -19,6 +22,7 @@ export function ContactOverview({ workspaceId, contact }: { workspaceId: string;
 
   const phones = contact.methods.filter((method) => method.kind === 'phone')
   const emails = contact.methods.filter((method) => method.kind === 'email')
+  const socials = contact.methods.filter((method) => method.kind === 'social')
   const occupation = [contact.title, contact.position].filter(Boolean).join(' · ')
   const organizations = [
     ...(contact.organizationName && !orgs.some((org) => org.name === contact.organizationName)
@@ -38,6 +42,14 @@ export function ContactOverview({ workspaceId, contact }: { workspaceId: string;
           </Text>
         ))}
       </Category>
+      <Category icon="link" title="Social" empty={!socials.length}>
+        {socials.map((method) => (
+          <Pressable key={method.id} style={styles.socialLine} onPress={() => void Linking.openURL(socialHref(method.label, method.value))}>
+            <SocialIcon name={method.label} size={16} />
+            <Text style={styles.socialText}>{socialTitle(method.label)} · {method.value}</Text>
+          </Pressable>
+        ))}
+      </Category>
       <Category icon="mail" title="Emails" empty={!emails.length}>
         {emails.map((method) => (
           <Text key={method.id} style={styles.value} onPress={() => void Linking.openURL(`mailto:${method.value}`)}>
@@ -53,17 +65,22 @@ export function ContactOverview({ workspaceId, contact }: { workspaceId: string;
         ))}
         {located?.lat != null && located.lon != null ? <AddressMap lat={located.lat} lon={located.lon} /> : null}
       </Category>
-      <Category icon="briefcase" title="Occupation" empty={!occupation}>
-        <Text style={styles.value}>{occupation}</Text>
+      <Category icon="briefcase" title="Occupation" empty={!occupation && !contact.department}>
+        {occupation ? <EnrichedText on={enriched('title', contact.title)} style={styles.value}>{occupation}</EnrichedText> : null}
+        {contact.department ? <EnrichedText on={enriched('department', contact.department)} style={styles.value}>{contact.department}</EnrichedText> : null}
       </Category>
       <Category icon="building" title="Organization" empty={!organizations.length && !contact.website}>
         {organizations.map((org) => (
           <View key={org.id} style={styles.orgRow}>
             <OrgAvatar name={org.name} uri={org.logoUrl} />
-            <Text style={styles.orgName}>{org.name}</Text>
+            <EnrichedText on={org.id === 'card' && enriched('organizationName', contact.organizationName)} style={styles.orgName}>{org.name}</EnrichedText>
           </View>
         ))}
-        {contact.website ? <Text style={styles.value} onPress={() => void Linking.openURL(contact.website!)}>{contact.website}</Text> : null}
+        {contact.website ? (
+          <Pressable accessibilityLabel="Open website" onPress={() => void Linking.openURL(contact.website!)}>
+            <EnrichedText on={enriched('website', contact.website)} style={styles.value}>{contact.website}</EnrichedText>
+          </Pressable>
+        ) : null}
       </Category>
       <Category icon="gift" title="Birthday" empty={!contact.birthday}>
         <Text style={styles.value}>{formatDate(contact.birthday)}</Text>
@@ -118,7 +135,7 @@ export function ImportantDates({ workspaceId, contactId }: { workspaceId: string
           onPress={() => void send(`/api/workspaces/${workspaceId}/contacts/${contactId}/dates`, 'POST', { label: label.trim(), occursOn }).then(() => { setLabel(''); setOccursOn(''); load() })}
           style={[styles.addDate, (!label.trim() || !occursOn) && styles.addDateOff]}
         >
-          <Icon name="plus" color="#fff" size={18} />
+          <Icon name="plus" color={theme.on} size={18} />
         </Pressable>
       </View>
     </Panel>
@@ -146,7 +163,7 @@ function DateLine({ label, value }: { label: string; value: string }) {
   )
 }
 
-function Category({ icon, title, empty, children }: { icon: 'phone' | 'mail' | 'pin' | 'briefcase' | 'building' | 'gift'; title: string; empty?: boolean; children: ReactNode }) {
+function Category({ icon, title, empty, children }: { icon: 'phone' | 'mail' | 'pin' | 'briefcase' | 'building' | 'gift' | 'link'; title: string; empty?: boolean; children: ReactNode }) {
   if (empty) return null
   return (
     <View style={styles.category}>
@@ -182,6 +199,8 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   title: { fontFamily: font, color: theme.text, fontSize: 14, fontWeight: '700' },
   value: { fontFamily: font, color: theme.text, fontSize: 15, marginLeft: 24 },
+  socialLine: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 24 },
+  socialText: { flex: 1, fontFamily: font, color: theme.text, fontSize: 15 },
   orgRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginLeft: 24 },
   orgImage: { width: 28, height: 28, borderRadius: 8, backgroundColor: theme.accentMuted },
   orgMark: { width: 28, height: 28, borderRadius: 8, backgroundColor: theme.accentMuted, alignItems: 'center', justifyContent: 'center' },

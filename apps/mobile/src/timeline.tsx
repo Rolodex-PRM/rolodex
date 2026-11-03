@@ -1,14 +1,56 @@
 import { useRouter } from 'expo-router'
-import { useEffect, useState, type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { api, send, type Activity, type ContactSummary, type ImmichGallery, type Note } from './api'
+import { createElement, useEffect, useState, type ReactNode } from 'react'
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
+import { api, send, type Activity, type ContactSummary, type ImmichGallery, type InteractionFile, type Note } from './api'
 import { AuthImage } from './immich-photos'
 import { Choice, MentionField, mentionParts } from './people'
 import { font, theme } from './theme'
 import { Button, DateField, Notice } from './ui'
 
-const kinds = ['note', 'call', 'meeting', 'meal'] as const
+const kinds = ['note', 'call', 'email', 'meeting', 'meal'] as const
 type Kind = (typeof kinds)[number]
+
+let activeDictation: SpeechEngine | null = null
+
+function dictate(listening: boolean, setListening: (value: boolean) => void, text: string, setText: (value: string) => void, setError: (value: string) => void) {
+  const host = window as unknown as { SpeechRecognition?: new () => SpeechEngine; webkitSpeechRecognition?: new () => SpeechEngine }
+  const Engine = host.SpeechRecognition || host.webkitSpeechRecognition
+  if (!Engine) {
+    setError('This browser cannot take dictation.')
+    return
+  }
+  if (listening) {
+    activeDictation?.stop()
+    activeDictation = null
+    setListening(false)
+    return
+  }
+  activeDictation?.stop()
+  const engine = new Engine()
+  engine.lang = 'en-US'
+  engine.onresult = (event) => {
+    const said = [...Array(event.results.length)].map((_, index) => event.results[index]?.[0]?.transcript ?? '').join(' ')
+    setText(`${text} ${said}`.trim())
+    setListening(false)
+  }
+  engine.onerror = () => setListening(false)
+  engine.onend = () => {
+    if (activeDictation === engine) activeDictation = null
+    setListening(false)
+  }
+  activeDictation = engine
+  setListening(true)
+  engine.start()
+}
+
+type SpeechEngine = {
+  lang: string
+  start: () => void
+  stop: () => void
+  onresult: (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void
+  onerror: () => void
+  onend: () => void
+}
 type Filter = 'all' | Kind
 
 type Person = { id: string; name: string }
@@ -20,6 +62,7 @@ type Entry = {
   body: string
   visibility: string
   people: Person[]
+  files: InteractionFile[]
 }
 
 export function Timeline({
@@ -51,6 +94,8 @@ export function Timeline({
   const [shared, setShared] = useState(true)
   const [remindOn, setRemindOn] = useState(false)
   const [remind, setRemind] = useState('')
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [listening, setListening] = useState(false)
   const [closed, setClosed] = useState<Record<string, boolean>>({})
   const [error, setError] = useState('')
 
@@ -96,10 +141,13 @@ export function Timeline({
       return
     }
     const primary = contactId ?? ids[0]!
+    const visibility = shared ? 'workspace' : 'private'
     setError('')
     try {
+      let target: { kind: 'notes' | 'activities'; id: string }
       if (kind === 'note') {
-        await send(`/api/workspaces/${workspaceId}/notes`, 'POST', { body, contactId: primary, visibility: shared ? 'workspace' : 'private' })
+        const note = await send<{ id: string }>(`/api/workspaces/${workspaceId}/notes`, 'POST', { body, contactId: primary, visibility })
+        target = { kind: 'notes', id: note.id }
         const extras = ids.filter((id) => id !== primary)
         if (shared && extras.length) {
           await send(`/api/workspaces/${workspaceId}/activities`, 'POST', {
@@ -107,15 +155,23 @@ export function Timeline({
             occurredAt: new Date().toISOString(),
             description: body,
             contactIds: ids,
+            visibility,
           })
         }
       } else {
-        await send(`/api/workspaces/${workspaceId}/activities`, 'POST', {
+        const activity = await send<{ id: string }>(`/api/workspaces/${workspaceId}/activities`, 'POST', {
           type: kind,
           occurredAt: new Date().toISOString(),
           description: body,
           contactIds: ids,
+          visibility,
         })
+        target = { kind: 'activities', id: activity.id }
+      }
+      for (const file of pendingFiles) {
+        const form = new FormData()
+        form.append('file', file)
+        await api(`/api/workspaces/${workspaceId}/${target.kind}/${target.id}/files`, { method: 'POST', body: form })
       }
       if (remindOn && remind) {
         await send(`/api/workspaces/${workspaceId}/reminders`, 'POST', {
@@ -128,6 +184,7 @@ export function Timeline({
       setMentioned([])
       setRemind('')
       setRemindOn(false)
+      setPendingFiles([])
       load()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save')
@@ -182,10 +239,34 @@ export function Timeline({
                 }}
               />
               {remindOn ? <DateField label="Remind on" value={remind} onChange={setRemind} /> : null}
+              {pendingFiles.length ? (
+                <View style={styles.extra}>
+                  {pendingFiles.map((file) => (
+                    <Pressable key={file.name} onPress={() => setPendingFiles((current) => current.filter((item) => item !== file))}>
+                      <Text style={styles.meta}>{file.name} ×</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
               <View style={styles.composerBar}>
+                {Platform.OS === 'web' ? (
+                  <Pressable accessibilityLabel="Speak a note" onPress={() => dictate(listening, setListening, text, setText, setError)} style={[styles.clock, listening && styles.clockOn]}>
+                    <Text style={styles.clockText}>{listening ? 'Stop' : 'Speak'}</Text>
+                  </Pressable>
+                ) : null}
                 <Pressable accessibilityLabel="Set a reminder" onPress={() => setRemindOn((on) => !on)} style={[styles.clock, remindOn && styles.clockOn]}>
                   <Text style={styles.clockText}>◷</Text>
                 </Pressable>
+                {Platform.OS === 'web' ? createElement('label', { style: { cursor: 'pointer' } }, createElement('input', {
+                  type: 'file',
+                  multiple: true,
+                  style: { display: 'none' },
+                  onChange: (event: { target: { files?: FileList | null; value: string } }) => {
+                    const next = [...(event.target.files ?? [])]
+                    if (next.length) setPendingFiles((current) => [...current, ...next])
+                    event.target.value = ''
+                  },
+                }), createElement('span', { style: { fontFamily: font, fontSize: 13, color: 'var(--rx-muted)' } }, 'Attach')) : null}
                 <View style={styles.kinds}>
                   {kinds.map((item) => (
                     <Pressable key={item} onPress={() => setKind(item)}>
@@ -193,11 +274,9 @@ export function Timeline({
                     </Pressable>
                   ))}
                 </View>
-                {kind === 'note' ? (
-                  <Pressable onPress={() => setShared((current) => !current)}>
-                    <Text style={styles.kind}>{shared ? 'Shared' : 'Private'}</Text>
-                  </Pressable>
-                ) : <View />}
+                <Pressable accessibilityLabel={shared ? 'Shared with the workspace' : 'Private to you'} onPress={() => setShared((current) => !current)}>
+                  <Text style={[styles.kind, styles.kindOn]}>{shared ? 'Shared' : 'Private'}</Text>
+                </Pressable>
                 <Button label="Add" disabled={!text.trim()} onPress={() => void publish()} />
               </View>
             </View>
@@ -212,13 +291,13 @@ export function Timeline({
                     <Text style={styles.groupLabel}>{block.entries.length} {plural(block.kind)}</Text>
                   </Pressable>
                   {shut ? null : block.entries.map((entry) => (
-                    <EntryRow key={entry.id} entry={entry} people={people} photos={photos} workspaceId={workspaceId} canWrite={canWrite} onOpen={(id) => router.push(`/contacts/${id}`)} onDelete={() => void remove(workspaceId, entry).then(load).catch((caught: Error) => setError(caught.message))} />
+                    <EntryRow key={entry.id} entry={entry} people={people} photos={photos} workspaceId={workspaceId} canWrite={canWrite} onOpen={(id) => router.push(`/contacts/${id}`)} onDelete={() => void remove(workspaceId, entry).then(load).catch((caught: Error) => setError(caught.message))} onChange={() => load()} />
                   ))}
                 </View>
               )
             }
             return (
-              <EntryRow key={block.entry.id} entry={block.entry} people={people} photos={photos} workspaceId={workspaceId} canWrite={canWrite} onOpen={(id) => router.push(`/contacts/${id}`)} onDelete={() => void remove(workspaceId, block.entry).then(load).catch((caught: Error) => setError(caught.message))} />
+              <EntryRow key={block.entry.id} entry={block.entry} people={people} photos={photos} workspaceId={workspaceId} canWrite={canWrite} onOpen={(id) => router.push(`/contacts/${id}`)} onDelete={() => void remove(workspaceId, block.entry).then(load).catch((caught: Error) => setError(caught.message))} onChange={() => load()} />
             )
           })}
         </View>
@@ -235,6 +314,7 @@ function EntryRow({
   canWrite,
   onOpen,
   onDelete,
+  onChange,
 }: {
   entry: Entry
   people: ContactSummary[]
@@ -243,6 +323,7 @@ function EntryRow({
   canWrite: boolean
   onOpen: (id: string) => void
   onDelete: () => void
+  onChange: () => void
 }) {
   const parts = mentionParts(entry.body, people)
   const named = new Set(parts.flatMap((part) => (part.id ? [part.id] : [])))
@@ -282,6 +363,30 @@ function EntryRow({
                 ))}
               </View>
             ) : null}
+            {entry.files.length ? (
+              <View style={styles.extra}>
+                {entry.files.map((file) => file.contentType.startsWith('image/') ? (
+                  <View key={file.id} style={styles.file}>
+                    <AuthImage path={`/api/workspaces/${workspaceId}/files/${file.id}`} size={72} />
+                    {canWrite ? <Pressable onPress={() => void send(`/api/workspaces/${workspaceId}/files/${file.id}`, 'DELETE').then(onChange)}><Text style={styles.delete}>Remove</Text></Pressable> : null}
+                  </View>
+                ) : (
+                  <Pressable key={file.id} onPress={() => void openFile(workspaceId, file)}>
+                    <Text style={styles.mention}>{file.filename}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            {canWrite && Platform.OS === 'web' ? createElement('label', { style: { cursor: 'pointer' } }, createElement('input', {
+              type: 'file',
+              multiple: true,
+              style: { display: 'none' },
+              onChange: (event: { target: { files?: FileList | null; value: string } }) => {
+                const next = [...(event.target.files ?? [])]
+                event.target.value = ''
+                void uploadFiles(workspaceId, entry, next).then(onChange)
+              },
+            }), createElement('span', { style: { fontFamily: font, fontSize: 12, color: 'var(--rx-muted)' } }, 'Add file')) : null}
           </View>
         ) : null}
       </View>
@@ -298,6 +403,7 @@ function merge(notes: Note[], events: Activity[]) {
     body: note.body,
     visibility: note.visibility,
     people: note.contactId ? [{ id: note.contactId, name: note.contactName ?? '' }] : [],
+    files: note.files ?? [],
   }))
   for (const event of events) {
     const twin = event.type === 'note'
@@ -306,6 +412,9 @@ function merge(notes: Note[], events: Activity[]) {
     if (twin) {
       for (const person of event.people) {
         if (!twin.people.some((item) => item.id === person.contactId)) twin.people.push({ id: person.contactId, name: person.displayName })
+      }
+      for (const file of event.files ?? []) {
+        if (!twin.files.some((item) => item.id === file.id)) twin.files.push(file)
       }
       continue
     }
@@ -317,6 +426,7 @@ function merge(notes: Note[], events: Activity[]) {
       body: event.description ?? '',
       visibility: event.visibility,
       people: event.people.map((person) => ({ id: person.contactId, name: person.displayName })),
+      files: event.files ?? [],
     })
   }
   return entries.sort((left, right) => new Date(right.at).getTime() - new Date(left.at).getTime())
@@ -335,6 +445,32 @@ function group(entries: Entry[]) {
     index = end
   }
   return blocks
+}
+
+function uploadFiles(workspaceId: string, entry: Entry, files: File[]) {
+  const path = entry.source === 'note' ? 'notes' : 'activities'
+  return Promise.all(files.map((file) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api(`/api/workspaces/${workspaceId}/${path}/${entry.id}/files`, { method: 'POST', body: form })
+  }))
+}
+
+async function openFile(workspaceId: string, file: InteractionFile) {
+  const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'}/api/workspaces/${workspaceId}/files/${file.id}`, {
+    headers: authHeader(),
+    credentials: 'include',
+  })
+  if (!response.ok) return
+  const url = URL.createObjectURL(await response.blob())
+  window.open(url, '_blank', 'noopener')
+}
+
+function authHeader() {
+  if (typeof sessionStorage === 'undefined') return undefined
+  const raw = sessionStorage.getItem('rolodex.session')
+  const parsed = raw ? (JSON.parse(raw) as { token?: string }) : null
+  return parsed?.token ? { Authorization: `Bearer ${parsed.token}` } : undefined
 }
 
 function remove(workspaceId: string, entry: Entry) {
@@ -408,4 +544,5 @@ const styles = StyleSheet.create({
   cardText: { fontFamily: font, fontSize: 15, lineHeight: 22, color: theme.text },
   mention: { fontFamily: font, fontSize: 15, lineHeight: 22, color: '#2563eb', fontWeight: '600' },
   extra: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  file: { gap: 4 },
 })

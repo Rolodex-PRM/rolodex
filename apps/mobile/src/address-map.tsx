@@ -9,6 +9,7 @@ export function AddressMap({ lat, lon }: { lat: number; lon: number }) {
     const node = host.current
     let map: { remove: () => void } | null = null
     let cancel = false
+    let timer = 0
     void import('leaflet').then((loaded) => {
       if (cancel || !node.isConnected) return
       const L = ('default' in loaded && loaded.default ? loaded.default : loaded) as typeof import('leaflet')
@@ -23,10 +24,14 @@ export function AddressMap({ lat, lon }: { lat: number; lon: number }) {
       })
       L.marker([lat, lon], { icon }).addTo(view)
       map = view
-      setTimeout(() => view.invalidateSize(), 50)
+      timer = window.setTimeout(() => {
+        if (cancel || !node.isConnected) return
+        view.invalidateSize()
+      }, 50)
     })
     return () => {
       cancel = true
+      window.clearTimeout(timer)
       map?.remove()
     }
   }, [lat, lon])

@@ -3,6 +3,8 @@ import { useEffect } from 'react'
 import { useWindowDimensions, View } from 'react-native'
 import { AccentProvider } from '../src/accent'
 import { AuthProvider, useAuth } from '../src/auth'
+import { ColorSchemeProvider } from '../src/color-scheme'
+import { CustomCss } from '../src/custom-css'
 import { Loader, Splash } from '../src/logo'
 import { theme } from '../src/theme'
 
@@ -39,7 +41,10 @@ function ThemedGate() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <ThemedGate />
+      <ColorSchemeProvider>
+        <CustomCss />
+        <ThemedGate />
+      </ColorSchemeProvider>
     </AuthProvider>
   )
 }

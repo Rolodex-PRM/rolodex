@@ -5,7 +5,7 @@ import { alamo, mapboxStyle, tileTemplate } from './map-themes'
 import { font, theme } from './theme'
 
 type Point = { lat: number; lon: number }
-type LeafletMap = { remove: () => void; setView: (center: [number, number], zoom?: number) => void; invalidateSize: () => void }
+type LeafletMap = { remove: () => void; setView: (center: [number, number], zoom?: number) => void; invalidateSize: () => void; getContainer?: () => HTMLElement }
 type LeafletMarker = {
   setLatLng: (point: [number, number]) => void
   on: (event: string, handler: () => void) => void
@@ -142,10 +142,16 @@ async function mountLeaflet(
     const next = pinMarker.getLatLng()
     report(next.lat, next.lng)
   })
-  window.setTimeout(() => view.invalidateSize(), 250)
+  const timer = window.setTimeout(() => {
+    if (cancelled() || !node.isConnected) return
+    view.invalidateSize()
+  }, 250)
   map.current = view
   marker.current = pinMarker
-  return () => view.remove()
+  return () => {
+    window.clearTimeout(timer)
+    view.remove()
+  }
 }
 
 async function mountVector(
@@ -202,6 +208,6 @@ function ensureStylesheet(id: string, href: string) {
 }
 
 const styles = StyleSheet.create({
-  empty: { alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#e5e7eb' },
+  empty: { alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: theme.raised },
   emptyText: { fontFamily: font, color: theme.muted, textAlign: 'center' },
 })

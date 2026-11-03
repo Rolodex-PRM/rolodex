@@ -16,6 +16,8 @@ import {
   createRateLimiter,
 } from '@rolodex/core'
 import type { Database, WorkspaceRole } from '@rolodex/db'
+import { handleCalendar } from './caldav'
+import type { DavRequest, DavResult } from './dav-types'
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -25,22 +27,10 @@ const parser = new XMLParser({
 
 const failedAuth = createRateLimiter(30, 60_000)
 
-export type DavRequest = {
-  method: string
-  path: string
-  headers: Record<string, string | string[] | undefined>
-  body: string
-  ip?: string
-}
-
-export type DavResult = {
-  status: number
-  headers: Record<string, string>
-  body: string
-}
+export type { DavRequest, DavResult } from './dav-types'
 
 const baseHeaders = {
-  DAV: '1, 3, addressbook',
+  DAV: '1, 3, addressbook, calendar-access',
   Allow: 'OPTIONS, GET, HEAD, PUT, DELETE, PROPFIND, REPORT, MKCOL, PROPPATCH',
   'Cache-Control': 'no-store',
 }
@@ -55,6 +45,8 @@ export async function handleDav(db: Database, request: DavRequest): Promise<DavR
     if (!failedAuth(request.ip || credentials.email)) return text(429, 'Too many attempts', { ...baseHeaders, 'WWW-Authenticate': 'Basic realm="Rolodex"' })
     return unauthorized()
   }
+  const calendar = await handleCalendar(db, request, user.id)
+  if (calendar) return calendar
   const route = matchPath(request.path)
   if (route.kind === 'unknown') return text(404, 'Not found', baseHeaders)
   if (route.kind !== 'root' && route.userId !== user.id) return text(403, 'Forbidden', baseHeaders)
@@ -206,14 +198,14 @@ function propfindPrincipal(user: { id: string; displayName: string }) {
   return multi(
     ok(
       `/principals/${user.id}/`,
-      `<d:displayname>${xmlEscape(user.displayName)}</d:displayname><d:resourcetype><d:collection/><d:principal/></d:resourcetype><card:addressbook-home-set><d:href>/addressbooks/${user.id}/</d:href></card:addressbook-home-set><d:current-user-principal><d:href>/principals/${user.id}/</d:href></d:current-user-principal>`,
+      `<d:displayname>${xmlEscape(user.displayName)}</d:displayname><d:resourcetype><d:collection/><d:principal/></d:resourcetype><card:addressbook-home-set><d:href>/addressbooks/${user.id}/</d:href></card:addressbook-home-set><cal:calendar-home-set><d:href>/calendars/${user.id}/</d:href></cal:calendar-home-set><d:current-user-principal><d:href>/principals/${user.id}/</d:href></d:current-user-principal>`,
     ),
   )
 }
 
 function bookProperties(book: { id: string; name: string; syncToken: number }, role: WorkspaceRole) {
   const write = canWriteContacts(role)
-    ? '<d:privilege><d:write/></d:privilege><d:privilege><d:write-content/></d:privilege>'
+    ? '<d:privilege><d:write/></d:privilege><d:privilege><d:write-content/></d:privilege><d:privilege><d:bind/></d:privilege><d:privilege><d:unbind/></d:privilege>'
     : ''
   return `<d:resourcetype><d:collection/><card:addressbook/></d:resourcetype><d:displayname>${xmlEscape(book.name)}</d:displayname><d:sync-token>${xmlEscape(formatSyncToken(book.id, book.syncToken))}</d:sync-token><cs:getctag>"${book.syncToken}"</cs:getctag><d:current-user-privilege-set><d:privilege><d:read/></d:privilege>${write}</d:current-user-privilege-set><card:supported-address-data><card:address-data-type content-type="text/vcard" version="3.0"/></card:supported-address-data><d:supported-report-set><d:supported-report><d:report><d:sync-collection/></d:report></d:supported-report><d:supported-report><d:report><card:addressbook-multiget/></d:report></d:supported-report><d:supported-report><d:report><card:addressbook-query/></d:report></d:supported-report></d:supported-report-set>`
 }
@@ -225,7 +217,7 @@ function cardProperties(card: { etag: string; updatedAt: Date; vcardText: string
 
 function matchPath(input: string) {
   const path = decodeURIComponent((input.split('?')[0] || '/')).replace(/\/+$/, '') || '/'
-  if (path === '/' || path === '/.well-known/carddav') return { kind: 'root' as const, userId: '' }
+  if (path === '/' || path === '/.well-known/carddav' || path === '/.well-known/caldav') return { kind: 'root' as const, userId: '' }
   const principal = path.match(/^\/principals\/([^/]+)$/)
   if (principal?.[1]) return { kind: 'principal' as const, userId: principal[1] }
   const home = path.match(/^\/addressbooks\/([^/]+)$/)
@@ -255,7 +247,7 @@ function multi(responses: string, syncToken?: string) {
   return {
     status: 207,
     headers: { ...baseHeaders, 'Content-Type': 'application/xml; charset=utf-8' },
-    body: `<?xml version="1.0" encoding="utf-8"?>\n<d:multistatus xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav" xmlns:cs="http://calendarserver.org/ns/">${responses}${token}</d:multistatus>`,
+    body: `<?xml version="1.0" encoding="utf-8"?>\n<d:multistatus xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav" xmlns:cal="urn:ietf:params:xml:ns:caldav" xmlns:cs="http://calendarserver.org/ns/">${responses}${token}</d:multistatus>`,
   }
 }
 

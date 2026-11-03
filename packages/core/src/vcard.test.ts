@@ -60,6 +60,13 @@ describe('vCard', () => {
     expect(structuredName(named!).first).toBe('Ada')
   })
 
+  it('keeps a social profile on the card', () => {
+    const [card] = parseVcards('BEGIN:VCARD\nVERSION:3.0\nFN:Ada Lovelace\nX-SOCIALPROFILE;TYPE=linkedin:https://www.linkedin.com/in/ada\nEND:VCARD\n')
+    expect(card?.socials).toEqual([{ label: 'linkedin', value: 'https://www.linkedin.com/in/ada' }])
+    const again = parseVcards(serializeVcard(card!))[0]
+    expect(again?.socials).toEqual([{ label: 'linkedin', value: 'https://www.linkedin.com/in/ada' }])
+  })
+
   it('escapes commas in structured names', () => {
     const [card] = parseVcards('BEGIN:VCARD\nVERSION:3.0\nN:Doe\\, Jr.;Sam;;;\nFN:Sam Doe\nEND:VCARD\n')
     expect(card?.n.last).toBe('Doe, Jr.')

@@ -7,7 +7,7 @@ import { Button, Field, Notice } from './ui'
 
 const empty = { id: '', name: '', internalUrl: '', externalUrl: '', apiKey: '' }
 
-export function ImmichAdmin({ workspaceId }: { workspaceId: string }) {
+export function ImmichAdmin({ workspaceId, embedded = false }: { workspaceId: string; embedded?: boolean }) {
   const [rows, setRows] = useState<ImmichInstance[]>([])
   const [draft, setDraft] = useState(empty)
   const [notice, setNotice] = useState('')
@@ -60,8 +60,8 @@ export function ImmichAdmin({ workspaceId }: { workspaceId: string }) {
   }
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.heading}>Immich</Text>
+    <View style={embedded ? styles.embedded : styles.card}>
+      {embedded ? null : <Text style={styles.heading}>Immich</Text>}
       <Text style={styles.meta}>Immich keeps the photos. Rolodex stores the link between a recognized person and a contact, and the API key stays on this server. Anyone who can open this workspace can see the linked photos.</Text>
       {error ? <Notice text={error} /> : null}
       {notice ? <Notice text={notice} /> : null}
@@ -123,6 +123,7 @@ export function ImmichAdmin({ workspaceId }: { workspaceId: string }) {
 
 const styles = StyleSheet.create({
   card: { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 22, padding: 18, gap: 8 },
+  embedded: { gap: 8 },
   heading: { fontFamily: font, fontSize: 22, fontWeight: '700', color: theme.text },
   meta: { fontFamily: font, color: theme.muted, marginBottom: 8 },
   pair: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 6 },
