@@ -5,7 +5,7 @@ import { AuthImage } from './immich-photos'
 import { mapboxStyle, tileTemplate } from './map-themes'
 import { font, theme } from './theme'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4100'
 const emptyMap: MapSettings = { engine: 'leaflet', templateId: 'osm', tileUrl: '', cartoKey: '', mapboxToken: '', googleKey: '' }
 const cacheKey = 'rolodex.address-points'
 

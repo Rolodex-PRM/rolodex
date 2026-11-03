@@ -58,8 +58,8 @@ const defaults: OauthSettings = {
   accountManagementUrl: '',
   autoRegister: true,
   autoLaunch: false,
-  appUrl: 'http://localhost:8081',
-  publicUrl: 'http://localhost:3000',
+  appUrl: 'http://localhost:4181',
+  publicUrl: 'http://localhost:4100',
   mobileRedirectOverride: false,
   mobileRedirectUri: '',
 }

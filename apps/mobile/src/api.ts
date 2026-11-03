@@ -1,4 +1,4 @@
-export const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
+export const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4100'
 
 export class ApiError extends Error {
   status: number
@@ -19,6 +19,20 @@ export function setUnauthorized(handler: () => void) {
   onUnauthorized = handler
 }
 
+function readError(body: unknown, status: number, statusText: string) {
+  const record = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}
+  const texts = [record.error, record.message]
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map((value) => value.trim())
+  const useful = texts.find((value) => !/^(unknown|internal server error|bad request|error)$/i.test(value))
+  if (useful) return useful
+  const reason = statusText.trim()
+  if (reason && !/^unknown$/i.test(reason)) return reason
+  if (texts[0] && !/^unknown$/i.test(texts[0])) return texts[0]
+  return `The server returned HTTP ${status}`
+}
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers)
   if (token) headers.set('Authorization', `Bearer ${token}`)
@@ -32,12 +46,9 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (response.status === 204) return undefined as T
   const type = response.headers.get('content-type') || ''
   if (!response.ok) {
-    let message = response.statusText
-    if (type.includes('json')) {
-      const body = (await response.json()) as { error?: string }
-      message = body.error || message
-    }
-    throw new ApiError(message, response.status)
+    let body: unknown = null
+    if (type.includes('json')) body = await response.json().catch(() => null)
+    throw new ApiError(readError(body, response.status, response.statusText), response.status)
   }
   if (type.includes('json')) return (await response.json()) as T
   return (await response.text()) as T

@@ -42,7 +42,7 @@ export type NotificationSettings = {
 }
 
 const defaults: NotificationSettings = {
-  appUrl: 'http://localhost:8081',
+  appUrl: 'http://localhost:4181',
   email: { enabled: false, host: '', port: 465, username: '', secure: true, ignoreCertificateErrors: false, from: '' },
   push: { enabled: false, subject: '', publicKey: '' },
   webhook: { enabled: false, url: '' },

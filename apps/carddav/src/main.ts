@@ -15,7 +15,7 @@ class AppModule {}
 
 async function main() {
   loadEnv()
-  process.env.DATABASE_URL ||= 'postgres://rolodex:rolodex@localhost:5434/rolodex'
+  process.env.DATABASE_URL ||= 'postgres://rolodex:rolodex@localhost:5472/rolodex'
   const app = await NestFactory.create(AppModule, { bodyParser: false })
   const server = app.getHttpAdapter().getInstance() as express.Express
   server.use(express.text({ type: () => true, limit: '20mb' }))
@@ -32,8 +32,8 @@ async function main() {
     for (const [key, value] of Object.entries(result.headers)) res.setHeader(key, value)
     res.send(result.body)
   })
-  const port = Number(process.env.CARDDAV_PORT || 3001)
-  await app.listen(port)
+  const port = Number(process.env.CARDDAV_PORT || 4101)
+  await app.listen(port, '0.0.0.0')
   console.log(`CardDAV listening on ${port}`)
 }
 

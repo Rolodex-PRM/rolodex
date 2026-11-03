@@ -170,7 +170,7 @@ export class AuthController {
   @Get('auth/me')
   @UseGuards(AuthGuard)
   me(@Req() req: AuthedRequest) {
-    const carddavUrl = process.env.PUBLIC_CARDDAV_URL || 'http://localhost:3001'
+    const carddavUrl = process.env.PUBLIC_CARDDAV_URL || 'http://localhost:4101'
     return {
       user: req.user,
       carddavUrl,
