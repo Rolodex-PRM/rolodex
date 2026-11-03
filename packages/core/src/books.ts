@@ -191,12 +191,15 @@ export async function importAddressBook(
     const card = cards[index]
     const preview = previews[index]
     if (!card || !preview) continue
-    if (preview.duplicates.length) {
-      const decision = input.decisions?.find((item) => item.fingerprint === preview.fingerprint)
-      if (!decision || decision.action === 'skip') {
+    if (input.decisions) {
+      const decision = input.decisions.find((item) => item.fingerprint === preview.fingerprint)
+      if (decision?.action !== 'create') {
         skipped += 1
         continue
       }
+    } else if (preview.duplicates.length) {
+      skipped += 1
+      continue
     }
     await createContactFromCard(db, userId, book.id, card)
     created += 1
