@@ -188,7 +188,7 @@ export default function Settings() {
             <Text style={styles.value}>{phone.host}</Text>
             <Text style={styles.meta}>{phone.ssl ? `Port ${phone.port}. Leave SSL on.` : `Port ${phone.port}. Turn SSL off.`}</Text>
             <Text style={styles.meta}>
-              On the iPhone, open Settings, Contacts, Accounts, Add Account, Other, Add CardDAV Account. Enter the server, your username, and the application password. Open Advanced, turn SSL off, and set the port. The Contacts address book is the one that already has your Rolodex people. Calendar events sync from the Rolodex calendar, and tasks sync from the Tasks calendar on this same server.
+              On the iPhone, open Settings, Contacts, Accounts, Add Account, Other, Add CardDAV Account. The Server field is only {phone.host}. Leave http:// and the port out of that field. User Name is the email above, and the password is an application password. Open Advanced, turn SSL off, and set the port to {phone.port}. The Contacts address book is the one that already has your Rolodex people. Add a separate CalDAV account in Calendar with the same server, email, password, and port. Events are the Rolodex calendar. Tasks are the Tasks calendar.
             </Text>
             <Text style={styles.meta}>
               People kept in iCloud stay in iCloud. Export a vCard from iCloud and import it on the Address books tab. Those people then show up here and sync back to the phone under the Rolodex account.

@@ -17,7 +17,7 @@ import {
 } from '@rolodex/core'
 import type { Database, WorkspaceRole } from '@rolodex/db'
 import { handleCalendar } from './caldav'
-import type { DavRequest, DavResult } from './dav-types'
+import { absoluteHref, requestOrigin, type DavRequest, type DavResult } from './dav-types'
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -38,6 +38,11 @@ const baseHeaders = {
 export async function handleDav(db: Database, request: DavRequest): Promise<DavResult> {
   const method = request.method.toUpperCase()
   if (method === 'OPTIONS') return text(200, '', baseHeaders)
+  const discovery = matchPath(request.path)
+  if (discovery.kind === 'wellknown' && (method === 'GET' || method === 'HEAD' || method === 'PROPFIND')) {
+    const origin = requestOrigin(request.headers)
+    return redirect(origin ? `${origin}/` : '/')
+  }
   const credentials = basic(header(request.headers, 'authorization'))
   if (!credentials) return unauthorized()
   const user = await authenticateAppPassword(db, credentials.email, credentials.password)
@@ -48,20 +53,21 @@ export async function handleDav(db: Database, request: DavRequest): Promise<DavR
   const calendar = await handleCalendar(db, request, user.id)
   if (calendar) return calendar
   const route = matchPath(request.path)
-  if (route.kind === 'unknown') return text(404, 'Not found', baseHeaders)
+  if (route.kind === 'unknown' || route.kind === 'wellknown') return text(404, 'Not found', baseHeaders)
   if (route.kind !== 'root' && route.userId !== user.id) return text(403, 'Forbidden', baseHeaders)
+  const origin = requestOrigin(request.headers)
 
   try {
     if (method === 'GET' && route.kind === 'root') {
-      return redirect(`/principals/${user.id}/`)
+      return redirect(absoluteHref(origin, `/principals/${user.id}/`))
     }
     if (method === 'PROPFIND' && (route.kind === 'root' || route.kind === 'principal')) {
-      return route.kind === 'root' ? propfindRoot(user.id) : propfindPrincipal(user)
+      return route.kind === 'root' ? propfindRoot(origin, user.id) : propfindPrincipal(origin, user)
     }
-    if (method === 'PROPFIND' && route.kind === 'home') return propfindHome(db, user.id, depth(request))
-    if (method === 'PROPFIND' && route.kind === 'book') return propfindBook(db, user.id, route.segment, depth(request))
-    if (method === 'PROPFIND' && route.kind === 'card') return propfindCard(db, user.id, route.segment, route.uid)
-    if (method === 'REPORT' && route.kind === 'book') return report(db, user.id, route.segment, request.body)
+    if (method === 'PROPFIND' && route.kind === 'home') return propfindHome(db, origin, user.id, depth(request))
+    if (method === 'PROPFIND' && route.kind === 'book') return propfindBook(db, origin, user.id, route.segment, depth(request))
+    if (method === 'PROPFIND' && route.kind === 'card') return propfindCard(db, origin, user.id, route.segment, route.uid)
+    if (method === 'REPORT' && route.kind === 'book') return report(db, origin, user.id, route.segment, request.body)
     if ((method === 'GET' || method === 'HEAD') && route.kind === 'card') {
       return getCard(db, user.id, route.segment, route.uid, method === 'HEAD')
     }
@@ -73,7 +79,7 @@ export async function handleDav(db: Database, request: DavRequest): Promise<DavR
       return text(204, '', baseHeaders)
     }
     if (method === 'MKCOL' && route.kind === 'book') return mkcol(db, user.id, route.segment, request.body)
-    if (method === 'PROPPATCH' && route.kind === 'book') return proppatch(db, user.id, route.segment, request.body)
+    if (method === 'PROPPATCH' && route.kind === 'book') return proppatch(db, origin, user.id, route.segment, request.body)
     return text(405, 'Method not allowed', baseHeaders)
   } catch (error) {
     const appError = error instanceof AppError ? error : error instanceof Error && error.cause instanceof AppError ? error.cause : null
@@ -82,37 +88,37 @@ export async function handleDav(db: Database, request: DavRequest): Promise<DavR
   }
 }
 
-async function propfindHome(db: Database, userId: string, deep: boolean) {
+async function propfindHome(db: Database, origin: string, userId: string, deep: boolean) {
   const books = await listAddressBooks(db, userId)
   const self = ok(
-    `/addressbooks/${userId}/`,
+    absoluteHref(origin, `/addressbooks/${userId}/`),
     `<d:resourcetype><d:collection/></d:resourcetype><d:displayname>Address Books</d:displayname>`,
   )
   if (!deep) return multi(self)
-  const children = books.map((book) => ok(bookHref(userId, book.urlSegment), bookProperties(book, book.role))).join('')
+  const children = books.map((book) => ok(bookHref(origin, userId, book.urlSegment), bookProperties(book, book.role))).join('')
   return multi(self + children)
 }
 
-async function propfindBook(db: Database, userId: string, segment: string, deep: boolean) {
+async function propfindBook(db: Database, origin: string, userId: string, segment: string, deep: boolean) {
   const books = await listAddressBooks(db, userId)
   const book = books.find((item) => item.urlSegment === segment || item.id === segment)
   if (!book) return text(404, 'Address book not found', baseHeaders)
-  const self = ok(bookHref(userId, book.urlSegment), bookProperties(book, book.role))
+  const self = ok(bookHref(origin, userId, book.urlSegment), bookProperties(book, book.role))
   if (!deep) return multi(self)
   const cards = await listLiveCards(db, userId, book.id)
   const children = cards
-    .map((card) => ok(cardHref(userId, book.urlSegment, card.uid), cardProperties(card, false)))
+    .map((card) => ok(cardHref(origin, userId, book.urlSegment, card.uid), cardProperties(card, false)))
     .join('')
   return multi(self + children)
 }
 
-async function propfindCard(db: Database, userId: string, segment: string, uid: string) {
+async function propfindCard(db: Database, origin: string, userId: string, segment: string, uid: string) {
   const card = await getLiveCard(db, userId, segment, uid)
   const book = (await listAddressBooks(db, userId)).find((item) => item.id === card.addressBookId)
-  return multi(ok(cardHref(userId, book?.urlSegment || segment, uid), cardProperties(card, false)))
+  return multi(ok(cardHref(origin, userId, book?.urlSegment || segment, uid), cardProperties(card, false)))
 }
 
-async function report(db: Database, userId: string, segment: string, body: string) {
+async function report(db: Database, origin: string, userId: string, segment: string, body: string) {
   const books = await listAddressBooks(db, userId)
   const book = books.find((item) => item.urlSegment === segment || item.id === segment)
   if (!book) return text(404, 'Address book not found', baseHeaders)
@@ -125,7 +131,7 @@ async function report(db: Database, userId: string, segment: string, body: strin
     const includeData = body.toLowerCase().includes('address-data')
     const responses = result.changes
       .map((change) => {
-        const href = cardHref(userId, book.urlSegment, change.uid)
+        const href = cardHref(origin, userId, book.urlSegment, change.uid)
         if (change.deleted || !change.etag || !change.vcard) return missing(href)
         return ok(href, `<d:getetag>"${xmlEscape(change.etag)}"</d:getetag>${includeData ? `<card:address-data>${xmlEscape(change.vcard)}</card:address-data>` : ''}`)
       })
@@ -141,7 +147,7 @@ async function report(db: Database, userId: string, segment: string, body: strin
   const match = findText(doc, 'text-match')?.toLowerCase()
   if (match) cards = cards.filter((card) => card.vcardText.toLowerCase().includes(match))
   const includeData = body.toLowerCase().includes('address-data') || root === 'addressbook-query'
-  const responses = cards.map((card) => ok(cardHref(userId, book.urlSegment, card.uid), cardProperties(card, includeData))).join('')
+  const responses = cards.map((card) => ok(cardHref(origin, userId, book.urlSegment, card.uid), cardProperties(card, includeData))).join('')
   return multi(responses)
 }
 
@@ -177,28 +183,30 @@ async function mkcol(db: Database, userId: string, segment: string, body: string
   return text(201, '', baseHeaders)
 }
 
-async function proppatch(db: Database, userId: string, segment: string, body: string) {
+async function proppatch(db: Database, origin: string, userId: string, segment: string, body: string) {
   const name = findText(parser.parse(body), 'displayname')
   if (!name?.trim()) return text(400, 'displayname is required', baseHeaders)
   const updated = await updateAddressBook(db, userId, segment, { name: name.trim() })
   if (!updated) return text(404, 'Address book not found', baseHeaders)
-  return multi(ok(bookHref(userId, updated.urlSegment), `<d:displayname>${xmlEscape(updated.name)}</d:displayname>`))
+  return multi(ok(bookHref(origin, userId, updated.urlSegment), `<d:displayname>${xmlEscape(updated.name)}</d:displayname>`))
 }
 
-function propfindRoot(userId: string) {
+function propfindRoot(origin: string, userId: string) {
+  const principal = absoluteHref(origin, `/principals/${userId}/`)
   return multi(
     ok(
-      '/',
-      `<d:current-user-principal><d:href>/principals/${userId}/</d:href></d:current-user-principal><d:principal-URL><d:href>/principals/${userId}/</d:href></d:principal-URL><d:resourcetype><d:collection/></d:resourcetype>`,
+      absoluteHref(origin, '/'),
+      `<d:current-user-principal><d:href>${xmlEscape(principal)}</d:href></d:current-user-principal><d:principal-URL><d:href>${xmlEscape(principal)}</d:href></d:principal-URL><d:resourcetype><d:collection/></d:resourcetype>`,
     ),
   )
 }
 
-function propfindPrincipal(user: { id: string; displayName: string }) {
+function propfindPrincipal(origin: string, user: { id: string; displayName: string }) {
+  const principal = absoluteHref(origin, `/principals/${user.id}/`)
   return multi(
     ok(
-      `/principals/${user.id}/`,
-      `<d:displayname>${xmlEscape(user.displayName)}</d:displayname><d:resourcetype><d:collection/><d:principal/></d:resourcetype><card:addressbook-home-set><d:href>/addressbooks/${user.id}/</d:href></card:addressbook-home-set><cal:calendar-home-set><d:href>/calendars/${user.id}/</d:href></cal:calendar-home-set><d:current-user-principal><d:href>/principals/${user.id}/</d:href></d:current-user-principal>`,
+      principal,
+      `<d:displayname>${xmlEscape(user.displayName)}</d:displayname><d:resourcetype><d:collection/><d:principal/></d:resourcetype><card:addressbook-home-set><d:href>${xmlEscape(absoluteHref(origin, `/addressbooks/${user.id}/`))}</d:href></card:addressbook-home-set><cal:calendar-home-set><d:href>${xmlEscape(absoluteHref(origin, `/calendars/${user.id}/`))}</d:href></cal:calendar-home-set><d:current-user-principal><d:href>${xmlEscape(principal)}</d:href></d:current-user-principal>`,
     ),
   )
 }
@@ -217,7 +225,8 @@ function cardProperties(card: { etag: string; updatedAt: Date; vcardText: string
 
 function matchPath(input: string) {
   const path = decodeURIComponent((input.split('?')[0] || '/')).replace(/\/+$/, '') || '/'
-  if (path === '/' || path === '/.well-known/carddav' || path === '/.well-known/caldav') return { kind: 'root' as const, userId: '' }
+  if (path === '/.well-known/carddav' || path === '/.well-known/caldav') return { kind: 'wellknown' as const, userId: '' }
+  if (path === '/') return { kind: 'root' as const, userId: '' }
   const principal = path.match(/^\/principals\/([^/]+)$/)
   if (principal?.[1]) return { kind: 'principal' as const, userId: principal[1] }
   const home = path.match(/^\/addressbooks\/([^/]+)$/)
@@ -234,12 +243,12 @@ function uidFromHref(href: string) {
   return match?.[1] ? decodeURIComponent(match[1]) : undefined
 }
 
-function bookHref(userId: string, segment: string) {
-  return `/addressbooks/${userId}/${segment}/`
+function bookHref(origin: string, userId: string, segment: string) {
+  return absoluteHref(origin, `/addressbooks/${userId}/${segment}/`)
 }
 
-function cardHref(userId: string, segment: string, uid: string) {
-  return `/addressbooks/${userId}/${segment}/${encodeURIComponent(uid)}.vcf`
+function cardHref(origin: string, userId: string, segment: string, uid: string) {
+  return absoluteHref(origin, `/addressbooks/${userId}/${segment}/${encodeURIComponent(uid)}.vcf`)
 }
 
 function multi(responses: string, syncToken?: string) {
