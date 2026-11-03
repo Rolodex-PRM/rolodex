@@ -1,0 +1,21 @@
+{
+  "name": "rolodex",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.33.3",
+  "scripts": {
+    "dev:api": "pnpm --filter @rolodex/api dev",
+    "dev:carddav": "pnpm --filter @rolodex/carddav dev",
+    "dev:web": "pnpm --filter @rolodex/mobile web",
+    "db:migrate": "pnpm --filter @rolodex/db migrate",
+    "db:generate": "pnpm --filter @rolodex/db generate",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}

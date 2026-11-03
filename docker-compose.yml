@@ -1,0 +1,90 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: rolodex
+      POSTGRES_PASSWORD: rolodex
+      POSTGRES_DB: rolodex
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rolodex -d rolodex"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-data:/data
+
+  minio:
+    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: rolodex
+      MINIO_ROOT_PASSWORD: rolodexsecret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+  migrate:
+    build: .
+    command: pnpm --filter @rolodex/db migrate
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://rolodex:rolodex@postgres:5432/rolodex
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: .
+    command: pnpm --filter @rolodex/api start
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://rolodex:rolodex@postgres:5432/rolodex
+      S3_ENDPOINT: http://minio:9000
+      API_PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio:
+        condition: service_started
+
+  carddav:
+    build: .
+    command: pnpm --filter @rolodex/carddav start
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://rolodex:rolodex@postgres:5432/rolodex
+      CARDDAV_PORT: 3001
+      PUBLIC_CARDDAV_URL: http://localhost:3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
