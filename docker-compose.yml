@@ -1,16 +1,18 @@
+name: rolodex
+
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: rolodex
-      POSTGRES_PASSWORD: rolodex
-      POSTGRES_DB: rolodex
+      POSTGRES_USER: ${POSTGRES_USER:-rolodex}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rolodex}
+      POSTGRES_DB: ${POSTGRES_DB:-rolodex}
     ports:
-      - "5434:5432"
+      - "${POSTGRES_PORT:-5472}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rolodex -d rolodex"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -18,7 +20,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6380:6379"
+      - "${REDIS_PORT:-6479}:6379"
     volumes:
       - redis-data:/data
 
@@ -26,11 +28,11 @@ services:
     image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: rolodex
-      MINIO_ROOT_PASSWORD: rolodexsecret
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-rolodex}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-rolodexsecret}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${S3_PORT:-9100}:9000"
+      - "${S3_CONSOLE_PORT:-9101}:9001"
     volumes:
       - minio-data:/data
 
@@ -39,7 +41,7 @@ services:
     command: pnpm --filter @rolodex/db migrate
     env_file: .env
     environment:
-      DATABASE_URL: postgres://rolodex:rolodex@postgres:5432/rolodex
+      DATABASE_URL: postgres://${POSTGRES_USER:-rolodex}:${POSTGRES_PASSWORD:-rolodex}@postgres:5432/${POSTGRES_DB:-rolodex}
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,11 +52,11 @@ services:
     command: pnpm --filter @rolodex/api start
     env_file: .env
     environment:
-      DATABASE_URL: postgres://rolodex:rolodex@postgres:5432/rolodex
+      DATABASE_URL: postgres://${POSTGRES_USER:-rolodex}:${POSTGRES_PASSWORD:-rolodex}@postgres:5432/${POSTGRES_DB:-rolodex}
       S3_ENDPOINT: http://minio:9000
       API_PORT: 3000
     ports:
-      - "3000:3000"
+      - "${API_PORT:-4100}:3000"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -66,11 +68,11 @@ services:
     command: pnpm --filter @rolodex/carddav start
     env_file: .env
     environment:
-      DATABASE_URL: postgres://rolodex:rolodex@postgres:5432/rolodex
+      DATABASE_URL: postgres://${POSTGRES_USER:-rolodex}:${POSTGRES_PASSWORD:-rolodex}@postgres:5432/${POSTGRES_DB:-rolodex}
       CARDDAV_PORT: 3001
-      PUBLIC_CARDDAV_URL: http://localhost:3001
+      PUBLIC_CARDDAV_URL: ${PUBLIC_CARDDAV_URL:-http://localhost:4101}
     ports:
-      - "3001:3001"
+      - "${CARDDAV_PORT:-4101}:3001"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -80,7 +82,7 @@ services:
       context: .
       dockerfile: Dockerfile.web
     ports:
-      - "8080:80"
+      - "${WEB_PORT:-4180}:80"
     depends_on:
       - api
 

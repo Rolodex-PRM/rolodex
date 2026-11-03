@@ -3,7 +3,7 @@ import { Platform, StyleSheet, Text, View } from 'react-native'
 import { api, ApiError } from './api'
 import { font, theme } from './theme'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4100'
 
 function authHeaders() {
   if (Platform.OS !== 'web' || typeof sessionStorage === 'undefined') return undefined

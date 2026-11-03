@@ -6,7 +6,7 @@
   "scripts": {
     "dev:api": "pnpm --filter @rolodex/api dev",
     "dev:carddav": "pnpm --filter @rolodex/carddav dev",
-    "dev:web": "pnpm --filter @rolodex/mobile web",
+    "dev:web": "node scripts/dev-web.mjs",
     "db:migrate": "pnpm --filter @rolodex/db migrate",
     "db:generate": "pnpm --filter @rolodex/db generate",
     "test": "pnpm -r --if-present test",

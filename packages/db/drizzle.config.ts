@@ -5,6 +5,6 @@ export default defineConfig({
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? 'postgres://rolodex:rolodex@localhost:5434/rolodex',
+    url: process.env.DATABASE_URL ?? 'postgres://rolodex:rolodex@localhost:5472/rolodex',
   },
 })

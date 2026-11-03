@@ -96,7 +96,7 @@ const repeats = [
   { value: 'YEARLY', label: 'Yearly' },
 ]
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4100'
 
 export default function Calendar() {
   const { workspace } = useAuth()

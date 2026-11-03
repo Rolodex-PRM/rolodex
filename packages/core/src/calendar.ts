@@ -453,9 +453,12 @@ function monthEvent(row: typeof calendarEvents.$inferSelect, date: string): Mont
 }
 
 export function datesInMonth(start: string, rrule: string | null | undefined, year: number, month: number) {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return []
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return []
   const windowStart = `${year}-${String(month).padStart(2, '0')}-01`
-  const windowEnd = addDays(new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10), -1)
+  const monthEnd = new Date(Date.UTC(year, month, 0))
+  if (Number.isNaN(monthEnd.getTime())) return []
+  const windowEnd = monthEnd.toISOString().slice(0, 10)
   if (!rrule) return start >= windowStart && start <= windowEnd ? [start] : []
   const freq = /FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/i.exec(rrule)?.[1]?.toUpperCase()
   if (!freq) return start >= windowStart && start <= windowEnd ? [start] : []
@@ -473,8 +476,10 @@ export function datesInMonth(start: string, rrule: string | null | undefined, ye
   const found: string[] = []
   let seen = 0
   const origin = new Date(`${start}T00:00:00Z`)
+  if (Number.isNaN(origin.getTime())) return []
   const cursor = new Date(origin)
   for (let guard = 0; guard < 800; guard += 1) {
+    if (Number.isNaN(cursor.getTime())) break
     const iso = cursor.toISOString().slice(0, 10)
     if (iso > until || iso > windowEnd) break
     const days = Math.round((cursor.getTime() - origin.getTime()) / 86_400_000)

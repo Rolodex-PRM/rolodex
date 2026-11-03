@@ -62,7 +62,7 @@ export function AddressBooksPage() {
     if (!workspace || !id || Platform.OS !== 'web') return
     const token = sessionStorage.getItem('rolodex.session')
     const parsed = token ? (JSON.parse(token) as { token: string }) : null
-    const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'}/api/workspaces/${workspace.id}/address-books/${id}/export`, {
+    const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4100'}/api/workspaces/${workspace.id}/address-books/${id}/export`, {
       headers: parsed ? { Authorization: `Bearer ${parsed.token}` } : undefined,
       credentials: 'include',
     })

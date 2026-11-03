@@ -25,12 +25,12 @@ class AppModule {}
 
 async function main() {
   loadEnv()
-  process.env.DATABASE_URL ||= 'postgres://rolodex:rolodex@localhost:5434/rolodex'
+  process.env.DATABASE_URL ||= 'postgres://rolodex:rolodex@localhost:5472/rolodex'
   const app = await NestFactory.create(AppModule)
   app.setGlobalPrefix('api')
   app.useGlobalFilters(new AppExceptionFilter())
   app.enableCors({
-    origin: (process.env.CORS_ORIGIN || 'http://localhost:8081,http://localhost:8787,http://localhost:8080')
+    origin: (process.env.CORS_ORIGIN || 'http://localhost:4181,http://localhost:4180')
       .split(',')
       .map((origin) => origin.trim())
       .filter(Boolean),
@@ -43,8 +43,8 @@ async function main() {
     console.warn('Object storage is not reachable yet. Contact photos will fail until it is.')
     console.warn(error instanceof Error ? error.message : error)
   }
-  const port = Number(process.env.API_PORT || 3000)
-  await app.listen(port)
+  const port = Number(process.env.API_PORT || 4100)
+  await app.listen(port, '0.0.0.0')
   console.log(`API listening on ${port}`)
   const database = app.get<ReturnType<typeof createDb>['db']>(DB)
   const syncImmich = () => {

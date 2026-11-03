@@ -457,7 +457,7 @@ function uploadFiles(workspaceId: string, entry: Entry, files: File[]) {
 }
 
 async function openFile(workspaceId: string, file: InteractionFile) {
-  const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'}/api/workspaces/${workspaceId}/files/${file.id}`, {
+  const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4100'}/api/workspaces/${workspaceId}/files/${file.id}`, {
     headers: authHeader(),
     credentials: 'include',
   })

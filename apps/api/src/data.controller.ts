@@ -673,14 +673,14 @@ export class DataController {
 
   @Get('workspaces/:workspaceId/calendar')
   calendar(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Query('year') year?: string, @Query('month') month?: string) {
-    const now = new Date()
-    return calendarMonth(this.db, req.user.id, workspaceId, year ? Number(year) : now.getFullYear(), month ? Number(month) : now.getMonth() + 1)
+    const when = calendarWhen(year, month)
+    return calendarMonth(this.db, req.user.id, workspaceId, when.year, when.month)
   }
 
   @Get('workspaces/:workspaceId/calendar.ics')
   async calendarFile(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Query('year') year: string, @Query('month') month: string, @Res() res: Response) {
-    const now = new Date()
-    const data = await calendarMonth(this.db, req.user.id, workspaceId, year ? Number(year) : now.getFullYear(), month ? Number(month) : now.getMonth() + 1)
+    const when = calendarWhen(year, month)
+    const data = await calendarMonth(this.db, req.user.id, workspaceId, when.year, when.month)
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8')
     res.setHeader('Content-Disposition', 'attachment; filename="rolodex.ics"')
     res.send(calendarIcs(data.events))
@@ -1246,6 +1246,16 @@ export class DataController {
   testNotification(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Body() body: unknown) {
     const input = parseBody(notificationTestSchema, body)
     return sendNotificationTest(this.db, req.user.id, workspaceId, input.channel)
+  }
+}
+
+function calendarWhen(year?: string, month?: string) {
+  const now = new Date()
+  const parsedYear = Number(year)
+  const parsedMonth = Number(month)
+  return {
+    year: Number.isInteger(parsedYear) && parsedYear >= 1970 && parsedYear <= 9999 ? parsedYear : now.getFullYear(),
+    month: Number.isInteger(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12 ? parsedMonth : now.getMonth() + 1,
   }
 }
 

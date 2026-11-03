@@ -4,7 +4,7 @@ import { api, send, type Activity, type ImmichGallery, type Note } from './api'
 import { readCoverSeconds } from './cover-timing'
 import { font, theme } from './theme'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4100'
 
 function authHeaders() {
   if (Platform.OS !== 'web' || typeof sessionStorage === 'undefined') return undefined
