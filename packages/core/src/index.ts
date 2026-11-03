@@ -1,7 +1,7 @@
 export { AppError } from './errors'
 export { roleAtLeast, canWriteContacts, canManageMembers } from './permissions'
 export { encryptSecret, decryptSecret, etagMatches, makeEtag } from './secrets'
-export { registerUser, loginUser, logoutUser, userForSession, createOauthUser, openSession, createAppPassword, listAppPasswords, revokeAppPassword, authenticateAppPassword, publicUser, type PublicUser } from './auth'
+export { registerUser, setupRequired, createFirstAdmin, loginUser, logoutUser, userForSession, createOauthUser, openSession, createAppPassword, listAppPasswords, revokeAppPassword, authenticateAppPassword, publicUser, type PublicUser } from './auth'
 export { getOauthSettings, setOauthSettings, publicOauth, unlinkOauthAccounts, beginOauth, finishOauth, exchangeOauthCode } from './oauth'
 export { getNotificationSettings, setNotificationSettings, pushPublic, savePushSubscription, deletePushSubscription, sendNotificationTest, dispatchDueNotifications, publicAppUrl, sendAccountEmail } from './notify'
 export { createWorkspace, listWorkspaces, listMembers, addMember, updateMemberRole, removeMember } from './workspaces'

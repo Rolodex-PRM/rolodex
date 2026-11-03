@@ -9,16 +9,22 @@ import { Loader, Splash } from '../src/logo'
 import { theme } from '../src/theme'
 
 function Gate() {
-  const { ready, session } = useAuth()
+  const { ready, session, needsSetup } = useAuth()
   const segments = useSegments()
   const router = useRouter()
   const narrow = useWindowDimensions().width < 880
+  const route = (segments as readonly string[]).join('/')
+  const onSetup = route === '(auth)/setup' || route.startsWith('(auth)/setup/')
   useEffect(() => {
     if (!ready) return
+    if (needsSetup) {
+      if (!onSetup) router.replace('/setup')
+      return
+    }
     const inAuth = segments[0] === '(auth)'
-    if (!session && !inAuth) router.replace('/sign-in')
     if (session && inAuth) router.replace('/')
-  }, [ready, session, segments, router])
+    else if (!session && (!inAuth || onSetup)) router.replace('/sign-in')
+  }, [ready, session, needsSetup, onSetup, segments, router])
   if (!ready) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bg }}>
