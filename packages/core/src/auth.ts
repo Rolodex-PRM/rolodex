@@ -1,5 +1,5 @@
 import { appPasswords, sessions, users, type Database } from '@rolodex/db'
-import { and, eq, gt, isNull } from 'drizzle-orm'
+import { and, eq, gt, isNull, sql } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
 import { AppError } from './errors'
 import { normalizeEmail } from './normalize'
@@ -21,6 +21,32 @@ async function createSession(db: Database, userId: string) {
   const expiresAt = new Date(Date.now() + SESSION_MS)
   await db.insert(sessions).values({ userId, tokenHash: hashToken(token), expiresAt })
   return { token, expiresAt }
+}
+
+export async function setupRequired(db: Database) {
+  const [row] = await db.select({ id: users.id }).from(users).limit(1)
+  return { required: !row }
+}
+
+export async function createFirstAdmin(
+  db: Database,
+  input: { email: string; password: string; displayName?: string | undefined },
+) {
+  const email = normalizeEmail(input.email)
+  const passwordHash = await hashPassword(input.password)
+  const displayName = input.displayName?.trim() || email.split('@')[0] || 'Admin'
+  return db.transaction(async (tx) => {
+    const database = tx as unknown as Database
+    await database.execute(sql`select pg_advisory_xact_lock(481516234)`)
+    const [existing] = await database.select({ id: users.id }).from(users).limit(1)
+    if (existing) throw new AppError(409, 'This server already has an administrator')
+    const [user] = await database.insert(users).values({ email, passwordHash, displayName }).returning()
+    if (!user) throw new AppError(500, 'Could not create the account')
+    const workspace = await createWorkspace(database, user.id, 'Personal')
+    await createAddressBook(database, user.id, workspace.id, 'Contacts')
+    const session = await createSession(database, user.id)
+    return { user: publicUser(user), token: session.token, expiresAt: session.expiresAt }
+  })
 }
 
 export async function registerUser(

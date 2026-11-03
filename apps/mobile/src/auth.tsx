@@ -13,11 +13,13 @@ function withCarddav(
 
 type AuthValue = {
   ready: boolean
+  needsSetup: boolean
   session: Session | null
   workspace: Workspace | null
   workspaces: Workspace[]
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string, displayName: string, invite?: string) => Promise<void>
+  createAdmin: (email: string, password: string, displayName: string) => Promise<void>
   completeOauth: (token: string) => Promise<void>
   signOut: () => Promise<void>
   refreshWorkspaces: () => Promise<void>
@@ -41,6 +43,7 @@ function writeStored(value: { token: string; session: Session; workspaceId?: str
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
+  const [needsSetup, setNeedsSetup] = useState(false)
   const [token, setTokenState] = useState<string | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
@@ -58,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    let cancel = false
     setUnauthorized(() => {
       setToken(null)
       setTokenState(null)
@@ -66,20 +70,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       writeStored(null)
     })
     const stored = readStored()
+    const setupPromise = api<{ required: boolean }>('/api/auth/setup')
+      .then((result) => result.required)
+      .catch(() => false)
     if (!stored) {
-      setReady(true)
-      return
+      setupPromise
+        .then((required) => {
+          if (!cancel) setNeedsSetup(required)
+        })
+        .finally(() => {
+          if (!cancel) setReady(true)
+        })
+      return () => {
+        cancel = true
+      }
     }
     setToken(stored.token)
-    api<{ user: { id: string; email: string; displayName: string }; carddavUrl: string; carddavPhoneUrl?: string | null }>('/api/auth/me')
-      .then((me) => loadWorkspaces(stored.token, withCarddav(me.user, me), stored.workspaceId))
-      .catch(() => writeStored(null))
-      .finally(() => setReady(true))
+    setupPromise
+      .then(async (required) => {
+        if (cancel) return
+        setNeedsSetup(required)
+        const me = await api<{ user: { id: string; email: string; displayName: string }; carddavUrl: string; carddavPhoneUrl?: string | null }>('/api/auth/me')
+        if (cancel) return
+        await loadWorkspaces(stored.token, withCarddav(me.user, me), stored.workspaceId)
+      })
+      .catch(() => {
+        if (!cancel) writeStored(null)
+      })
+      .finally(() => {
+        if (!cancel) setReady(true)
+      })
+    return () => {
+      cancel = true
+    }
   }, [])
 
   const value = useMemo<AuthValue>(
     () => ({
       ready,
+      needsSetup,
       session,
       workspace,
       workspaces,
@@ -90,6 +119,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
         const me = await api<{ carddavUrl: string; carddavPhoneUrl?: string | null }>('/api/auth/me')
         await loadWorkspaces(result.token, withCarddav(result.user, me))
+      },
+      async createAdmin(email, password, displayName) {
+        const result = await api<{ token: string; user: { id: string; email: string; displayName: string } }>('/api/auth/setup', {
+          method: 'POST',
+          body: JSON.stringify({ email, password, displayName }),
+        })
+        const me = await api<{ carddavUrl: string; carddavPhoneUrl?: string | null }>('/api/auth/me')
+        await loadWorkspaces(result.token, withCarddav(result.user, me))
+        setNeedsSetup(false)
       },
       async signUp(email, password, displayName, invite) {
         const result = await api<{ token: string; user: { id: string; email: string; displayName: string } }>(
@@ -139,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (token && session) writeStored({ token, session, workspaceId: next.id })
       },
     }),
-    [ready, session, workspace, workspaces, token],
+    [ready, needsSetup, session, workspace, workspaces, token],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -21,7 +21,9 @@ import {
   publicAppearance,
   registrationPolicy,
   registerSchema,
+  createFirstAdmin,
   registerUser,
+  setupRequired,
   resetPassword,
   revokeAppPassword,
   savePushSubscription,
@@ -78,6 +80,20 @@ export class AuthController {
   @Get('auth/registration')
   registration() {
     return registrationPolicy(this.db)
+  }
+
+  @Get('auth/setup')
+  setup() {
+    return setupRequired(this.db)
+  }
+
+  @Post('auth/setup')
+  async createSetup(@Body() body: unknown, @Req() req: AuthedRequest, @Res({ passthrough: true }) res: Response) {
+    if (!loginLimiter(req.ip || 'local')) throw new AppError(429, 'Too many attempts. Try again in a minute.')
+    const input = parseBody(registerSchema, body)
+    const result = await createFirstAdmin(this.db, input)
+    res.setHeader('Set-Cookie', sessionCookie(result.token, 30 * 24 * 60 * 60))
+    return result
   }
 
   @Get('auth/invites/preview')
