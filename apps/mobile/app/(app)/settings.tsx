@@ -10,6 +10,7 @@ import { api, type AppPassword } from '../../src/api'
 import { useAuth } from '../../src/auth'
 import { installCustomCss, userCssKey, type Appearance } from '../../src/custom-css'
 import { font, theme } from '../../src/theme'
+import { PhoneSync } from '../../src/phone-sync'
 import { Button, Field, Notice, Panel } from '../../src/ui'
 
 const tabs = [
@@ -179,7 +180,7 @@ export default function Settings() {
       </Panel>
       <Panel>
         <Text style={styles.name}>iPhone contacts</Text>
-        <Text style={styles.meta}>Contacts sync both ways. A change in Rolodex updates the phone, and a change on the phone updates Rolodex. Create an application password below and type that on the iPhone.</Text>
+        <Text style={styles.meta}>The iPhone checks this account on its own schedule. Create an application password below and type that on the iPhone.</Text>
         <Text style={styles.meta}>Username</Text>
         <Text style={styles.value}>{session?.email}</Text>
         {phone ? (
@@ -190,13 +191,17 @@ export default function Settings() {
             <Text style={styles.meta}>
               On the iPhone, open Settings, Contacts, Accounts, Add Account, Other, Add CardDAV Account. The Server field is only {phone.host}. Leave http:// and the port out of that field. User Name is the email above, and the password is an application password. Open Advanced, turn SSL off, and set the port to {phone.port}. The Contacts address book is the one that already has your Rolodex people. Add a separate CalDAV account in Calendar with the same server, email, password, and port. Events are the Rolodex calendar. Tasks are the Tasks calendar.
             </Text>
-            <Text style={styles.meta}>
-              People kept in iCloud stay in iCloud. Export a vCard from iCloud and import it on the Address books tab. Those people then show up here and sync back to the phone under the Rolodex account.
-            </Text>
           </>
         ) : (
           <Text style={styles.meta}>Server {session?.carddavUrl}</Text>
         )}
+        <PhoneSync
+          lastCheckedIn={passwords.reduce<string | null>((latest, item) => {
+            if (!item.lastUsedAt) return latest
+            if (!latest || item.lastUsedAt > latest) return item.lastUsedAt
+            return latest
+          }, null)}
+        />
         {Platform.OS === 'web' && session ? (
           <Button
             label="Copy server address"
