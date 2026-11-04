@@ -6,11 +6,13 @@ OUT=${1:-"$ROOT/backups/$STAMP"}
 mkdir -p "$OUT"
 echo "Writing PostgreSQL dump"
 docker compose -f "$ROOT/docker-compose.yml" exec -T postgres pg_dump -U rolodex -d rolodex --clean --if-exists --no-owner > "$OUT/database.sql"
-VOLUME=$(docker volume ls -q --filter name=minio-data | head -n 1)
-if [ -n "$VOLUME" ]; then
-  echo "Archiving object storage from $VOLUME"
-  docker run --rm -v "$VOLUME":/data:ro -v "$OUT":/backup alpine:3 tar -C /data -cf /backup/minio.tar .
-else
-  echo "No MinIO volume found; database dump only"
-fi
+archive() {
+  volume=$(docker volume ls -q --filter name="$1" | head -n 1)
+  if [ -n "$volume" ]; then
+    echo "Archiving $volume"
+    docker run --rm -v "$volume":/data:ro -v "$OUT":/backup alpine:3 tar -C /data -cf "/backup/$2" .
+  fi
+}
+archive uploads files.tar
+archive minio-data minio.tar
 echo "Backup written to $OUT"

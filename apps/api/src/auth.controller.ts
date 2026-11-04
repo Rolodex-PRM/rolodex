@@ -47,13 +47,19 @@ import { networkInterfaces } from 'node:os'
 import type { Response } from 'express'
 import { AuthGuard, clearSessionCookie, DB, loginLimiter, sessionCookie, type AuthedRequest } from './http'
 
-function publicCarddavUrl() {
-  if (process.env.DOCKER_SITE === 'true') {
-    const host = process.env.PUBLIC_HOST || 'localhost'
-    const port = process.env.WEB_TLS_PORT || '443'
-    return port === '443' ? `https://${host}` : `https://${host}:${port}`
+function publicCarddavUrl(req: AuthedRequest) {
+  const configured = process.env.PUBLIC_URL?.trim().replace(/\/$/, '')
+  if (configured) return configured
+  const host = firstHeader(req.get('x-forwarded-host')) || req.get('host')
+  if (process.env.DOCKER_SITE === 'true' && host) {
+    const proto = firstHeader(req.get('x-forwarded-proto')) || req.protocol || 'http'
+    return `${proto}://${host}`
   }
   return process.env.PUBLIC_CARDDAV_URL || 'http://localhost:4101'
+}
+
+function firstHeader(value: string | undefined) {
+  return value?.split(',')[0]?.trim() || ''
 }
 
 function carddavPhoneUrl(configured: string) {
@@ -268,7 +274,7 @@ export class AuthController {
   @Get('auth/me')
   @UseGuards(AuthGuard)
   me(@Req() req: AuthedRequest) {
-    const carddavUrl = publicCarddavUrl()
+    const carddavUrl = publicCarddavUrl(req)
     return {
       user: req.user,
       carddavUrl,

@@ -59,7 +59,7 @@ export function SyncClients() {
             <Fact label="Port" value={phone.port} />
             <Fact label="SSL" value={phone.ssl ? 'On' : 'Off'} />
             <Fact label="Base URL" value={base} />
-            <Text style={styles.meta}>{phone.ssl ? 'The first time you use HTTPS, install and trust the server certificate on that device.' : 'This server is plain HTTP, so leave SSL off in the client.'}</Text>
+            <Text style={styles.meta}>{phone.ssl ? 'This address is HTTPS, so turn SSL on.' : 'This server is plain HTTP, so leave SSL off in the client.'}</Text>
           </>
         ) : (
           <Fact label="Server" value={session?.carddavUrl || ''} />
