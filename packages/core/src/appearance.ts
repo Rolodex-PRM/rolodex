@@ -2,14 +2,13 @@ import type { Database } from '@rolodex/db'
 import type { z } from 'zod'
 import { requireManager } from './access'
 import { readSettings, writeSettings } from './server-store'
+import { cleanCss } from './css-allow'
 import type { appearanceSchema } from './validation'
 
 const settingKey = 'appearance'
 const defaults = { css: '', userCss: false }
 
-export function cleanCss(value: string) {
-  return value.replace(/<\/style/gi, '').replace(/<script/gi, '').slice(0, 20000)
-}
+export { cleanCss }
 
 export async function publicAppearance(db: Database) {
   const stored = await readSettings(db, settingKey, defaults)

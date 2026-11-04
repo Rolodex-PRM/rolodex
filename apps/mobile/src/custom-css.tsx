@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { api } from './api'
 import { useAuth } from './auth'
+import { cleanCss } from './css-allow'
 
 export type Appearance = { css: string; userCss: boolean }
 
@@ -16,7 +17,7 @@ export function installCustomCss(server: string, personal: string) {
     node.id = 'rolodex-custom'
     document.head.appendChild(node)
   }
-  node.textContent = `${server}\n${personal}`
+  node.textContent = `${cleanCss(server)}\n${cleanCss(personal)}`
   document.head.appendChild(node)
 }
 

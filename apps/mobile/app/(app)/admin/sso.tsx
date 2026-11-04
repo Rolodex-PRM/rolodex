@@ -65,7 +65,7 @@ export default function SsoPage() {
   return (
     <View style={styles.card}>
       <Text style={styles.heading}>Sign-in</Text>
-      <Text style={styles.meta}>OAuth applies to the whole Rolodex server. Password sign-in stays available.</Text>
+      <Text style={styles.meta}>OAuth applies to the whole Rolodex server. Password sign-in stays available. Authentik, Authelia, Keycloak, and other OpenID providers use this page. In Authentik, the issuer is the provider’s OpenID URL, usually ending in /application/o/rolodex/.</Text>
       {error ? <Notice text={error} /> : null}
       {notice ? <Text style={styles.notice}>{notice}</Text> : null}
       <SwitchRow label="Login with OAuth" detail="Show the provider button on the sign-in page." on={draft.enabled} onPress={() => patch({ enabled: !draft.enabled })} />
@@ -107,20 +107,20 @@ export default function SsoPage() {
         onChange={(userinfoSignedResponseAlg) => patch({ userinfoSignedResponseAlg: userinfoSignedResponseAlg as OauthSettings['userinfoSignedResponseAlg'] })}
         options={['none', 'RS256', 'ES256'].map((id) => ({ id, label: id }))}
       />
-      <Field label="Prompt" autoCapitalize="none" value={draft.prompt} onChangeText={(prompt) => patch({ prompt })} placeholder="select_account" />
-      <Field label="End session endpoint" autoCapitalize="none" value={draft.endSessionEndpoint} onChangeText={(endSessionEndpoint) => patch({ endSessionEndpoint })} placeholder="https://id.example.com/logout" />
-      <Field label="Request timeout" keyboardType="number-pad" value={String(draft.requestTimeoutMs)} onChangeText={(value) => patch({ requestTimeoutMs: Number(value.replace(/\D/g, '')) || 0 })} />
+      <Field label="Prompt" autoCapitalize="none" value={draft.prompt} onChangeText={(prompt) => patch({ prompt })} placeholder="select_account" hint="What the provider asks the person to do. select_account shows the account picker." />
+      <Field label="End session endpoint" autoCapitalize="none" value={draft.endSessionEndpoint} onChangeText={(endSessionEndpoint) => patch({ endSessionEndpoint })} placeholder="https://id.example.com/logout" hint="Optional address that signs the person out of the provider as well." />
+      <Field label="Request timeout" keyboardType="number-pad" value={String(draft.requestTimeoutMs)} onChangeText={(value) => patch({ requestTimeoutMs: Number(value.replace(/\D/g, '')) || 0 })} hint="How long Rolodex waits for the provider, in milliseconds." />
       <SwitchRow label="Allow insecure requests" detail="Allows an http issuer and skips TLS certificate checks for that provider. This can expose the sign-in to network interception." on={draft.allowInsecureRequests} onPress={() => patch({ allowInsecureRequests: !draft.allowInsecureRequests })} />
       <Field label="Name claim" autoCapitalize="none" value={draft.nameClaim} onChangeText={(nameClaim) => patch({ nameClaim })} placeholder="preferred_username" />
       <Text style={styles.meta}>Used as the display name for a new account. Existing names stay as they are.</Text>
       <Field label="Role claim" autoCapitalize="none" value={draft.roleClaim} onChangeText={(roleClaim) => patch({ roleClaim })} placeholder="groups" />
       <Text style={styles.meta}>Optional. Rolodex stores the claim on the linked account and does not change workspace roles.</Text>
       <Field label="Button text" value={draft.buttonText} onChangeText={(buttonText) => patch({ buttonText })} />
-      <Field label="Account management URL" autoCapitalize="none" value={draft.accountManagementUrl} onChangeText={(accountManagementUrl) => patch({ accountManagementUrl })} />
+      <Field label="Account management URL" autoCapitalize="none" value={draft.accountManagementUrl} onChangeText={(accountManagementUrl) => patch({ accountManagementUrl })} hint="Optional page where people change their password or profile at the provider." />
       <SwitchRow label="Auto register" detail="Create a Rolodex account the first time a confirmed email signs in." on={draft.autoRegister} onPress={() => patch({ autoRegister: !draft.autoRegister })} />
       <SwitchRow label="Auto launch" detail="Open the provider immediately on the sign-in page." on={draft.autoLaunch} onPress={() => patch({ autoLaunch: !draft.autoLaunch })} />
-      <Field label="Rolodex URL" autoCapitalize="none" value={draft.appUrl} onChangeText={(appUrl) => patch({ appUrl })} />
-      <Field label="Public API URL" autoCapitalize="none" value={draft.publicUrl} onChangeText={(publicUrl) => patch({ publicUrl })} />
+      <Field label="Rolodex URL" autoCapitalize="none" value={draft.appUrl} onChangeText={(appUrl) => patch({ appUrl })} hint="The address people open in a browser, such as https://rolodex.example.com." />
+      <Field label="Public API URL" autoCapitalize="none" value={draft.publicUrl} onChangeText={(publicUrl) => patch({ publicUrl })} hint="The address of this API. The provider redirects back here after sign-in." />
       <Text style={styles.meta}>Redirect URI to register with the provider</Text>
       <View style={styles.redirect}>
         <Text style={styles.redirectText}>{draft.redirectUri}</Text>

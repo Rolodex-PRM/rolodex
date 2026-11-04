@@ -1,6 +1,6 @@
 FROM node:22-bookworm-slim
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends postgresql-client ca-certificates \
+  && apt-get install -y --no-install-recommends postgresql-client ca-certificates openssl \
   && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app

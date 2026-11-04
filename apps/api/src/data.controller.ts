@@ -1,6 +1,4 @@
 import { spawn } from 'node:child_process'
-import { mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import {
   addOrganizationMember,
   agenda,
@@ -35,6 +33,22 @@ import {
   deleteActivity,
   deleteAddressBook,
   deleteContact,
+  listDeletedContacts,
+  restoreContact,
+  emptyTrash,
+  setTrashPolicy,
+  trashPolicySchema,
+  syncStatus,
+  listConnectedAccounts,
+  saveMailboxAccount,
+  saveCalendarAccount,
+  deleteConnectedAccount,
+  syncConnectedAccount,
+  mailboxAccountSchema,
+  calendarAccountSchema,
+  twoFactorPolicy,
+  setTwoFactorPolicy,
+  twoFactorPolicySchema,
   deleteNote,
   deleteOrganization,
   deleteRelationship,
@@ -512,9 +526,7 @@ export class DataController {
     const [attachment] = await this.db.select().from(attachments).where(eq(attachments.id, contact.photoAttachmentId)).limit(1)
     if (!attachment) throw new AppError(404, 'No photo')
     const object = await getObject(this.storage, attachment.storageKey)
-    res.setHeader('Content-Type', object.contentType)
-    res.setHeader('Cache-Control', 'private, max-age=300')
-    res.send(object.bytes)
+    sendBytes(res, object.bytes, object.contentType || attachment.contentType, attachment.filename)
   }
 
   @Post('workspaces/:workspaceId/contacts/:contactId/cover')
@@ -552,9 +564,7 @@ export class DataController {
     const [attachment] = await this.db.select().from(attachments).where(eq(attachments.id, contact.coverAttachmentId)).limit(1)
     if (!attachment) throw new AppError(404, 'No cover photo')
     const object = await getObject(this.storage, attachment.storageKey)
-    res.setHeader('Content-Type', object.contentType)
-    res.setHeader('Cache-Control', 'private, max-age=300')
-    res.send(object.bytes)
+    sendBytes(res, object.bytes, object.contentType || attachment.contentType, attachment.filename)
   }
 
   @Put('workspaces/:workspaceId/contacts/:contactId/cover')
@@ -878,11 +888,7 @@ export class DataController {
   ) {
     const file = await readableInteractionFile(this.db, req.user.id, workspaceId, attachmentId)
     const object = await getObject(this.storage, file.storageKey)
-    const name = file.filename.replace(/["\r\n]/g, '')
-    res.setHeader('Content-Type', object.contentType || file.contentType)
-    res.setHeader('Content-Disposition', `inline; filename="${name}"`)
-    res.setHeader('Cache-Control', 'private, max-age=300')
-    res.send(object.bytes)
+    sendBytes(res, object.bytes, object.contentType || file.contentType, file.filename)
   }
 
   @Delete('workspaces/:workspaceId/files/:attachmentId')
@@ -1009,16 +1015,84 @@ export class DataController {
   }
 
   @Post('backups')
-  async backup(@Req() req: AuthedRequest) {
+  async backup(@Req() req: AuthedRequest, @Res() res: Response) {
     const workspaces = await listWorkspaces(this.db, req.user.id)
     if (!workspaces.some((workspace) => workspace.role === 'owner')) {
       throw new AppError(403, 'Only an owner can create a backup')
     }
     const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const dir = join(process.env.BACKUP_DIR || 'backups', stamp)
-    await mkdir(dir, { recursive: true })
-    await dumpDatabase(join(dir, 'database.sql'))
-    return { ok: true, path: dir }
+    const sql = await dumpDatabase()
+    res.setHeader('Content-Type', 'application/sql; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="rolodex-${stamp}.sql"`)
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('Cache-Control', 'no-store')
+    res.send(sql)
+  }
+
+  @Get('workspaces/:workspaceId/security')
+  security(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
+    return twoFactorPolicy(this.db).then(async (policy) => {
+      await listMembers(this.db, req.user.id, workspaceId)
+      return policy
+    })
+  }
+
+  @Put('workspaces/:workspaceId/security')
+  saveSecurity(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Body() body: unknown) {
+    const input = parseBody(twoFactorPolicySchema, body)
+    return setTwoFactorPolicy(this.db, req.user.id, workspaceId, input)
+  }
+
+  @Get('workspaces/:workspaceId/trash')
+  trash(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
+    return listDeletedContacts(this.db, req.user.id, workspaceId)
+  }
+
+  @Put('workspaces/:workspaceId/trash')
+  saveTrash(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Body() body: unknown) {
+    const input = parseBody(trashPolicySchema, body)
+    return setTrashPolicy(this.db, req.user.id, workspaceId, input.retentionDays)
+  }
+
+  @Post('workspaces/:workspaceId/trash/:contactId/restore')
+  restore(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('contactId') contactId: string) {
+    return restoreContact(this.db, req.user.id, workspaceId, contactId)
+  }
+
+  @Delete('workspaces/:workspaceId/trash')
+  clearTrash(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
+    return emptyTrash(this.db, req.user.id, workspaceId)
+  }
+
+  @Get('workspaces/:workspaceId/sync-status')
+  phoneSync(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
+    return syncStatus(this.db, req.user.id, workspaceId)
+  }
+
+  @Get('workspaces/:workspaceId/accounts')
+  accounts(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
+    return listConnectedAccounts(this.db, req.user.id, workspaceId)
+  }
+
+  @Post('workspaces/:workspaceId/accounts/mailbox')
+  addMailbox(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Body() body: unknown) {
+    return saveMailboxAccount(this.db, req.user.id, workspaceId, parseBody(mailboxAccountSchema, body))
+  }
+
+  @Post('workspaces/:workspaceId/accounts/calendar')
+  addCalendarAccount(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Body() body: unknown) {
+    return saveCalendarAccount(this.db, req.user.id, workspaceId, parseBody(calendarAccountSchema, body))
+  }
+
+  @Post('workspaces/:workspaceId/accounts/:accountId/sync')
+  syncAccount(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('accountId') accountId: string) {
+    return syncConnectedAccount(this.db, req.user.id, workspaceId, accountId)
+  }
+
+  @Delete('workspaces/:workspaceId/accounts/:accountId')
+  async removeAccount(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('accountId') accountId: string) {
+    await deleteConnectedAccount(this.db, req.user.id, workspaceId, accountId)
+    return { ok: true }
   }
 
   @Get('workspaces/:workspaceId/appearance')
@@ -1090,9 +1164,7 @@ export class DataController {
     @Res() res: Response,
   ) {
     const image = await readImmichImage(this.db, req.user.id, workspaceId, { personId })
-    res.setHeader('Content-Type', image.contentType)
-    res.setHeader('Cache-Control', 'private, max-age=300')
-    res.send(image.bytes)
+    sendBytes(res, image.bytes, image.contentType, 'person')
   }
 
   @Get('workspaces/:workspaceId/immich/assets/:assetId/thumbnail')
@@ -1103,9 +1175,7 @@ export class DataController {
     @Res() res: Response,
   ) {
     const image = await readImmichImage(this.db, req.user.id, workspaceId, { assetId })
-    res.setHeader('Content-Type', image.contentType)
-    res.setHeader('Cache-Control', 'private, max-age=300')
-    res.send(image.bytes)
+    sendBytes(res, image.bytes, image.contentType, 'photo')
   }
 
   @Get('workspaces/:workspaceId/contacts/:contactId/immich')
@@ -1178,7 +1248,7 @@ export class DataController {
         ownerId: userId,
         storageKey: key,
         filename: file.originalname || 'file',
-        contentType: file.mimetype || 'application/octet-stream',
+        contentType: images.has(file.mimetype) ? file.mimetype : 'application/octet-stream',
         sizeBytes: file.buffer.length,
       })
       .returning()
@@ -1259,10 +1329,21 @@ function calendarWhen(year?: string, month?: string) {
   }
 }
 
-function dumpDatabase(file: string) {
+function sendBytes(res: Response, bytes: Buffer, contentType: string, filename: string) {
+  const safeName = filename.replace(/["\r\n]/g, '') || 'file'
+  const image = images.has(contentType)
+  res.setHeader('Content-Type', image ? contentType : 'application/octet-stream')
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox")
+  res.setHeader('Content-Disposition', `${image ? 'inline' : 'attachment'}; filename="${safeName}"`)
+  res.setHeader('Cache-Control', 'private, max-age=300')
+  res.send(bytes)
+}
+
+function dumpDatabase() {
   const databaseUrl = process.env.DATABASE_URL
   if (!databaseUrl) throw new AppError(500, 'DATABASE_URL is not configured')
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<Buffer>((resolve, reject) => {
     const child = spawn('pg_dump', ['--dbname', databaseUrl, '--clean', '--if-exists', '--no-owner'], {
       stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -1280,9 +1361,7 @@ function dumpDatabase(file: string) {
         reject(new AppError(500, errorText.trim() || 'Backup failed'))
         return
       }
-      writeFile(file, Buffer.concat(chunks))
-        .then(() => resolve())
-        .catch(reject)
+      resolve(Buffer.concat(chunks))
     })
   })
 }

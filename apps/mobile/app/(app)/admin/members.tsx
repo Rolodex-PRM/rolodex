@@ -73,11 +73,12 @@ export default function UsersPage() {
   return (
     <View style={styles.page}>
       <Text style={styles.heading}>Users</Text>
+      <Text style={styles.meta}>Owner runs the workspace, including backups. Admin manages users, invitations, and server settings. Editor adds and changes people. Contributor and Viewer can look and cannot change people.</Text>
       {error ? <Notice text={error} /> : null}
       {notice ? <Text style={styles.notice}>{notice}</Text> : null}
       <SwitchRow
         label="Require an invitation to register"
-        detail="People can create an account only from an invitation email."
+        detail="When this is on, the sign-in page does not offer Create an account. The same switch is under Security."
         on={inviteOnly}
         onPress={() => {
           if (!workspace) return
@@ -86,7 +87,7 @@ export default function UsersPage() {
           void run(() => send(`/api/workspaces/${workspace.id}/registration`, 'PUT', { inviteOnly: next }), next ? 'Registration now requires an invitation' : 'Open registration is on')
         }}
       />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <ScrollView horizontal showsHorizontalScrollIndicator style={styles.tableScroll}>
       <View style={styles.table}>
         <View style={[styles.tr, styles.head]}>
           <Text style={[styles.th, styles.name]}>Name</Text>
@@ -156,6 +157,7 @@ export default function UsersPage() {
       </ScrollView>
       <View style={styles.form}>
         <Text style={styles.sub}>Add a user</Text>
+        <Text style={styles.meta}>This person must already have a Rolodex account. Use Invite for someone new.</Text>
         <Field label="Email" autoCapitalize="none" keyboardType="email-address" value={addEmail} onChangeText={setAddEmail} placeholder="Existing account" />
         <ChoiceRow label="Role" options={roles} value={addRole} onChange={setAddRole} />
         <Button
@@ -186,7 +188,8 @@ export default function UsersPage() {
         />
       </View>
       <Text style={styles.heading}>User groups</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <Text style={styles.meta}>A group lets you share one person with several accounts at once. View can see that person. Edit can change them.</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator style={styles.tableScroll}>
       <View style={styles.table}>
         <View style={[styles.tr, styles.head]}>
           <Text style={[styles.th, styles.grow]}>Group</Text>
@@ -295,7 +298,8 @@ function TextButton({ label, onPress, danger }: { label: string; onPress: () => 
 }
 
 const styles = StyleSheet.create({
-  page: { gap: 16 },
+  page: { gap: 16, width: '100%', maxWidth: '100%', minWidth: 0 },
+  tableScroll: { width: '100%', maxWidth: '100%', alignSelf: 'stretch' },
   heading: { fontFamily: font, fontSize: 22, fontWeight: '700', color: theme.text },
   sub: { fontFamily: font, fontSize: 16, fontWeight: '700', color: theme.text },
   meta: { fontFamily: font, color: theme.muted, fontSize: 13 },

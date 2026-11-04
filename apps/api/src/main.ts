@@ -27,6 +27,8 @@ async function main() {
   loadEnv()
   process.env.DATABASE_URL ||= 'postgres://rolodex:rolodex@localhost:5472/rolodex'
   const app = await NestFactory.create(AppModule)
+  const expressApp = app.getHttpAdapter().getInstance() as { set: (key: string, value: number) => void }
+  expressApp.set('trust proxy', 1)
   app.setGlobalPrefix('api')
   app.useGlobalFilters(new AppExceptionFilter())
   app.enableCors({

@@ -6,6 +6,8 @@ import { font, theme } from '../../../src/theme'
 
 const links = [
   { href: '/admin/members' as const, label: 'Users' },
+  { href: '/admin/security' as const, label: 'Security' },
+  { href: '/admin/audit' as const, label: 'Audit' },
   { href: '/admin/sso' as const, label: 'Sign-in' },
   { href: '/admin/notifications' as const, label: 'Notifications' },
   { href: '/admin/map' as const, label: 'Map' },

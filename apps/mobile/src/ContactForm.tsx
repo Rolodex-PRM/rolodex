@@ -126,8 +126,8 @@ export function ContactForm({
         <Field style={styles.grow} label="Last name" value={lastName} onChangeText={setLastName} />
       </View>
       <View style={styles.row}>
-        <Field label="Preferred name" value={preferredName} onChangeText={setPreferredName} />
-        <Field label="Title" value={title} onChangeText={setTitle} />
+        <Field label="Preferred name" value={preferredName} onChangeText={setPreferredName} hint="How you refer to them. The phone still uses the first and last name." />
+        <Field label="Title" value={title} onChangeText={setTitle} hint="Job title, such as Director." />
       </View>
       <OrganizationField value={organizationName} onChange={setOrganizationName} onError={setError} />
       <MethodList key="email" kind="email" rows={emails} onChange={setEmails} />
@@ -146,10 +146,11 @@ export function ContactForm({
       />
       <DateField label="Birthday" value={birthday} onChange={setBirthday} />
       <Field label="Website" autoCapitalize="none" value={website} onChangeText={setWebsite} />
-      <Field label="Card note" multiline value={cardNote} onChangeText={setCardNote} />
-      <Field label="How we met" value={howWeMet} onChangeText={setHowWeMet} />
-      <Field label="Interests" value={interests} onChangeText={setInterests} />
+      <Field label="Card note" multiline value={cardNote} onChangeText={setCardNote} hint="This note syncs to the phone. Private notes on the person stay in Rolodex." />
+      <Field label="How we met" value={howWeMet} onChangeText={setHowWeMet} hint="Stays in Rolodex. It is not sent to the phone." />
+      <Field label="Interests" value={interests} onChangeText={setInterests} hint="Stays in Rolodex. It is not sent to the phone." />
       <Text style={styles.section}>Reach out</Text>
+      <Text style={styles.hint}>Home uses this to suggest when to get back in touch.</Text>
       <View style={styles.chips}>
         <Choice label="No cadence" on={!cadence} onPress={() => setCadence('')} />
         {cadences.map((item) => (
@@ -167,6 +168,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 12 },
   grow: { flex: 1 },
   section: { fontFamily: font, color: theme.muted, fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase' },
+  hint: { fontFamily: font, color: theme.muted, fontSize: 13 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 })
 
