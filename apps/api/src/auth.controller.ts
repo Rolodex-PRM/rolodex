@@ -47,6 +47,15 @@ import { networkInterfaces } from 'node:os'
 import type { Response } from 'express'
 import { AuthGuard, clearSessionCookie, DB, loginLimiter, sessionCookie, type AuthedRequest } from './http'
 
+function publicCarddavUrl() {
+  if (process.env.DOCKER_SITE === 'true') {
+    const host = process.env.PUBLIC_HOST || 'localhost'
+    const port = process.env.WEB_TLS_PORT || '443'
+    return port === '443' ? `https://${host}` : `https://${host}:${port}`
+  }
+  return process.env.PUBLIC_CARDDAV_URL || 'http://localhost:4101'
+}
+
 function carddavPhoneUrl(configured: string) {
   let url: URL
   try {
@@ -259,7 +268,7 @@ export class AuthController {
   @Get('auth/me')
   @UseGuards(AuthGuard)
   me(@Req() req: AuthedRequest) {
-    const carddavUrl = process.env.PUBLIC_CARDDAV_URL || 'http://localhost:4101'
+    const carddavUrl = publicCarddavUrl()
     return {
       user: req.user,
       carddavUrl,

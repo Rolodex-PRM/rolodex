@@ -29,7 +29,7 @@ Deleted people sit in Trash until someone restores them, empties the trash, or t
 
 ## Sync clients
 
-CardDAV is the address book. CalDAV is the calendar and the tasks. Both use the same server, the same email, and a client password created under Settings. Each client has a name and a last check-in time. The website password is only for signing in to the site.
+CardDAV is the address book. CalDAV is the calendar and the tasks. In Docker they use the same address as the website. Both use the sign-in email and a client password created under Settings. Each client has a name and a last check-in time. The website password is only for signing in to the site.
 
 iPhone and iPad use a CardDAV account and a separate CalDAV account. Android can use DAVx5 with the base URL. Mac uses Internet Accounts. Thunderbird and other CardDAV or CalDAV apps use the base URL. People who already live in iCloud or Google stay there until a vCard is exported and imported.
 

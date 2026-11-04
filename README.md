@@ -10,7 +10,7 @@ The phone receives the name, phone numbers, email addresses, postal address, bir
 
 ## Ports
 
-Host ports live in `.env`. The defaults stay off the ports most other Docker stacks already use. Postgres and object storage are published on `127.0.0.1` only.
+Host ports live in `.env`. Postgres and object storage are published on `127.0.0.1` only. The website uses 80 and 443 so the public address has no port. If those are taken, change `WEB_PORT` and `WEB_TLS_PORT`.
 
 | Service | Variable | Default | Where it is reached |
 | --- | --- | --- | --- |
@@ -18,9 +18,9 @@ Host ports live in `.env`. The defaults stay off the ports most other Docker sta
 | Object storage | `S3_PORT` | 9100 | `127.0.0.1:9100` (9000 inside Compose) |
 | Storage console | `S3_CONSOLE_PORT` | 9101 | `127.0.0.1:9101` |
 | API | `API_PORT` | 4100 | `http://localhost:4100` |
-| CardDAV / CalDAV | `CARDDAV_PORT` | 4101 | Dev: `http://localhost:4101`. Docker: HTTPS on this port |
-| Web image | `WEB_PORT` | 4180 | Redirects to `https://PUBLIC_HOST:WEB_TLS_PORT` |
-| Web TLS | `WEB_TLS_PORT` | 4443 | `https://PUBLIC_HOST:4443` |
+| CardDAV / CalDAV | `CARDDAV_PORT` | 4101 | Dev only: `http://localhost:4101`. Docker uses the website address |
+| Web HTTP | `WEB_PORT` | 80 | Redirects to the HTTPS address |
+| Web HTTPS | `WEB_TLS_PORT` | 443 | `https://PUBLIC_HOST/` , or `https://PUBLIC_HOST:4443` when this is not 443 |
 | Expo dev server | `WEB_DEV_PORT` | 4181 | `http://localhost:4181` |
 
 If a port is already taken, change that variable and the URL that uses it (`DATABASE_URL`, `S3_ENDPOINT`, `EXPO_PUBLIC_API_URL`, `PUBLIC_CARDDAV_URL`, or `CORS_ORIGIN`). Then run `docker compose up -d`.
@@ -43,25 +43,34 @@ Sessions are stored on the server and sent as an HTTP-only cookie. The web app a
 
 ## Run the whole stack in Docker
 
-Set `PUBLIC_HOST` to the name or address phones and browsers should use, for example `192.168.1.140`, before the first start. Compose generates a certificate for that host. If the certificate was already created for localhost, delete the `certs` volume and start again.
+People use one address. Set `PUBLIC_HOST` to that name, for example `rolodex.demo.com`, before the first start. Compose generates a certificate for it. If the certificate was already created for localhost, delete the `certs` volume and start again.
 
 ```sh
 cp .env.example .env
 docker compose up -d --build
 ```
 
-- Web: `http://localhost:4180` redirects to `https://PUBLIC_HOST:4443`
-- API: `http://localhost:4100` (`API_PORT`). The site calls `/api` on the same origin.
-- CardDAV and CalDAV: `https://PUBLIC_HOST:4101` when the certificate exists
-- Storage console: `http://127.0.0.1:9101`
+With `WEB_PORT=80` and `WEB_TLS_PORT=443`:
 
-Compose builds two Rolodex images: `rolodex` and the web image. The `rolodex` container migrates the database, then serves the API on port 3000 and CardDAV on port 3001. The web container serves the site and proxies `/api` to that container. On a phone, turn SSL on, trust the generated certificate, and put only the host in the Server field. The port goes in Advanced.
+- `https://rolodex.demo.com/` is the website
+- `https://rolodex.demo.com/api/` is the API
+- `https://rolodex.demo.com/` also answers CardDAV and CalDAV, including `/.well-known/carddav` and `/.well-known/caldav`
+
+A phone uses that same host. Turn SSL on, trust the generated certificate, and leave the port at 443. If 80 or 443 is already taken, set `WEB_PORT` and `WEB_TLS_PORT` to free ports. The address then keeps the TLS port, such as `https://rolodex.demo.com:4443/`. Plain HTTP on `WEB_PORT` redirects there.
+
+Postgres, object storage, the raw API, and the raw CardDAV port stay on `127.0.0.1`. The website is the door everyone else uses. The storage console is `http://127.0.0.1:9101`.
+
+Compose builds two Rolodex images: `rolodex` and the web image. The `rolodex` container migrates the database, then serves the API on port 3000 and CardDAV on port 3001 inside the Docker network. The web container is the only published site.
 
 Replace `POSTGRES_PASSWORD`, `S3_SECRET_KEY`, and `CREDENTIALS_KEY` before anyone else can reach the machine. If the database volume already exists, change the password in `.env` and inside Postgres together. The sample values in `.env.example` are live defaults, not placeholders that Docker ignores.
 
 ## Backups
 
 `scripts/backup.sh` writes a PostgreSQL dump and a tar of the object-storage volume. `scripts/restore.sh backups/<stamp>` restores both. An owner can also download a database dump from Settings when `pg_dump` is on the PATH.
+
+## License
+
+Rolodex is released under the GNU Affero General Public License v3.0 only. The terms are in [LICENSE](LICENSE). Someone who runs a modified copy as a network service has to offer that version's source to the people using the service.
 
 ## Tests
 

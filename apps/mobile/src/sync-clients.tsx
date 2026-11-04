@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Platform, StyleSheet, Text, View } from 'react-native'
 import { api, type AppPassword } from './api'
+import { PhoneSync } from './phone-sync'
 import { SyncStatus } from './sync-status'
 import { useAuth } from './auth'
 import { font, theme } from './theme'
@@ -50,7 +51,7 @@ export function SyncClients() {
     <>
       <Panel>
         <Text style={styles.name}>Phone and computer sync</Text>
-        <Text style={styles.meta}>CardDAV is the address book. CalDAV is the calendar and the tasks. Both use this server, your sign-in email, and a client password from the list below. The website password does not work in those apps.</Text>
+        <Text style={styles.meta}>CardDAV is the address book. CalDAV is the calendar and the tasks. Both use the same address as this website, your sign-in email, and a client password from the list below. The website password does not work in those apps.</Text>
         <Fact label="Username" value={session?.email || ''} />
         {phone ? (
           <>
@@ -67,7 +68,7 @@ export function SyncClients() {
           <Button label="Copy base URL" tone="ghost" onPress={() => void navigator.clipboard.writeText(base)} />
         ) : null}
         <Text style={styles.device}>iPhone and iPad</Text>
-        <Text style={styles.meta}>Settings, Contacts, Accounts, Add Account, Other, Add CardDAV Account. The Server field is only the host above. Leave the URL and the port out of that field. User Name is the email. Password is a client password. Open Advanced, set SSL and the port. Then add a CalDAV account from Calendar, Accounts, Add Account, Other, with the same host, email, password, and port. Events are the Rolodex calendar. Tasks are the Tasks calendar.</Text>
+        <Text style={styles.meta}>Settings, Contacts, Accounts, Add Account, Other, Add CardDAV Account. The Server field is only the host above. Leave the URL and the port out of that field. User Name is the email. Password is a client password. {phone ? (phone.ssl && phone.port === '443' ? 'Turn SSL on and leave the port at 443.' : `Open Advanced, turn SSL ${phone.ssl ? 'on' : 'off'}, and set the port to ${phone.port}.`) : ''} Then add a CalDAV account from Calendar, Accounts, Add Account, Other, with the same host, email, password, and port. Events are the Rolodex calendar. Tasks are the Tasks calendar.</Text>
         <Text style={styles.device}>Android</Text>
         <Text style={styles.meta}>DAVx5 finds both. Add an account with the base URL, the email, and a client password. Choose the address book and the calendars it offers.</Text>
         <Text style={styles.device}>Mac</Text>
@@ -75,6 +76,11 @@ export function SyncClients() {
         <Text style={styles.device}>Thunderbird and other apps</Text>
         <Text style={styles.meta}>Any CardDAV or CalDAV app uses the base URL, the email, and a client password. People kept in iCloud or Google stay there until you export a vCard and import it on the Address books tab.</Text>
         <SyncStatus />
+        <PhoneSync lastCheckedIn={passwords.reduce<string | null>((latest, item) => {
+          if (!item.lastUsedAt) return latest
+          if (!latest || item.lastUsedAt > latest) return item.lastUsedAt
+          return latest
+        }, null)} />
       </Panel>
       <Panel>
         <Text style={styles.name}>Sync clients</Text>

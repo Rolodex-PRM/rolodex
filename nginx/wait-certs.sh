@@ -9,4 +9,9 @@ while [ ! -s /certs/fullchain.pem ] || [ ! -s /certs/privkey.pem ]; do
   fi
   sleep 1
 done
+if [ "${WEB_TLS_PORT:-443}" = "443" ]; then
+  export HTTPS_PORT_SUFFIX=
+else
+  export HTTPS_PORT_SUFFIX=":${WEB_TLS_PORT}"
+fi
 exec /docker-entrypoint.sh nginx -g 'daemon off;'

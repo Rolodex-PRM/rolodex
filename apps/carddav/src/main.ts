@@ -19,7 +19,8 @@ async function main() {
   process.env.DATABASE_URL ||= 'postgres://rolodex:rolodex@localhost:5472/rolodex'
   const cert = process.env.CARDDAV_TLS_CERT
   const key = process.env.CARDDAV_TLS_KEY
-  const httpsOptions = cert && key && existsSync(cert) && existsSync(key) ? { cert: readFileSync(cert), key: readFileSync(key) } : undefined
+  const behindProxy = process.env.CARDDAV_BEHIND_PROXY === 'true'
+  const httpsOptions = !behindProxy && cert && key && existsSync(cert) && existsSync(key) ? { cert: readFileSync(cert), key: readFileSync(key) } : undefined
   const app = await NestFactory.create(AppModule, { bodyParser: false, httpsOptions })
   const server = app.getHttpAdapter().getInstance() as express.Express
   server.use(express.text({ type: () => true, limit: '20mb' }))
