@@ -31,6 +31,10 @@ const migrate = start(['--filter', '@rolodex/db', 'migrate'])
 migrate.on('exit', (code, signal) => {
   if (signal || code) process.exit(code || 1)
   const children = [start(['--filter', '@rolodex/api', 'start']), start(['--filter', '@rolodex/carddav', 'start'])]
+  if (process.env.DOCKER_SITE === 'true') {
+    mkdirSync(process.env.DATA_DIR || '/data', { recursive: true })
+    children.push(spawn('nginx', ['-g', 'daemon off;'], { stdio: 'inherit' }))
+  }
   let stopping = false
   const stop = (status) => {
     if (stopping) return
