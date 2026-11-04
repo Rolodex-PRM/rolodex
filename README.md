@@ -4,6 +4,12 @@ Rolodex is a self-hosted relationship manager. One server holds the people, the 
 
 The first visit creates the administrator. After that, registration is invite-only until an administrator turns open registration on under Admin → Security.
 
+<p>
+  <img src="docs/images/contacts.png" alt="The contact list" width="32%">
+  <img src="docs/images/person.png" alt="A person, with the card note and how you met" width="32%">
+  <img src="docs/images/calendar.png" alt="The calendar, with a birthday and a lunch" width="32%">
+</p>
+
 ## Run it with Docker
 
 Two containers: Postgres, and Rolodex. Rolodex listens on one HTTP port. That port is the website, `/api/`, and CardDAV/CalDAV.
