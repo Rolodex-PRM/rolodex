@@ -67,7 +67,7 @@ export function MobileShell({ children }: { children: ReactNode }) {
     lastY.current = y
   }
 
-  const initial = (session?.displayName || '?').slice(0, 1).toUpperCase()
+  const initial = initials(session?.displayName)
 
   return (
     <View style={styles.shell}>
@@ -160,6 +160,11 @@ export function MobileShell({ children }: { children: ReactNode }) {
           </MenuRow>
         </View>
       ) : null}
+      {!shown ? (
+        <Pressable accessibilityLabel="Home" onPress={() => router.push('/')} style={[styles.homeChip, { top: insets.top + 8 }]}>
+          <RolodexMark size={22} tone="paper" />
+        </Pressable>
+      ) : null}
       <ScrollView onScroll={onScroll} scrollEventThrottle={16} style={styles.main} contentContainerStyle={styles.content}>
         {children}
       </ScrollView>
@@ -222,6 +227,7 @@ const styles = StyleSheet.create({
   shell: { flex: 1, backgroundColor: theme.bg },
   backdrop: { ...StyleSheet.absoluteFill, zIndex: 2 },
   headerClip: { overflow: 'hidden', zIndex: 4, backgroundColor: theme.header },
+  homeChip: { position: 'absolute', left: 16, zIndex: 6, width: 44, height: 44, borderRadius: 14, backgroundColor: theme.ink, alignItems: 'center', justifyContent: 'center' },
   header: { height: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, backgroundColor: theme.header },
   logoButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: theme.ink, alignItems: 'center', justifyContent: 'center' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -303,6 +309,14 @@ function DockButton({
       <Icon name={icon} color={active ? onAccent : hover ? accent : theme.muted} size={22} />
     </Pressable>
   )
+}
+
+function initials(name?: string) {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return '?'
+  const first = parts[0]?.slice(0, 1) ?? ''
+  const last = parts.length > 1 ? parts[parts.length - 1]?.slice(0, 1) ?? '' : ''
+  return `${first}${last}`.toUpperCase()
 }
 
 function accentTint(hex: string, alpha: number) {

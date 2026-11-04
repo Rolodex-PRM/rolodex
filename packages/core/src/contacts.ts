@@ -21,10 +21,11 @@ import {
   type Database,
   type WorkspaceRole,
 } from '@rolodex/db'
-import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, ilike, inArray, isNull, lt, or, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 import { requireBook, requireManager, requireMembership, requireWriter, type Db } from './access'
 import { AppError } from './errors'
+import { trashPolicy } from './trash'
 import { emptyToNull, isUuid, normalizeEmail, normalizePhone } from './normalize'
 import { decideContactAccess } from './permissions'
 import { etagMatches, makeEtag } from './secrets'
@@ -248,6 +249,53 @@ export async function deleteContact(db: Database, userId: string, workspaceId: s
     await syncResources(database, contactId, { deleted: true })
     await recordAudit(database, workspaceId, userId, 'contact.delete', contactId)
   })
+}
+
+export async function listDeletedContacts(db: Database, userId: string, workspaceId: string) {
+  await requireMembership(db, userId, workspaceId)
+  const policy = await trashPolicy(db)
+  await purgeDeletedContacts(db, workspaceId, new Date(Date.now() - policy.retentionDays * 24 * 60 * 60 * 1000))
+  const rows = await db
+    .select({ id: contacts.id, displayName: contacts.displayName, deletedAt: contacts.deletedAt })
+    .from(contacts)
+    .where(and(eq(contacts.workspaceId, workspaceId), sql`${contacts.deletedAt} is not null`, visibleContactSql(userId)))
+    .orderBy(desc(contacts.deletedAt))
+    .limit(200)
+  return {
+    retentionDays: policy.retentionDays,
+    contacts: rows.map((row) => ({ id: row.id, displayName: row.displayName, deletedAt: row.deletedAt?.toISOString() ?? null })),
+  }
+}
+
+export async function restoreContact(db: Database, userId: string, workspaceId: string, contactId: string) {
+  const bundle = await loadBundle(db, contactId, { deleted: true })
+  if (bundle.contact.workspaceId !== workspaceId) throw new AppError(404, 'Contact not found')
+  await assertCanWriteContact(db, userId, workspaceId, bundle)
+  await db.update(contacts).set({ deletedAt: null, updatedAt: new Date() }).where(eq(contacts.id, contactId))
+  await syncResources(db, contactId)
+  await recordAudit(db, workspaceId, userId, 'contact.restore', contactId)
+  return { ok: true }
+}
+
+export async function emptyTrash(db: Database, userId: string, workspaceId: string) {
+  await requireWriter(db, userId, workspaceId)
+  const rows = await db
+    .select({ id: contacts.id })
+    .from(contacts)
+    .where(and(eq(contacts.workspaceId, workspaceId), sql`${contacts.deletedAt} is not null`, visibleContactSql(userId)))
+  if (!rows.length) return { removed: 0 }
+  await db.delete(contacts).where(inArray(contacts.id, rows.map((row) => row.id)))
+  return { removed: rows.length }
+}
+
+async function purgeDeletedContacts(db: Database, workspaceId: string, olderThan: Date) {
+  const rows = await db
+    .select({ id: contacts.id })
+    .from(contacts)
+    .where(and(eq(contacts.workspaceId, workspaceId), sql`${contacts.deletedAt} is not null`, lt(contacts.deletedAt, olderThan)))
+  if (!rows.length) return 0
+  await db.delete(contacts).where(inArray(contacts.id, rows.map((row) => row.id)))
+  return rows.length
 }
 
 export async function setContactPhoto(db: Database, userId: string, workspaceId: string, contactId: string, attachmentId: string | null) {
@@ -846,9 +894,10 @@ async function assertSameWorkspaceContact(db: Db, workspaceId: string, contactId
   if (!row) throw new AppError(400, 'Introduced-by contact was not found')
 }
 
-async function loadBundle(db: Db, contactId: string) {
+async function loadBundle(db: Db, contactId: string, options?: { deleted?: boolean }) {
   if (!isUuid(contactId)) throw new AppError(400, 'Invalid contact')
-  const [contact] = await db.select().from(contacts).where(and(eq(contacts.id, contactId), isNull(contacts.deletedAt))).limit(1)
+  const deleted = options?.deleted ? sql`${contacts.deletedAt} is not null` : isNull(contacts.deletedAt)
+  const [contact] = await db.select().from(contacts).where(and(eq(contacts.id, contactId), deleted)).limit(1)
   if (!contact) throw new AppError(404, 'Contact not found')
   const methods = await db.select().from(contactMethods).where(eq(contactMethods.contactId, contactId)).orderBy(asc(contactMethods.sortOrder))
   const addressRows = await db.select().from(addresses).where(eq(addresses.contactId, contactId)).orderBy(asc(addresses.sortOrder))
@@ -1219,7 +1268,7 @@ export async function listAudit(db: Database, userId: string, workspaceId: strin
     .leftJoin(users, eq(users.id, auditLogs.actorId))
     .where(and(...filters))
     .orderBy(desc(auditLogs.createdAt))
-    .limit(contactId ? 30 : 40)
+    .limit(contactId ? 30 : 100)
   return rows.map((row) => ({
     id: row.id,
     action: row.action,

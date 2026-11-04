@@ -26,6 +26,13 @@ export function isSuggestionField(value: string): value is SuggestionField {
   return (suggestionFields as readonly string[]).includes(value)
 }
 
+export async function assertPublicAddress(value: string) {
+  const url = publicHttpUrl(value)
+  if (!url) throw new AppError(400, 'Use a public http or https address')
+  await assertResolvedPublic(url.hostname)
+  return url
+}
+
 export function publicHttpUrl(value: string) {
   let url: URL
   try {

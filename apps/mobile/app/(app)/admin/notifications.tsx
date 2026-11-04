@@ -60,7 +60,7 @@ export default function NotificationsPage() {
         <Text style={styles.meta}>The server sends due reminders through every channel that is turned on. In-app reminders stay in the bell.</Text>
         {error ? <Notice text={error} /> : null}
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-        <Field label="Link URL" autoCapitalize="none" value={draft.appUrl} onChangeText={(appUrl) => patch({ ...draft, appUrl })} placeholder="https://rolodex.example.com" />
+        <Field label="Link URL" autoCapitalize="none" value={draft.appUrl} onChangeText={(appUrl) => patch({ ...draft, appUrl })} placeholder="https://rolodex.example.com" hint="The site address placed inside reminder messages." />
       </View>
       <View style={styles.card}>
         <Text style={styles.section}>Email</Text>
@@ -79,7 +79,7 @@ export default function NotificationsPage() {
         <Text style={styles.section}>Push</Text>
         <Text style={styles.meta}>Web Push reaches browsers that turn it on in Settings. The private key stays on the server.</Text>
         <SwitchRow label="Enable push notifications" on={draft.push.enabled} onPress={() => patch({ ...draft, push: { ...draft.push, enabled: !draft.push.enabled } })} />
-        <Field label="Subject" autoCapitalize="none" value={draft.push.subject} onChangeText={(subject) => patch({ ...draft, push: { ...draft.push, subject } })} placeholder="mailto:you@example.com" />
+        <Field label="Subject" autoCapitalize="none" value={draft.push.subject} onChangeText={(subject) => patch({ ...draft, push: { ...draft.push, subject } })} placeholder="mailto:you@example.com" hint="A contact address for the browser push service, usually mailto:you@example.com. This is not the notification title." />
         {draft.push.publicKey ? <Text style={styles.meta}>Public key {draft.push.publicKey.slice(0, 18)}…</Text> : null}
         <Button label="Send test push and save" onPress={() => void test('push')} />
       </View>

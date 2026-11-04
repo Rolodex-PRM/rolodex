@@ -7,9 +7,22 @@ import {
   exchangeOauthCode,
   finishOauth,
   listAppPasswords,
+  authenticatePassword,
+  confirmEnrollment,
+  disableTwoFactor,
+  finishSecondFactor,
+  gateUser,
+  sendLoginEmailCode,
+  sendTwoFactorTest,
   loginSchema,
-  loginUser,
   logoutUser,
+  mfaSchema,
+  mfaTicketSchema,
+  openSession,
+  startEnrollment,
+  totpCodeSchema,
+  totpConfirmSchema,
+  twoFactorStatus,
   oauthExchangeSchema,
   parseBody,
   publicOauth,
@@ -34,6 +47,15 @@ import { networkInterfaces } from 'node:os'
 import type { Response } from 'express'
 import { AuthGuard, clearSessionCookie, DB, loginLimiter, sessionCookie, type AuthedRequest } from './http'
 
+function publicCarddavUrl() {
+  if (process.env.DOCKER_SITE === 'true') {
+    const host = process.env.PUBLIC_HOST || 'localhost'
+    const port = process.env.WEB_TLS_PORT || '443'
+    return port === '443' ? `https://${host}` : `https://${host}:${port}`
+  }
+  return process.env.PUBLIC_CARDDAV_URL || 'http://localhost:4101'
+}
+
 function carddavPhoneUrl(configured: string) {
   let url: URL
   try {
@@ -42,6 +64,11 @@ function carddavPhoneUrl(configured: string) {
     return null
   }
   const local = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '::1'
+  const published = process.env.PUBLIC_HOST
+  if (local && published && published !== 'localhost' && published !== '127.0.0.1') {
+    url.hostname = published
+    return url.toString().replace(/\/$/, '')
+  }
   if (!local) return configured.replace(/\/$/, '')
   const ip = lanIpv4()
   if (!ip) return null
@@ -92,7 +119,7 @@ export class AuthController {
     if (!loginLimiter(req.ip || 'local')) throw new AppError(429, 'Too many attempts. Try again in a minute.')
     const input = parseBody(registerSchema, body)
     const result = await createFirstAdmin(this.db, input)
-    res.setHeader('Set-Cookie', sessionCookie(result.token, 30 * 24 * 60 * 60))
+    res.setHeader('Set-Cookie', sessionCookie(result.token, 30 * 24 * 60 * 60, req))
     return result
   }
 
@@ -113,7 +140,7 @@ export class AuthController {
     const input = parseBody(registerSchema, body)
     if (!input.invite && (await registrationPolicy(this.db)).inviteOnly) throw new AppError(403, 'Registration requires an invitation')
     const result = input.invite ? await acceptInvite(this.db, input) : await registerUser(this.db, input)
-    res.setHeader('Set-Cookie', sessionCookie(result.token, 30 * 24 * 60 * 60))
+    res.setHeader('Set-Cookie', sessionCookie(result.token, 30 * 24 * 60 * 60, req))
     return result
   }
 
@@ -140,10 +167,15 @@ export class AuthController {
   }
 
   @Post('auth/oauth/exchange')
-  async exchangeOauth(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {
+  async exchangeOauth(@Body() body: unknown, @Req() req: AuthedRequest, @Res({ passthrough: true }) res: Response) {
     const input = parseBody(oauthExchangeSchema, body)
     const result = await exchangeOauthCode(this.db, input.code)
-    res.setHeader('Set-Cookie', sessionCookie(result.token, 30 * 24 * 60 * 60))
+    const gate = await gateUser(this.db, result.user.id)
+    if (gate.kind !== 'session') {
+      await logoutUser(this.db, result.token)
+      return gate
+    }
+    res.setHeader('Set-Cookie', sessionCookie(result.token, 30 * 24 * 60 * 60, req))
     return result
   }
 
@@ -170,9 +202,59 @@ export class AuthController {
   async login(@Body() body: unknown, @Req() req: AuthedRequest, @Res({ passthrough: true }) res: Response) {
     if (!loginLimiter(req.ip || 'local')) throw new AppError(429, 'Too many attempts. Try again in a minute.')
     const input = parseBody(loginSchema, body)
-    const result = await loginUser(this.db, input.email, input.password)
-    res.setHeader('Set-Cookie', sessionCookie(result.token, 30 * 24 * 60 * 60))
+    const user = await authenticatePassword(this.db, input.email, input.password)
+    const gate = await gateUser(this.db, user.id)
+    if (gate.kind !== 'session') return gate
+    const result = await openSession(this.db, user.id)
+    res.setHeader('Set-Cookie', sessionCookie(result.token, 30 * 24 * 60 * 60, req))
     return result
+  }
+
+  @Post('auth/login/mfa')
+  async loginMfa(@Body() body: unknown, @Req() req: AuthedRequest, @Res({ passthrough: true }) res: Response) {
+    if (!loginLimiter(req.ip || 'local')) throw new AppError(429, 'Too many attempts. Try again in a minute.')
+    const input = parseBody(mfaSchema, body)
+    const result = await finishSecondFactor(this.db, input.ticket, input.code)
+    res.setHeader('Set-Cookie', sessionCookie(result.token, 30 * 24 * 60 * 60, req))
+    return result
+  }
+
+  @Post('auth/login/email-code')
+  loginEmailCode(@Body() body: unknown) {
+    const input = parseBody(mfaTicketSchema, body)
+    return sendLoginEmailCode(this.db, input.ticket)
+  }
+
+  @Get('auth/two-factor')
+  @UseGuards(AuthGuard)
+  twoFactor(@Req() req: AuthedRequest) {
+    return twoFactorStatus(this.db, req.user.id)
+  }
+
+  @Post('auth/two-factor/setup')
+  @UseGuards(AuthGuard)
+  twoFactorSetup(@Req() req: AuthedRequest) {
+    return startEnrollment(req.user.email)
+  }
+
+  @Post('auth/two-factor/confirm')
+  @UseGuards(AuthGuard)
+  twoFactorConfirm(@Req() req: AuthedRequest, @Body() body: unknown) {
+    const input = parseBody(totpConfirmSchema, body)
+    return confirmEnrollment(this.db, req.user.id, input.secret, input.code)
+  }
+
+  @Post('auth/two-factor/email-test')
+  @UseGuards(AuthGuard)
+  twoFactorEmailTest(@Req() req: AuthedRequest) {
+    return sendTwoFactorTest(this.db, req.user.id)
+  }
+
+  @Delete('auth/two-factor')
+  @UseGuards(AuthGuard)
+  twoFactorDisable(@Req() req: AuthedRequest, @Body() body: unknown) {
+    const input = parseBody(totpCodeSchema, body)
+    return disableTwoFactor(this.db, req.user.id, input.code)
   }
 
   @Post('auth/logout')
@@ -186,7 +268,7 @@ export class AuthController {
   @Get('auth/me')
   @UseGuards(AuthGuard)
   me(@Req() req: AuthedRequest) {
-    const carddavUrl = process.env.PUBLIC_CARDDAV_URL || 'http://localhost:4101'
+    const carddavUrl = publicCarddavUrl()
     return {
       user: req.user,
       carddavUrl,

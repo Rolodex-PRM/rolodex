@@ -1,0 +1,68 @@
+map $request_method $rolodex_dav {
+  default 0;
+  OPTIONS 1;
+  PROPFIND 1;
+  REPORT 1;
+  PROPPATCH 1;
+  MKCOL 1;
+  MKCALENDAR 1;
+  COPY 1;
+  MOVE 1;
+  LOCK 1;
+  UNLOCK 1;
+}
+
+server {
+  listen 80;
+  server_name _;
+  return 301 https://$host${HTTPS_PORT_SUFFIX}$request_uri;
+}
+
+server {
+  listen 443 ssl;
+  server_name _;
+  ssl_certificate /certs/fullchain.pem;
+  ssl_certificate_key /certs/privkey.pem;
+  root /usr/share/nginx/html;
+  client_max_body_size 20m;
+  error_page 418 = @dav;
+
+  location /api/ {
+    proxy_pass http://app:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+  }
+
+  location = /.well-known/carddav {
+    include /etc/nginx/dav-proxy.conf;
+  }
+
+  location = /.well-known/caldav {
+    include /etc/nginx/dav-proxy.conf;
+  }
+
+  location /principals/ {
+    include /etc/nginx/dav-proxy.conf;
+  }
+
+  location /addressbooks/ {
+    include /etc/nginx/dav-proxy.conf;
+  }
+
+  location /calendars/ {
+    include /etc/nginx/dav-proxy.conf;
+  }
+
+  location / {
+    if ($rolodex_dav) {
+      return 418;
+    }
+    try_files $uri $uri/ /index.html;
+  }
+
+  location @dav {
+    include /etc/nginx/dav-proxy.conf;
+  }
+}

@@ -92,12 +92,17 @@ export async function openSession(db: Database, userId: string) {
   return { user: publicUser(user), token: session.token, expiresAt: session.expiresAt }
 }
 
-export async function loginUser(db: Database, emailInput: string, password: string) {
+export async function authenticatePassword(db: Database, emailInput: string, password: string) {
   const email = normalizeEmail(emailInput)
   const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1)
   if (!user || !(await verifyPassword(user.passwordHash, password))) {
     throw new AppError(401, 'Email or password is incorrect')
   }
+  return user
+}
+
+export async function loginUser(db: Database, emailInput: string, password: string) {
+  const user = await authenticatePassword(db, emailInput, password)
   const session = await createSession(db, user.id)
   return { user: publicUser(user), token: session.token, expiresAt: session.expiresAt }
 }

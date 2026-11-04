@@ -3,10 +3,11 @@ import { Pressable, StyleSheet, Text, TextInput, View, type TextInputInstance, t
 import { useAccent } from './accent'
 import { font, theme } from './theme'
 
-export function Field({ label, style, ...props }: { label: string; style?: ViewProps['style'] } & TextInputProps) {
+export function Field({ label, hint, style, ...props }: { label: string; hint?: string; style?: ViewProps['style'] } & TextInputProps) {
   return (
     <View style={[styles.field, style]}>
       <Text style={styles.label}>{label}</Text>
+      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
       <TextInput placeholderTextColor={theme.muted} style={styles.input} {...props} />
     </View>
   )
@@ -158,6 +159,7 @@ export function Notice({ text }: { text: string }) {
 const styles = StyleSheet.create({
   field: { gap: 6 },
   label: { color: theme.muted, fontSize: 11, fontFamily: font, letterSpacing: 0.8, textTransform: 'uppercase' },
+  hint: { color: theme.muted, fontSize: 13, fontFamily: font },
   input: {
     borderWidth: 1,
     borderColor: theme.border,

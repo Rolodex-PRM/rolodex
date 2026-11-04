@@ -37,6 +37,10 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
   displayName: text('display_name').notNull(),
+  totpSecret: text('totp_secret'),
+  totpEnabled: boolean('totp_enabled').notNull().default(false),
+  emailOtpHash: text('email_otp_hash'),
+  emailOtpExpiresAt: timestamp('email_otp_expires_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -675,6 +679,26 @@ export const integrations = pgTable('integrations', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+export const mailboxMessages = pgTable(
+  'mailbox_messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    integrationId: uuid('integration_id')
+      .notNull()
+      .references(() => integrations.id, { onDelete: 'cascade' }),
+    contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'set null' }),
+    externalId: text('external_id').notNull(),
+    subject: text('subject').notNull(),
+    correspondent: text('correspondent').notNull(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('mailbox_message_idx').on(table.integrationId, table.externalId)],
+)
 
 export const integrationCredentials = pgTable('integration_credentials', {
   id: uuid('id').primaryKey().defaultRandom(),

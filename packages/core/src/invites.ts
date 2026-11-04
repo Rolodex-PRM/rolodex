@@ -16,7 +16,7 @@ const inviteMs = 7 * 24 * 60 * 60 * 1000
 const resetMs = 2 * 60 * 60 * 1000
 
 export async function registrationPolicy(db: Database) {
-  const stored = await readSettings(db, policyKey, { inviteOnly: false })
+  const stored = await readSettings(db, policyKey, { inviteOnly: true })
   return { inviteOnly: stored.inviteOnly === true }
 }
 

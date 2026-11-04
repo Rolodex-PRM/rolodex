@@ -258,3 +258,21 @@ export type NotificationSettings = {
 export function send<T>(path: string, method: string, body?: unknown) {
   return api<T>(path, { method, body: body === undefined ? undefined : JSON.stringify(body) })
 }
+
+export async function download(path: string, filename: string) {
+  const headers = new Headers()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const response = await fetch(`${apiUrl}${path}`, { method: 'POST', headers, credentials: 'include' })
+  if (!response.ok) {
+    const type = response.headers.get('content-type') || ''
+    const body = type.includes('json') ? await response.json().catch(() => null) : null
+    throw new ApiError(readError(body, response.status, response.statusText), response.status)
+  }
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}

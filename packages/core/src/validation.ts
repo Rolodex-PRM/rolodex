@@ -377,6 +377,52 @@ export const oauthExchangeSchema = z.object({
   code: z.string().min(10).max(200),
 })
 
+export const mfaSchema = z.object({
+  ticket: z.string().min(20).max(4000),
+  code: z.string().trim().min(6).max(12),
+})
+
+export const totpConfirmSchema = z.object({
+  secret: z.string().trim().min(16).max(80),
+  code: z.string().trim().min(6).max(12),
+})
+
+export const totpCodeSchema = z.object({
+  code: z.string().trim().min(6).max(12),
+})
+
+export const twoFactorPolicySchema = z.object({
+  required: z.boolean(),
+  authenticator: z.boolean(),
+  email: z.boolean(),
+})
+
+export const mfaTicketSchema = z.object({
+  ticket: z.string().min(20).max(4000),
+})
+
+export const trashPolicySchema = z.object({
+  retentionDays: z.number().int().min(1).max(3650),
+})
+
+export const mailboxAccountSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().trim().min(1).max(80),
+  host: z.string().trim().min(1).max(200),
+  port: z.number().int().min(1).max(65535),
+  secure: z.boolean(),
+  username: z.string().trim().min(1).max(200),
+  password: z.string().max(200).optional(),
+})
+
+export const calendarAccountSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().trim().min(1).max(80),
+  url: z.string().trim().min(8).max(500),
+  username: z.string().trim().min(1).max(200),
+  password: z.string().max(200).optional(),
+})
+
 export function parseBody<Schema extends z.ZodTypeAny>(schema: Schema, body: unknown): z.output<Schema> {
   const result = schema.safeParse(body)
   if (!result.success) {

@@ -70,6 +70,7 @@ export function OrganizationField({
   return (
     <View style={styles.field}>
       <Text style={styles.label}>Organization</Text>
+      <Text style={styles.hint}>The company name printed on the card. Membership in an organization is separate.</Text>
       <TextInput
         value={value}
         onChangeText={(text) => {
@@ -114,6 +115,7 @@ function OrgMark({ org }: { org: Organization }) {
 const styles = StyleSheet.create({
   field: { gap: 6 },
   label: { color: theme.muted, fontSize: 11, fontFamily: font, letterSpacing: 0.8, textTransform: 'uppercase' },
+  hint: { color: theme.muted, fontSize: 13, fontFamily: font },
   input: {
     borderWidth: 1,
     borderColor: theme.border,

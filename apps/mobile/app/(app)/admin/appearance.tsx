@@ -38,7 +38,7 @@ export default function AppearancePage() {
   return (
     <View style={styles.card}>
       <Text style={styles.heading}>Appearance</Text>
-      <Text style={styles.meta}>Custom CSS applies to everyone on this server, in both light and dark mode. You can restyle the app or override {variables}.</Text>
+      <Text style={styles.meta}>Custom CSS applies to everyone on this server. Only appearance properties are kept, including colors, type, spacing, borders, and {variables}. Addresses, scripts, and layout properties are removed.</Text>
       {error ? <Notice text={error} /> : null}
       {notice ? <Text style={styles.notice}>{notice}</Text> : null}
       <Text style={styles.label}>Server CSS</Text>

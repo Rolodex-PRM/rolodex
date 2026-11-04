@@ -1,6 +1,7 @@
 import { contacts, notificationDeliveries, pushSubscriptions, reminders, users, type Database } from '@rolodex/db'
 import { and, eq, gte, isNull, lte, or } from 'drizzle-orm'
 import type { z } from 'zod'
+import { assertPublicAddress, publicHttpUrl } from './ai'
 import { requireManager } from './access'
 import { AppError } from './errors'
 import { mailboxAddress, sendSmtp } from './smtp'
@@ -204,7 +205,7 @@ function assertReady(settings: NotificationSettings, emailPassword: string) {
   if (settings.push.enabled && !/^(mailto:.+@.+|https:\/\/.+)/i.test(settings.push.subject)) {
     throw new AppError(400, 'Push subject must be a mailto: address or an https URL')
   }
-  if (settings.webhook.enabled) assertUrl(settings.webhook.url, true, 'Enter a webhook URL')
+  if (settings.webhook.enabled && !publicHttpUrl(settings.webhook.url)) throw new AppError(400, 'Use a public http or https webhook address')
 }
 
 export async function publicAppUrl(db: Database) {
@@ -252,8 +253,9 @@ async function deliverPush(db: Database, settings: NotificationSettings, userId:
 
 async function deliverWebhook(db: Database, settings: NotificationSettings, notice: Notice) {
   if (!settings.webhook.enabled) throw new AppError(400, 'Turn on the webhook first')
+  const url = await assertPublicAddress(settings.webhook.url)
   const secret = await readSecret(db, webhookSecret)
-  const response = await fetch(settings.webhook.url, {
+  const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(secret ? { Authorization: `Bearer ${secret}` } : {}) },
     body: JSON.stringify(notice),

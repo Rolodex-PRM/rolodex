@@ -1,13 +1,17 @@
 export { AppError } from './errors'
 export { roleAtLeast, canWriteContacts, canManageMembers } from './permissions'
 export { encryptSecret, decryptSecret, etagMatches, makeEtag } from './secrets'
-export { registerUser, setupRequired, createFirstAdmin, loginUser, logoutUser, userForSession, createOauthUser, openSession, createAppPassword, listAppPasswords, revokeAppPassword, authenticateAppPassword, publicUser, type PublicUser } from './auth'
+export { registerUser, setupRequired, createFirstAdmin, loginUser, authenticatePassword, logoutUser, userForSession, createOauthUser, openSession, createAppPassword, listAppPasswords, revokeAppPassword, authenticateAppPassword, publicUser, type PublicUser } from './auth'
 export { getOauthSettings, setOauthSettings, publicOauth, unlinkOauthAccounts, beginOauth, finishOauth, exchangeOauthCode } from './oauth'
 export { getNotificationSettings, setNotificationSettings, pushPublic, savePushSubscription, deletePushSubscription, sendNotificationTest, dispatchDueNotifications, publicAppUrl, sendAccountEmail } from './notify'
 export { createWorkspace, listWorkspaces, listMembers, addMember, updateMemberRole, removeMember } from './workspaces'
 export { listUserGroups, createUserGroup, updateUserGroup, deleteUserGroup, addUserGroupMember, removeUserGroupMember } from './groups'
 export { registrationPolicy, setRegistrationPolicy, inviteUser, previewInvite, acceptInvite, sendPasswordReset, resetPassword } from './invites'
 export { publicAppearance, setAppearance, cleanCss } from './appearance'
+export { twoFactorPolicy, setTwoFactorPolicy, twoFactorStatus, startEnrollment, confirmEnrollment, disableTwoFactor, gateUser, finishSecondFactor, sendLoginEmailCode, sendTwoFactorTest, matchEmailCode } from './two-factor'
+export { trashPolicy, setTrashPolicy } from './trash'
+export { syncStatus } from './sync-status'
+export { listConnectedAccounts, saveMailboxAccount, saveCalendarAccount, deleteConnectedAccount, syncConnectedAccount } from './accounts'
 export {
   listContacts,
   locateContact,
@@ -15,6 +19,9 @@ export {
   createContact,
   updateContact,
   deleteContact,
+  listDeletedContacts,
+  restoreContact,
+  emptyTrash,
   setContactPhoto,
   setContactCover,
   setContactCoverMode,
@@ -107,7 +114,7 @@ export {
   setCustomValue,
   agenda,
 } from './crm'
-export { parseBody, registerSchema, passwordResetSchema, registrationPolicySchema, appearanceSchema, loginSchema, workspaceSchema, memberSchema, memberRoleSchema, addressBookSchema, tagSchema, contactSchema, importSchema, appPasswordSchema, relationshipSchema, relationshipTypeSchema, organizationSchema, organizationMemberSchema, noteSchema, activitySchema, taskSchema, reminderSchema, completeSchema, customFieldSchema, customValueSchema, mapSettingsSchema, addressLocationSchema, addonSchema, aiSettingsSchema, calendarEventSchema, immichInstanceSchema, immichTestSchema, immichLinkSchema, immichPhotoSchema, immichAssetSchema, contactVisibilitySchema, contactOwnerSchema, coverModeSchema, contactGrantSchema, userGroupSchema, userGroupUpdateSchema, userGroupMemberSchema, contactDateSchema, oauthSettingsSchema, notificationSettingsSchema, notificationTestSchema, pushSubscriptionSchema, oauthExchangeSchema } from './validation'
+export { parseBody, registerSchema, passwordResetSchema, registrationPolicySchema, appearanceSchema, loginSchema, workspaceSchema, memberSchema, memberRoleSchema, addressBookSchema, tagSchema, contactSchema, importSchema, appPasswordSchema, relationshipSchema, relationshipTypeSchema, organizationSchema, organizationMemberSchema, noteSchema, activitySchema, taskSchema, reminderSchema, completeSchema, customFieldSchema, customValueSchema, mapSettingsSchema, addressLocationSchema, addonSchema, aiSettingsSchema, calendarEventSchema, immichInstanceSchema, immichTestSchema, immichLinkSchema, immichPhotoSchema, immichAssetSchema, contactVisibilitySchema, contactOwnerSchema, coverModeSchema, contactGrantSchema, userGroupSchema, userGroupUpdateSchema, userGroupMemberSchema, contactDateSchema, oauthSettingsSchema, notificationSettingsSchema, notificationTestSchema, pushSubscriptionSchema, oauthExchangeSchema, mfaSchema, mfaTicketSchema, totpConfirmSchema, totpCodeSchema, twoFactorPolicySchema, trashPolicySchema, mailboxAccountSchema, calendarAccountSchema } from './validation'
 export { parseVcards, serializeVcard } from './vcard'
 export { findDuplicates, mergeContacts, workspaceNetwork, egoNetwork, contactSummary, enrichContact, calendarMonth, calendarIcs, photoMemories, groupDuplicates, enrichFromEmail, buildSummary } from './phase5'
 export { eventTypes, buildVevent, parseVevent, buildVtodo, parseVtodo, calendarContext, listCalendarFeed, listTodoFeed, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, upsertCalendarFromIcs, upsertTodoFromIcs, deleteCalendarUid, deleteTodoUid, isDerivedUid, datesInMonth } from './calendar'

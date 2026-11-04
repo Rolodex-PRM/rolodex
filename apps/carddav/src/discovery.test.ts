@@ -19,6 +19,17 @@ describe('iPhone service discovery', () => {
     }
   })
 
+  it('keeps the website scheme when a proxy terminates TLS', async () => {
+    const result = await handleDav(db, {
+      method: 'PROPFIND',
+      path: '/.well-known/carddav',
+      headers: { host: 'rolodex.demo.com', 'x-forwarded-proto': 'https' },
+      body: '',
+    })
+    expect(result.status).toBe(301)
+    expect(result.headers.Location).toBe('https://rolodex.demo.com/')
+  })
+
   it('keeps the service root behind the application password', async () => {
     const result = await handleDav(db, {
       method: 'PROPFIND',
