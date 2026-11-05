@@ -12,6 +12,7 @@ export { twoFactorPolicy, setTwoFactorPolicy, twoFactorStatus, startEnrollment, 
 export { trashPolicy, setTrashPolicy } from './trash'
 export { syncStatus } from './sync-status'
 export { buildAppleSyncProfile } from './apple-profile'
+export { listWorkspacePlugins, setWorkspacePlugin, pluginDocument, callPlugin, composePluginDocument, discoverPlugins, pluginDirectories } from './plugins'
 export { listConnectedAccounts, saveMailboxAccount, saveCalendarAccount, deleteConnectedAccount, syncConnectedAccount } from './accounts'
 export {
   listContacts,
@@ -82,6 +83,7 @@ export {
 } from './immich'
 export {
   listRelationships,
+  setUserRelationship,
   listRelationshipTypes,
   createRelationshipType,
   deleteRelationshipType,
@@ -119,6 +121,6 @@ export { parseBody, registerSchema, passwordResetSchema, registrationPolicySchem
 export { parseVcards, serializeVcard } from './vcard'
 export { findDuplicates, mergeContacts, workspaceNetwork, egoNetwork, contactSummary, enrichContact, calendarMonth, calendarIcs, photoMemories, groupDuplicates, enrichFromEmail, buildSummary } from './phase5'
 export { eventTypes, buildVevent, parseVevent, buildVtodo, parseVtodo, calendarContext, listCalendarFeed, listTodoFeed, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, upsertCalendarFromIcs, upsertTodoFromIcs, deleteCalendarUid, deleteTodoUid, isDerivedUid, datesInMonth } from './calendar'
-export { getAiSettings, setAiSettings, testAiConnection, listSuggestions, suggestContactFields, approveSuggestion, rejectSuggestion, publicHttpUrl, pageContains, htmlToText } from './ai'
+export { getAiSettings, setAiSettings, testAiConnection, listSuggestions, suggestContactFields, approveSuggestion, rejectSuggestion, publicHttpUrl, pageContains, htmlToText, enrichmentQuery, enrichmentPrompt, parseSearchResultLinks } from './ai'
 export { createRateLimiter } from './rate-limit'
 export { loadEnv } from './env'

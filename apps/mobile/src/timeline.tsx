@@ -202,7 +202,7 @@ export function Timeline({
             <Pressable onPress={() => setTab('timeline')} style={[styles.tab, tab === 'timeline' && styles.tabOn]}>
               <Text style={[styles.tabText, tab === 'timeline' && styles.tabTextOn]}>Timeline</Text>
             </Pressable>
-            <Pressable onPress={() => setTab('about')} style={[styles.tab, tab === 'about' && styles.tabOn]}>
+            <Pressable accessibilityRole="button" onPress={() => setTab('about')} style={[styles.tab, tab === 'about' && styles.tabOn]}>
               <Text style={[styles.tabText, tab === 'about' && styles.tabTextOn]}>About</Text>
             </Pressable>
           </View>

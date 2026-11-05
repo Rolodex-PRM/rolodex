@@ -148,31 +148,82 @@ export async function listSuggestions(db: Database, userId: string, workspaceId:
   return rows.map((row) => ({ ...row, label: isSuggestionField(row.field) ? fieldLabels[row.field] : row.field, createdAt: row.createdAt.toISOString() }))
 }
 
+export function enrichmentQuery(input: { name: string; title?: string | null; organization?: string | null }) {
+  return [input.name, input.title, input.organization]
+    .map((part) => part?.replace(/"/g, '').trim() || '')
+    .filter(Boolean)
+    .map((part) => `"${part}"`)
+    .join(' ')
+}
+
+export function parseSearchResultLinks(html: string) {
+  const found: string[] = []
+  const seen = new Set<string>()
+  const add = (value: string) => {
+    const url = publicHttpUrl(value.split('&')[0] || '')
+    if (!url) return
+    const host = url.hostname.toLowerCase()
+    if (host === 'duckduckgo.com' || host.endsWith('.duckduckgo.com') || host === 'google.com' || host.endsWith('.google.com')) return
+    const key = url.toString()
+    if (seen.has(key)) return
+    seen.add(key)
+    found.push(key)
+  }
+  for (const match of html.matchAll(/uddg=([^&"'\s]+)/g)) {
+    try {
+      add(decodeURIComponent(match[1] || ''))
+    } catch {
+      continue
+    }
+  }
+  return found.slice(0, 4)
+}
+
+export function enrichmentPrompt(input: { name: string; title: string; organization: string; known: string; pages: { url: string; text: string }[] }) {
+  const identity = [
+    `Name: ${input.name}`,
+    input.title ? `Job title: ${input.title}` : '',
+    input.organization ? `Company: ${input.organization}` : '',
+  ].filter(Boolean)
+  const found = input.pages.map((page) => `Source ${page.url}\n${page.text}`).join('\n\n')
+  return [
+    'Look up this exact person. Start from the facts already saved.',
+    'When a job title or company is known, look for that person at that company with that title. Do not switch to someone who only shares the name.',
+    'Suggest contact fields only when one of the pages states the value.',
+    'Return JSON {"suggestions":[{"field":"organizationName|title|department|website|interests","value":"exact text from the page","sourceUrl":"https://..."}]}',
+    'If a page does not state it, leave it out. Do not guess. Do not suggest email, phone, birthday, or street address.',
+    identity.join('\n'),
+    input.pages.length ? `Pages found by searching ${enrichmentQuery(input)}:\n${found}` : 'No search page was loaded. Only cite a public page that names this person with the known title or company.',
+    `Known facts:\n${input.known}`,
+  ].join('\n')
+}
+
 export async function suggestContactFields(db: Database, userId: string, workspaceId: string, contactId: string) {
   await requireWriter(db, userId, workspaceId)
   if (!lookups(userId)) throw new AppError(429, 'Wait a moment before asking again')
   const config = await requireConfig(db, workspaceId)
   const contact = await getContact(db, userId, workspaceId, contactId)
+  const identity = {
+    name: contact.displayName.trim(),
+    title: contact.title?.trim() || '',
+    organization: contact.organizationName?.trim() || '',
+  }
   const known = [
-    contact.displayName,
-    contact.title,
+    identity.name,
+    identity.title,
     contact.department,
-    contact.organizationName,
+    identity.organization,
     contact.website,
     contact.interests,
     contact.addresses.map((address) => [address.city, address.region, address.country].filter(Boolean).join(', ')).filter(Boolean).join('; '),
   ].filter(Boolean).join('\n')
-  const raw = await complete(config, [
-    'Suggest contact fields only when a public web page states the value.',
-    'Return JSON {"suggestions":[{"field":"organizationName|title|department|website|interests","value":"exact text from the page","sourceUrl":"https://..."}]}',
-    'If a page does not state it, leave it out. Do not guess. Do not suggest email, phone, birthday, or street address.',
-    `Known facts:\n${known}`,
-  ].join('\n'))
+  const pages = await findPublicPages(enrichmentQuery(identity))
+  const raw = await complete(config, enrichmentPrompt({ ...identity, known, pages }))
   const parsed = parseSuggestions(raw)
   let kept = 0
   let discarded = 0
   for (const item of parsed) {
-    const verified = await verifySuggestion(item)
+    const verified = await verifySuggestion(item, identity)
     if (!verified || currentValue(contact, item.field) === item.value) {
       discarded += 1
       await writeAudit(db, workspaceId, userId, 'contact.ai_discard', contactId, 'contact', {
@@ -233,7 +284,7 @@ export async function rejectSuggestion(db: Database, userId: string, workspaceId
   return { ok: true }
 }
 
-async function verifySuggestion(item: { field: SuggestionField; value: string; sourceUrl: string }) {
+async function verifySuggestion(item: { field: SuggestionField; value: string; sourceUrl: string }, identity: { name: string; organization: string }) {
   if (item.field === 'interests' && item.value.trim().length < 8) return null
   const url = publicHttpUrl(item.sourceUrl)
   if (!url) return null
@@ -243,11 +294,38 @@ async function verifySuggestion(item: { field: SuggestionField; value: string; s
   }
   try {
     const page = await readPublicPage(url)
+    if (identity.name && !pageContains(page, identity.name)) return null
+    if (identity.organization && !pageContains(page, identity.organization)) return null
     const found = pageContains(page, item.field === 'website' ? new URL(item.value).hostname.replace(/^www\./, '') : item.value)
     if (!found) return null
     return { url: url.toString(), excerpt: found.excerpt }
   } catch {
     return null
+  }
+}
+
+async function findPublicPages(query: string) {
+  if (!query) return []
+  try {
+    const search = new URL('https://html.duckduckgo.com/html/')
+    search.searchParams.set('q', query)
+    await assertResolvedPublic(search.hostname)
+    const response = await fetch(search, { redirect: 'manual', signal: AbortSignal.timeout(8000), headers: { Accept: 'text/html' } })
+    if (!response.ok) return []
+    const links = parseSearchResultLinks(await response.text())
+    const pages: { url: string; text: string }[] = []
+    for (const link of links.slice(0, 3)) {
+      const url = publicHttpUrl(link)
+      if (!url) continue
+      try {
+        pages.push({ url: url.toString(), text: (await readPublicPage(url)).slice(0, 4000) })
+      } catch {
+        continue
+      }
+    }
+    return pages
+  } catch {
+    return []
   }
 }
 

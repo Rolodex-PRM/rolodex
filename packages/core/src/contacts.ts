@@ -14,6 +14,7 @@ import {
   tags,
   userGroupMembers,
   userGroups,
+  userRelationships,
   users,
   workspaceMembers,
   type ContactGrantRole,
@@ -187,7 +188,7 @@ export async function locateContact(db: Database, userId: string, workspaceId: s
 export async function getContact(db: Database, userId: string, workspaceId: string, contactId: string) {
   const bundle = await loadBundle(db, contactId)
   await assertCanReadContact(db, userId, workspaceId, bundle)
-  return presentContact(bundle)
+  return withUserRelationship(db, userId, workspaceId, contactId, presentContact(bundle))
 }
 
 export async function createContact(db: Database, userId: string, workspaceId: string, input: ContactBody) {
@@ -813,6 +814,15 @@ function defaultLabel(kind: string) {
   if (kind === 'email') return 'other'
   if (kind === 'phone') return 'mobile'
   return ''
+}
+
+async function withUserRelationship<T extends object>(db: Db, userId: string, workspaceId: string, contactId: string, contact: T) {
+  const [link] = await db
+    .select({ type: userRelationships.type })
+    .from(userRelationships)
+    .where(and(eq(userRelationships.workspaceId, workspaceId), eq(userRelationships.userId, userId), eq(userRelationships.contactId, contactId)))
+    .limit(1)
+  return { ...contact, userRelationship: link?.type ?? null }
 }
 
 async function replaceAddresses(db: Db, contactId: string, rows: NonNullable<ContactBody['addresses']>) {

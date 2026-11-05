@@ -106,6 +106,7 @@ export const contactSchema = z.object({
   followUpFrequency: optionalText(80),
   methods: z.array(methodSchema).max(30).optional(),
   addresses: z.array(addressSchema).max(10).optional(),
+  userRelationship: z.string().trim().max(80).nullish(),
   tagIds: z.array(z.string().uuid()).max(50).optional(),
   tagNames: z.array(z.string().trim().min(1).max(40)).max(50).optional(),
 })

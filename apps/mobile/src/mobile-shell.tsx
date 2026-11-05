@@ -10,6 +10,7 @@ import { useColorScheme } from './color-scheme'
 import { AiMenu, contactIdFromPath } from './ai-enrich'
 import { Icon } from './icons'
 import { RolodexMark } from './logo'
+import { PluginBar } from './plugin-bar'
 import { font, theme } from './theme'
 
 type Menu = 'notifications' | 'ai' | 'profile' | 'more' | 'create' | null
@@ -91,6 +92,7 @@ export function MobileShell({ children }: { children: ReactNode }) {
           </View>
         </View>
       </View>
+      {shown ? <PluginBar /> : null}
       {menu === 'ai' && workspace ? (
         <View style={[styles.popover, styles.popoverRight, { top: 64 + insets.top + 8 }]}>
           <AiMenu workspaceId={workspace.id} contactId={contactIdFromPath(path)} canWrite={canWrite} canManage={canManage} onOpen={(href) => { setMenu(null); router.push(href) }} />

@@ -12,6 +12,7 @@ import {
   relationshipDismissals,
   relationshipTypes,
   relationships,
+  userRelationships,
   reminders,
   tasks,
   type Database,
@@ -213,6 +214,25 @@ export async function createRelationship(db: Database, userId: string, workspace
   }).onConflictDoNothing()
   await syncInferredRelationships(db, workspaceId)
   return row
+}
+
+export async function setUserRelationship(db: Database, userId: string, workspaceId: string, contactId: string, type: string | null) {
+  await requireContactWrite(db, userId, workspaceId, contactId)
+  await ensureRelationshipTypes(db, workspaceId)
+  const label = type?.trim() || ''
+  const where = and(eq(userRelationships.workspaceId, workspaceId), eq(userRelationships.userId, userId), eq(userRelationships.contactId, contactId))
+  if (!label) {
+    await db.delete(userRelationships).where(where)
+    return { type: null }
+  }
+  const rows = await db.select().from(relationshipTypes).where(eq(relationshipTypes.workspaceId, workspaceId))
+  const match = rows.flatMap((row) => [row.label, row.reciprocalLabel]).find((item) => item.toLowerCase() === label.toLowerCase())
+  if (!match) throw new AppError(400, 'Choose a relationship from the list')
+  await db
+    .insert(userRelationships)
+    .values({ workspaceId, userId, contactId, type: match })
+    .onConflictDoUpdate({ target: [userRelationships.workspaceId, userRelationships.userId, userRelationships.contactId], set: { type: match, updatedAt: new Date() } })
+  return { type: match }
 }
 
 export async function deleteRelationship(db: Database, userId: string, workspaceId: string, relationshipId: string) {

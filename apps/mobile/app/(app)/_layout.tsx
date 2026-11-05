@@ -8,6 +8,7 @@ import { useColorScheme } from '../../src/color-scheme'
 import { Icon } from '../../src/icons'
 import { RolodexMark } from '../../src/logo'
 import { MobileShell } from '../../src/mobile-shell'
+import { PluginBar } from '../../src/plugin-bar'
 import { font, theme } from '../../src/theme'
 
 const links = [
@@ -113,6 +114,7 @@ export default function AppLayout() {
           ) : null}
         </View>
       </View>
+      <PluginBar />
       <ScrollView contentContainerStyle={styles.content} style={styles.main}>
         <Slot />
       </ScrollView>

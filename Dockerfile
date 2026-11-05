@@ -21,6 +21,7 @@ COPY tsconfig.base.json ./
 COPY packages ./packages
 COPY apps/api ./apps/api
 COPY apps/carddav ./apps/carddav
+COPY plugins ./plugins
 RUN pnpm install --frozen-lockfile
 COPY scripts/docker-app.mjs ./scripts/docker-app.mjs
 COPY nginx/rolodex.conf /etc/nginx/conf.d/default.conf
