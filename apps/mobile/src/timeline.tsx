@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import { createElement, useEffect, useState, type ReactNode } from 'react'
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
-import { api, send, type Activity, type ContactSummary, type ImmichGallery, type InteractionFile, type Note } from './api'
+import { api, apiUrl, send, type Activity, type ContactSummary, type ImmichGallery, type InteractionFile, type Note } from './api'
 import { AuthImage } from './immich-photos'
 import { Choice, MentionField, mentionParts } from './people'
 import { font, theme } from './theme'
@@ -457,7 +457,7 @@ function uploadFiles(workspaceId: string, entry: Entry, files: File[]) {
 }
 
 async function openFile(workspaceId: string, file: InteractionFile) {
-  const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4100'}/api/workspaces/${workspaceId}/files/${file.id}`, {
+  const response = await fetch(`${apiUrl}/api/workspaces/${workspaceId}/files/${file.id}`, {
     headers: authHeader(),
     credentials: 'include',
   })

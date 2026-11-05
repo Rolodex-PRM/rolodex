@@ -58,11 +58,16 @@ function publicCarddavUrl(req: AuthedRequest) {
   const configured = process.env.PUBLIC_URL?.trim().replace(/\/$/, '')
   if (configured) return configured
   const host = firstHeader(req.get('x-forwarded-host')) || req.get('host')
-  if (process.env.DOCKER_SITE === 'true' && host) {
-    const proto = firstHeader(req.get('x-forwarded-proto')) || req.protocol || 'http'
-    return `${proto}://${host}`
-  }
-  return process.env.PUBLIC_CARDDAV_URL || 'http://localhost:4101'
+  const proto = firstHeader(req.get('x-forwarded-proto')) || req.protocol || 'http'
+  if (host && (process.env.DOCKER_SITE === 'true' || publicSiteHost(host))) return `${proto}://${host}`
+  return (process.env.PUBLIC_CARDDAV_URL || 'http://localhost:4101').replace(/\/$/, '')
+}
+
+function publicSiteHost(host: string) {
+  const own = new Set([process.env.API_PORT || '4100', process.env.CARDDAV_PORT || '4101', process.env.WEB_DEV_PORT || '4181'])
+  const port = host.startsWith('[') ? host.slice(host.lastIndexOf(':') + 1) : host.split(':')[1] || ''
+  if (!port) return true
+  return !own.has(port)
 }
 
 function firstHeader(value: string | undefined) {

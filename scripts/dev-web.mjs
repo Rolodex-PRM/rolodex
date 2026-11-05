@@ -19,6 +19,7 @@ function load(file) {
 }
 
 load(resolve(root, '.env'))
+process.env.EXPO_PUBLIC_WEB_PORT ||= process.env.WEB_DEV_PORT || '4181'
 const port = process.env.WEB_DEV_PORT || '4181'
 const child = spawn('pnpm', ['exec', 'expo', 'start', '--web', '--port', port], {
   cwd: resolve(root, 'apps/mobile'),

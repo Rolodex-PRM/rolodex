@@ -26,16 +26,24 @@ async function main() {
   server.use(express.text({ type: () => true, limit: '20mb' }))
   const db = app.get<Database>(DB)
   server.use(async (req, res) => {
-    const result = await handleDav(db, {
-      method: req.method,
-      path: req.originalUrl,
-      headers: req.headers,
-      body: typeof req.body === 'string' ? req.body : '',
-      ip: req.ip,
-    })
-    res.status(result.status)
-    for (const [key, value] of Object.entries(result.headers)) res.setHeader(key, value)
-    res.send(result.body)
+    const path = req.originalUrl.split('?')[0] || '/'
+    try {
+      const result = await handleDav(db, {
+        method: req.method,
+        path: req.originalUrl,
+        headers: req.headers,
+        body: typeof req.body === 'string' ? req.body : '',
+        ip: req.ip,
+      })
+      res.status(result.status)
+      for (const [key, value] of Object.entries(result.headers)) res.setHeader(key, value)
+      res.send(result.body)
+      console.log(`DAV ${req.method} ${path} ${result.status}`)
+    } catch (error) {
+      console.error(error)
+      if (!res.headersSent) res.status(500).type('text/plain').send('Internal server error')
+      console.log(`DAV ${req.method} ${path} 500`)
+    }
   })
   const port = Number(process.env.CARDDAV_PORT || 4101)
   await app.listen(port, '0.0.0.0')

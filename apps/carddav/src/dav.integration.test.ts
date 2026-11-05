@@ -74,7 +74,11 @@ suite('CardDAV and contact sync', () => {
 
     const principal = await call(ownerEmail, ownerPassword.password, 'PROPFIND', '/')
     expect(principal.status).toBe(207)
-    expect(principal.body).toContain(`/principals/${owner.user.id}/`)
+    expect(principal.body).toContain(`/carddav/principals/${owner.user.id}/`)
+    expect(principal.body).toContain(`addressbook-home-set`)
+    expect(principal.body).toContain(`/carddav/addressbooks/${owner.user.id}/`)
+    expect(principal.body).toContain(`calendar-home-set`)
+    expect(principal.body).toContain(`/caldav/calendars/${owner.user.id}/`)
 
     const home = await call(ownerEmail, ownerPassword.password, 'PROPFIND', `/addressbooks/${owner.user.id}/`, '', { depth: '1' })
     expect(home.status).toBe(207)
