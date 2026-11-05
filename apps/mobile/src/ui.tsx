@@ -139,6 +139,7 @@ export function Button({
   const { accent, onAccent } = useAccent()
   return (
     <Pressable
+      accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
       style={[styles.button, tone === 'primary' ? { backgroundColor: accent } : tone === 'danger' ? styles.danger : styles.ghost, disabled && styles.disabled]}

@@ -35,12 +35,39 @@ export function EnrichedText({ on, style, children }: { on: boolean; style?: Tex
   return <Text accessibilityLabel={`AI enriched. ${typeof children === 'string' ? children : ''}`} style={[style, styles.enriched, colors]}>{children}</Text>
 }
 
-export function AiMenu({ workspaceId, canManage, onOpen }: { workspaceId: string; canManage: boolean; onOpen: (href: string) => void }) {
+export function contactIdFromPath(path: string) {
+  const id = path.match(/^\/contacts\/([^/]+)/)?.[1]
+  if (!id || id === 'new') return undefined
+  return id
+}
+
+export function AiMenu({ workspaceId, contactId, canWrite, canManage, onOpen }: { workspaceId: string; contactId?: string; canWrite: boolean; canManage: boolean; onOpen: (href: string) => void }) {
+  const [version, setVersion] = useState(0)
+  const [notice, setNotice] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function enhance() {
+    if (!contactId) return
+    setBusy(true)
+    setNotice('')
+    try {
+      const result = await send<{ kept: number; discarded: number }>(`/api/workspaces/${workspaceId}/contacts/${contactId}/ai/suggest`, 'POST')
+      setNotice(result.kept ? `${result.kept} suggestion${result.kept === 1 ? '' : 's'} ready for review.` : 'Nothing on a public page could be verified.')
+      setVersion((current) => current + 1)
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : 'Could not enhance this contact')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <View>
       <Text style={styles.title}>AI</Text>
       <Text style={styles.meta}>Suggestions stay here until you approve them. A field is saved only after it is found on the source page and you accept it.</Text>
-      <SuggestionList workspaceId={workspaceId} onOpen={onOpen} />
+      {contactId && canWrite ? <Button label={busy ? 'Enhancing' : 'Enhance this contact'} onPress={() => void enhance()} disabled={busy} /> : null}
+      {notice ? <Notice text={notice} /> : null}
+      <SuggestionList key={`${contactId ?? 'all'}-${version}`} workspaceId={workspaceId} contactId={contactId} onOpen={onOpen} />
       {canManage ? <Button label="AI settings" tone="ghost" onPress={() => onOpen('/admin/addons')} /> : null}
     </View>
   )

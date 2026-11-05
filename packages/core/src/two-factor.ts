@@ -134,7 +134,7 @@ export function matchEmailCode(userId: string, code: string, hash: string, expir
   return left.length === right.length && timingSafeEqual(left, right)
 }
 
-export async function finishSecondFactor(db: Database, ticket: string, code: string) {
+export async function finishSecondFactor(db: Database, ticket: string, code: string, remember = false) {
   const payload = readTicket(ticket)
   const [user] = await db.select().from(users).where(eq(users.id, payload.userId)).limit(1)
   if (!user) throw new AppError(401, 'That sign-in expired. Start again.')
@@ -147,7 +147,7 @@ export async function finishSecondFactor(db: Database, ticket: string, code: str
   } else if (emailOk) {
     await db.update(users).set({ emailOtpHash: null, emailOtpExpiresAt: null, updatedAt: new Date() }).where(eq(users.id, user.id))
   }
-  return openSession(db, user.id)
+  return openSession(db, user.id, remember)
 }
 
 function hashEmailCode(userId: string, code: string) {

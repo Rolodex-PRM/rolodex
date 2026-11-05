@@ -28,6 +28,7 @@ type AuthValue = {
 
 const AuthContext = createContext<AuthValue | null>(null)
 const storageKey = 'rolodex.session'
+const workspaceKey = 'rolodex.workspace'
 
 function readStored() {
   if (Platform.OS !== 'web' || typeof sessionStorage === 'undefined') return null
@@ -41,6 +42,17 @@ function writeStored(value: { token: string; session: Session; workspaceId?: str
   else sessionStorage.setItem(storageKey, JSON.stringify(value))
 }
 
+function readWorkspaceId() {
+  if (Platform.OS !== 'web' || typeof localStorage === 'undefined') return undefined
+  return localStorage.getItem(workspaceKey) || undefined
+}
+
+function writeWorkspaceId(id: string | null) {
+  if (Platform.OS !== 'web' || typeof localStorage === 'undefined') return
+  if (!id) localStorage.removeItem(workspaceKey)
+  else localStorage.setItem(workspaceKey, id)
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
   const [needsSetup, setNeedsSetup] = useState(false)
@@ -49,15 +61,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
 
-  async function loadWorkspaces(authToken: string, sessionValue: Session, preferredId?: string) {
+  async function loadWorkspaces(authToken: string | null, sessionValue: Session, preferredId?: string) {
     setToken(authToken)
     const rows = await api<Workspace[]>('/api/workspaces')
-    const next = rows.find((item) => item.id === preferredId) ?? rows[0] ?? null
+    const next = rows.find((item) => item.id === preferredId) ?? rows.find((item) => item.id === readWorkspaceId()) ?? rows[0] ?? null
     setWorkspaces(rows)
     setWorkspace(next)
     setSession(sessionValue)
     setTokenState(authToken)
-    writeStored({ token: authToken, session: sessionValue, workspaceId: next?.id })
+    if (authToken) writeStored({ token: authToken, session: sessionValue, workspaceId: next?.id })
+    writeWorkspaceId(next?.id ?? null)
+  }
+
+  async function restoreFromCookie() {
+    const me = await api<{ user: { id: string; email: string; displayName: string }; carddavUrl: string; carddavPhoneUrl?: string | null }>('/api/auth/me')
+    await loadWorkspaces(null, withCarddav(me.user, me), readWorkspaceId())
   }
 
   useEffect(() => {
@@ -68,15 +86,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null)
       setWorkspace(null)
       writeStored(null)
+      writeWorkspaceId(null)
     })
     const stored = readStored()
     const setupPromise = api<{ required: boolean }>('/api/auth/setup')
       .then((result) => result.required)
       .catch(() => false)
-    if (!stored) {
+    if (!stored?.token) {
       setupPromise
-        .then((required) => {
-          if (!cancel) setNeedsSetup(required)
+        .then(async (required) => {
+          if (cancel) return
+          setNeedsSetup(required)
+          if (required) return
+          await restoreFromCookie()
+        })
+        .catch(() => {
+          if (!cancel) writeStored(null)
         })
         .finally(() => {
           if (!cancel) setReady(true)
@@ -94,8 +119,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cancel) return
         await loadWorkspaces(stored.token, withCarddav(me.user, me), stored.workspaceId)
       })
-      .catch(() => {
-        if (!cancel) writeStored(null)
+      .catch(async () => {
+        if (cancel) return
+        writeStored(null)
+        setToken(null)
+        try {
+          await restoreFromCookie()
+        } catch {
+          if (!cancel) writeStored(null)
+        }
       })
       .finally(() => {
         if (!cancel) setReady(true)
@@ -160,6 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSession(null)
           setWorkspace(null)
           writeStored(null)
+          writeWorkspaceId(null)
           if (endSession && Platform.OS === 'web') {
             const url = new URL(endSession)
             url.searchParams.set('post_logout_redirect_uri', `${window.location.origin}/sign-in`)
@@ -169,11 +202,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       async refreshWorkspaces() {
-        if (!token || !session) return
+        if (!session) return
         await loadWorkspaces(token, session, workspace?.id)
       },
       selectWorkspace(next) {
         setWorkspace(next)
+        writeWorkspaceId(next.id)
         if (token && session) writeStored({ token, session, workspaceId: next.id })
       },
     }),

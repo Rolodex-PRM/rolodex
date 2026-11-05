@@ -125,9 +125,12 @@ export function ProfileCrm({
         <Text style={styles.section}>Relationships</Text>
         {links.map((link) => (
           <View key={link.id} style={styles.row}>
-            <Pressable onPress={() => router.push(`/contacts/${link.contactId}`)}>
-              <Text style={styles.link}>is the {link.type} of {link.displayName}{link.inferred ? ' · suggested' : ''}</Text>
-            </Pressable>
+            <View style={styles.copy}>
+              <Pressable onPress={() => router.push(`/contacts/${link.contactId}`)}>
+                <Text style={styles.link}>is the {link.type} of {link.displayName}</Text>
+              </Pressable>
+              {link.inferred ? <Text style={styles.meta}>Suggested{link.description ? ` · ${link.description}` : ''}</Text> : null}
+            </View>
             {canWrite ? <Button label="Remove" tone="ghost" onPress={() => void run(() => send(`/api/workspaces/${workspaceId}/relationships/${link.id}`, 'DELETE'))} /> : null}
           </View>
         ))}
@@ -292,6 +295,7 @@ const styles = StyleSheet.create({
   due: { color: theme.text, fontWeight: '700' },
   link: { fontFamily: font, color: theme.text, fontSize: 16, fontWeight: '700' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 },
+  copy: { flex: 1, gap: 2 },
   identity: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   block: { gap: 2, marginBottom: 10 },
   form: { gap: 10, marginTop: 12 },
