@@ -5,11 +5,12 @@ import { dispatchDueNotifications, loadEnv, syncDueImmich } from '@rolodex/core'
 import { createDb } from '@rolodex/db'
 import { AuthController } from './auth.controller'
 import { DataController } from './data.controller'
+import { PluginsController } from './plugins.controller'
 import { AppExceptionFilter, DB, STORAGE } from './http'
 import { ensureBucket, objectStorage } from './storage'
 
 @Module({
-  controllers: [AuthController, DataController],
+  controllers: [AuthController, DataController, PluginsController],
   providers: [
     {
       provide: DB,

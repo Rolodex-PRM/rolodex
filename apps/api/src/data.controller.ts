@@ -150,6 +150,7 @@ import {
   listRelationshipTypes,
   listOrganizations,
   listRelationships,
+  setUserRelationship,
   listTags,
   listTasks,
   listWorkspaces,
@@ -349,8 +350,11 @@ export class DataController {
   }
 
   @Post('workspaces/:workspaceId/contacts')
-  createContact(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Body() body: unknown) {
-    return createContact(this.db, req.user.id, workspaceId, parseBody(contactSchema, body))
+  async createContact(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Body() body: unknown) {
+    const input = parseBody(contactSchema, body)
+    const created = await createContact(this.db, req.user.id, workspaceId, input)
+    if (input.userRelationship !== undefined) await setUserRelationship(this.db, req.user.id, workspaceId, created.id, input.userRelationship ?? null)
+    return getContact(this.db, req.user.id, workspaceId, created.id)
   }
 
   @Get('workspaces/:workspaceId/contacts/:contactId')
@@ -471,13 +475,16 @@ export class DataController {
   }
 
   @Patch('workspaces/:workspaceId/contacts/:contactId')
-  updateContact(
+  async updateContact(
     @Req() req: AuthedRequest,
     @Param('workspaceId') workspaceId: string,
     @Param('contactId') contactId: string,
     @Body() body: unknown,
   ) {
-    return updateContact(this.db, req.user.id, workspaceId, contactId, parseBody(contactSchema, body))
+    const input = parseBody(contactSchema, body)
+    await updateContact(this.db, req.user.id, workspaceId, contactId, input)
+    if (input.userRelationship !== undefined) await setUserRelationship(this.db, req.user.id, workspaceId, contactId, input.userRelationship ?? null)
+    return getContact(this.db, req.user.id, workspaceId, contactId)
   }
 
   @Delete('workspaces/:workspaceId/contacts/:contactId')

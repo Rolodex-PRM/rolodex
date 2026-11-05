@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scratch pad</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: Segoe UI, sans-serif; background: #f4f4f4; color: #1a1a1a; }
+    p { margin: 0 0 12px; color: #6b6b6b; }
+    textarea { width: 100%; min-height: 240px; box-sizing: border-box; border: 1px solid #e4e4e4; border-radius: 12px; padding: 12px; font: inherit; background: #fff; }
+    button { margin-top: 12px; border: 0; border-radius: 999px; padding: 10px 16px; background: #111; color: #fff; font: inherit; font-weight: 700; }
+    #status { margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <p>This note belongs to the plugin. Saving it leaves every person in Rolodex as they are.</p>
+  <textarea id="note" placeholder="Write a note"></textarea>
+  <button id="save" type="button">Save note</button>
+  <p id="status"></p>
+  <script>
+    var note = document.getElementById('note')
+    var status = document.getElementById('status')
+    window.addEventListener('rolodex', function () {
+      window.rolodex.get('note').then(function (value) { note.value = value || '' }).catch(function (error) { status.textContent = error.message })
+    })
+    document.getElementById('save').addEventListener('click', function () {
+      status.textContent = 'Saving…'
+      window.rolodex.set('note', note.value).then(function () { status.textContent = 'Saved in this plugin.' }).catch(function (error) { status.textContent = error.message })
+    })
+  </script>
+</body>
+</html>

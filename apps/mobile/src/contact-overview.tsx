@@ -35,6 +35,11 @@ export function ContactOverview({ workspaceId, contact }: { workspaceId: string;
   return (
     <Panel>
       <Text style={styles.section}>Overview</Text>
+      {contact.userRelationship ? (
+        <Category icon="contacts" title="Your relationship" empty={false}>
+          <Text style={styles.value}>{contact.userRelationship}</Text>
+        </Category>
+      ) : null}
       <Category icon="phone" title="Phone numbers" empty={!phones.length}>
         {phones.map((method) => (
           <Text key={method.id} style={styles.value} onPress={() => void Linking.openURL(`tel:${method.value}`)}>
@@ -60,7 +65,7 @@ export function ContactOverview({ workspaceId, contact }: { workspaceId: string;
       <Category icon="pin" title="Addresses" empty={!contact.addresses.length}>
         {contact.addresses.map((address) => (
           <Text key={address.id} style={styles.value}>
-            {[address.street, address.city, address.region, address.postalCode, address.country].filter(Boolean).join(', ')}
+            {[address.label, address.street, address.city, address.region, address.postalCode, address.country].filter(Boolean).join(', ')}
           </Text>
         ))}
         {located?.lat != null && located.lon != null ? <AddressMap lat={located.lat} lon={located.lon} /> : null}

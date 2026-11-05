@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { api, type AddressBook, type Contact } from './api'
 import { useAuth } from './auth'
-import { AddressEditor } from './address-editor'
+import { AddressList, addressDraftFrom, addressLabelOf, emptyAddress, type AddressDraft } from './address-editor'
 import { cadences } from './cadence'
 import { TagField } from './fields'
 import { Choice } from './people'
@@ -51,11 +51,11 @@ export function ContactForm({
       { label: 'linkedin', value: '' },
     ],
   )
-  const [street, setStreet] = useState(contact?.addresses[0]?.street ?? '')
-  const [city, setCity] = useState(contact?.addresses[0]?.city ?? '')
-  const [region, setRegion] = useState(contact?.addresses[0]?.region ?? '')
-  const [postalCode, setPostalCode] = useState(contact?.addresses[0]?.postalCode ?? '')
-  const [country, setCountry] = useState(contact?.addresses[0]?.country ?? '')
+  const [addressRows, setAddressRows] = useState<AddressDraft[]>(
+    contact?.addresses.length ? contact.addresses.map(addressDraftFrom) : [emptyAddress()],
+  )
+  const [relationTypes, setRelationTypes] = useState<string[]>([])
+  const [userRelationship, setUserRelationship] = useState(contact?.userRelationship ?? '')
   const [tagNames, setTagNames] = useState<string[]>(contact?.tags.map((tag) => tag.name) ?? [])
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
@@ -72,6 +72,9 @@ export function ContactForm({
     api<{ name: string }[]>(`/api/workspaces/${workspace.id}/tags`)
       .then((rows) => setKnownTags(rows.map((row) => row.name)))
       .catch(() => setKnownTags([]))
+    api<{ label: string; reciprocalLabel: string }[]>(`/api/workspaces/${workspace.id}/relationship-types`)
+      .then((rows) => setRelationTypes([...new Set(rows.flatMap((row) => [row.label, row.reciprocalLabel]))].sort((left, right) => left.localeCompare(right))))
+      .catch(() => setRelationTypes([]))
   }, [workspace, contact])
 
   async function save() {
@@ -101,7 +104,10 @@ export function ContactForm({
       interests,
       followUpFrequency: cadence || null,
       methods,
-      addresses: street || city || region || postalCode || country ? [{ label: 'home', street, city, region, postalCode, country }] : [],
+      addresses: addressRows
+        .filter((row) => row.street || row.city || row.region || row.postalCode || row.country)
+        .map((row) => ({ label: addressLabelOf(row), street: row.street, city: row.city, region: row.region, postalCode: row.postalCode, country: row.country })),
+      userRelationship: userRelationship || null,
       tagNames,
     }
     try {
@@ -133,17 +139,16 @@ export function ContactForm({
       <MethodList key="email" kind="email" rows={emails} onChange={setEmails} />
       <MethodList key="phone" kind="phone" rows={phones} onChange={setPhones} />
       <SocialList rows={socials.length ? socials : [{ label: 'linkedin', value: '' }]} onChange={setSocials} />
-      <AddressEditor
-        workspaceId={workspace?.id}
-        value={{ street, city, region, postalCode, country }}
-        onChange={(next) => {
-          setStreet(next.street)
-          setCity(next.city)
-          setRegion(next.region)
-          setPostalCode(next.postalCode)
-          setCountry(next.country)
-        }}
-      />
+      <Text style={styles.section}>Your relationship</Text>
+      <Text style={styles.hint}>How this person is related to you. Each person signed in keeps their own answer.</Text>
+      <View style={styles.chips}>
+        <Choice label="Not set" on={!userRelationship} onPress={() => setUserRelationship('')} />
+        {relationTypes.map((type) => (
+          <Choice key={type} label={type} on={userRelationship === type} onPress={() => setUserRelationship(type)} />
+        ))}
+      </View>
+      <Text style={styles.section}>Addresses</Text>
+      <AddressList workspaceId={workspace?.id} rows={addressRows} onChange={setAddressRows} />
       <DateField label="Birthday" value={birthday} onChange={setBirthday} />
       <Field label="Website" autoCapitalize="none" value={website} onChangeText={setWebsite} />
       <Field label="Card note" multiline value={cardNote} onChangeText={setCardNote} hint="This note syncs to the phone. Private notes on the person stay in Rolodex." />

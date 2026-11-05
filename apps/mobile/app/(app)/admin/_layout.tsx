@@ -13,6 +13,7 @@ const links = [
   { href: '/admin/map' as const, label: 'Map' },
   { href: '/admin/relationships' as const, label: 'Relationships' },
   { href: '/admin/addons' as const, label: 'Add-ons' },
+  { href: '/admin/plugins' as const, label: 'Plugins' },
   { href: '/admin/appearance' as const, label: 'Appearance' },
 ]
 

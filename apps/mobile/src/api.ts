@@ -107,6 +107,7 @@ export type Contact = ContactSummary & {
   methods: { id: string; kind: string; label: string; value: string; isPrimary: boolean }[]
   addresses: { id: string; label: string; street: string; street2: string; city: string; region: string; postalCode: string; country: string; lat: number | null; lon: number | null }[]
   tags: { id: string; name: string; color?: string | null }[]
+  userRelationship?: string | null
 }
 export type AddressBook = { id: string; workspaceId: string; name: string; description: string | null; role: string; syncToken: number; shared: boolean }
 export type Place = {

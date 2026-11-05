@@ -89,7 +89,10 @@ const EMAIL_TYPES: Record<string, string> = {
 
 const ADDRESS_TYPES: Record<string, string> = {
   home: 'HOME',
+  primary: 'HOME',
+  secondary: 'OTHER',
   work: 'WORK',
+  office: 'WORK',
   mailing: 'POSTAL',
   billing: 'BILLING',
   other: 'OTHER',

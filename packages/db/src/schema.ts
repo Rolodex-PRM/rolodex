@@ -429,6 +429,56 @@ export const relationshipDismissals = pgTable(
   (table) => [uniqueIndex('relationship_dismissals_edge_idx').on(table.workspaceId, table.fromContactId, table.toContactId, sql`lower(${table.type})`)],
 )
 
+export const userRelationships = pgTable(
+  'user_relationships',
+  {
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    contactId: uuid('contact_id')
+      .notNull()
+      .references(() => contacts.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.workspaceId, table.userId, table.contactId] })],
+)
+
+export const workspacePlugins = pgTable(
+  'workspace_plugins',
+  {
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    pluginId: text('plugin_id').notNull(),
+    enabled: boolean('enabled').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.workspaceId, table.pluginId] })],
+)
+
+export const pluginRecords = pgTable(
+  'plugin_records',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    pluginId: text('plugin_id').notNull(),
+    recordKey: text('record_key').notNull(),
+    value: text('value').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('plugin_records_key_idx').on(table.workspaceId, table.userId, table.pluginId, table.recordKey)],
+)
+
 export const households = pgTable('households', {
   id: uuid('id').primaryKey().defaultRandom(),
   workspaceId: uuid('workspace_id')

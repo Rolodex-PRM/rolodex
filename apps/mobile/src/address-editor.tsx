@@ -9,6 +9,82 @@ import { Field } from './ui'
 
 type AddressValue = { street: string; city: string; region: string; postalCode: string; country: string }
 
+export type AddressDraft = AddressValue & {
+  key: string
+  category: 'Primary' | 'Secondary' | 'Office' | 'custom'
+  custom: string
+}
+
+export function emptyAddress(category: AddressDraft['category'] = 'Primary'): AddressDraft {
+  return { key: Math.random().toString(36).slice(2), category, custom: '', street: '', city: '', region: '', postalCode: '', country: '' }
+}
+
+export function addressDraftFrom(address: { label: string; street: string; city: string; region: string; postalCode: string; country: string }): AddressDraft {
+  const label = address.label.trim()
+  const lower = label.toLowerCase()
+  const category = lower === 'primary' || lower === 'home' ? 'Primary' : lower === 'secondary' ? 'Secondary' : lower === 'office' || lower === 'work' ? 'Office' : 'custom'
+  return { ...emptyAddress(category), custom: category === 'custom' ? label : '', street: address.street, city: address.city, region: address.region, postalCode: address.postalCode, country: address.country }
+}
+
+export function addressLabelOf(draft: AddressDraft) {
+  return draft.category === 'custom' ? draft.custom.trim() || 'Other' : draft.category
+}
+
+const categories = ['Primary', 'Secondary', 'Office', 'Custom'] as const
+
+export function AddressList({
+  workspaceId,
+  rows,
+  onChange,
+}: {
+  workspaceId?: string
+  rows: AddressDraft[]
+  onChange: (rows: AddressDraft[]) => void
+}) {
+  const shown = rows.length ? rows : [emptyAddress()]
+  return (
+    <View style={styles.list}>
+      {shown.map((row, index) => (
+        <View key={row.key} style={styles.block}>
+          <View style={styles.categoryRow}>
+            {categories.map((category) => {
+              const selected = category === 'Custom' ? row.category === 'custom' : row.category === category
+              return (
+                <Pressable
+                  key={category}
+                  accessibilityRole="button"
+                  onPress={() => onChange(shown.map((item) => (item.key === row.key ? { ...item, category: category === 'Custom' ? 'custom' : category } : item)))}
+                  style={[styles.chip, selected && styles.chipOn]}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextOn]}>{category}</Text>
+                </Pressable>
+              )
+            })}
+            {shown.length > 1 ? (
+              <Pressable accessibilityRole="button" onPress={() => onChange(shown.filter((item) => item.key !== row.key))} style={styles.remove}>
+                <Text style={styles.removeText}>Remove</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          {row.category === 'custom' ? (
+            <Field label="Category name" value={row.custom} onChangeText={(custom) => onChange(shown.map((item) => (item.key === row.key ? { ...item, custom } : item)))} />
+          ) : null}
+          <AddressEditor
+            workspaceId={workspaceId}
+            value={row}
+            onChange={(next) => onChange(shown.map((item) => (item.key === row.key ? { ...item, ...next } : item)))}
+          />
+          {index === shown.length - 1 ? (
+            <Pressable accessibilityRole="button" onPress={() => onChange([...shown, emptyAddress(shown.some((item) => item.category === 'Primary') ? 'Secondary' : 'Primary')])} style={styles.add}>
+              <Text style={styles.addText}>Add address</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ))}
+    </View>
+  )
+}
+
 const emptyMap: MapSettings = { engine: 'leaflet', templateId: 'osm', tileUrl: '', cartoKey: '', mapboxToken: '', googleKey: '' }
 
 export function AddressEditor({
@@ -139,7 +215,7 @@ export function AddressEditor({
   return (
     <View style={[styles.card, wide && styles.cardWide]}>
       <View style={styles.fields}>
-        <Text style={styles.heading}>Enter your address:</Text>
+        <Text style={styles.heading}>Street address</Text>
         <Text style={styles.label}>Address</Text>
         <TextInput
           value={value.street}
@@ -211,4 +287,15 @@ const styles = StyleSheet.create({
   mapPane: { flex: 1, minHeight: 320, minWidth: 260, position: 'relative', backgroundColor: theme.raised },
   adjust: { position: 'absolute', right: 12, bottom: 36, zIndex: 500, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
   adjustText: { fontFamily: font, fontSize: 14, fontWeight: '700' },
+  list: { gap: 16 },
+  block: { gap: 10 },
+  categoryRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  chip: { borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
+  chipOn: { backgroundColor: theme.text, borderColor: theme.text },
+  chipText: { fontFamily: font, color: theme.text, fontSize: 13, fontWeight: '700' },
+  chipTextOn: { color: theme.on },
+  remove: { marginLeft: 'auto', paddingHorizontal: 8, paddingVertical: 8 },
+  removeText: { fontFamily: font, color: theme.danger, fontSize: 13, fontWeight: '700' },
+  add: { alignSelf: 'flex-start', borderWidth: 1, borderColor: theme.border, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+  addText: { fontFamily: font, color: theme.text, fontSize: 14, fontWeight: '700' },
 })
