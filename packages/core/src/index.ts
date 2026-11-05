@@ -11,6 +11,7 @@ export { publicAppearance, setAppearance, cleanCss } from './appearance'
 export { twoFactorPolicy, setTwoFactorPolicy, twoFactorStatus, startEnrollment, confirmEnrollment, disableTwoFactor, gateUser, finishSecondFactor, sendLoginEmailCode, sendTwoFactorTest, matchEmailCode } from './two-factor'
 export { trashPolicy, setTrashPolicy } from './trash'
 export { syncStatus } from './sync-status'
+export { buildAppleSyncProfile } from './apple-profile'
 export { listConnectedAccounts, saveMailboxAccount, saveCalendarAccount, deleteConnectedAccount, syncConnectedAccount } from './accounts'
 export {
   listContacts,

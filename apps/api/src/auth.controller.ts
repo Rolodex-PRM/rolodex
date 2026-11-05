@@ -1,5 +1,6 @@
 import {
   AppError,
+  buildAppleSyncProfile,
   appPasswordSchema,
   beginOauth,
   createAppPassword,
@@ -46,6 +47,12 @@ import { Body, Controller, Delete, Get, Inject, Param, Post, Query, Req, Res, Us
 import { networkInterfaces } from 'node:os'
 import type { Response } from 'express'
 import { AuthGuard, clearSessionCookie, DB, loginLimiter, sessionCookie, type AuthedRequest } from './http'
+
+const REMEMBER_SECONDS = 30 * 24 * 60 * 60
+
+function setLoginCookie(res: Response, req: AuthedRequest, token: string, remember: boolean) {
+  res.setHeader('Set-Cookie', sessionCookie(token, remember ? REMEMBER_SECONDS : null, req))
+}
 
 function publicCarddavUrl(req: AuthedRequest) {
   const configured = process.env.PUBLIC_URL?.trim().replace(/\/$/, '')
@@ -211,8 +218,8 @@ export class AuthController {
     const user = await authenticatePassword(this.db, input.email, input.password)
     const gate = await gateUser(this.db, user.id)
     if (gate.kind !== 'session') return gate
-    const result = await openSession(this.db, user.id)
-    res.setHeader('Set-Cookie', sessionCookie(result.token, 30 * 24 * 60 * 60, req))
+    const result = await openSession(this.db, user.id, input.remember === true)
+    setLoginCookie(res, req, result.token, input.remember === true)
     return result
   }
 
@@ -220,8 +227,8 @@ export class AuthController {
   async loginMfa(@Body() body: unknown, @Req() req: AuthedRequest, @Res({ passthrough: true }) res: Response) {
     if (!loginLimiter(req.ip || 'local')) throw new AppError(429, 'Too many attempts. Try again in a minute.')
     const input = parseBody(mfaSchema, body)
-    const result = await finishSecondFactor(this.db, input.ticket, input.code)
-    res.setHeader('Set-Cookie', sessionCookie(result.token, 30 * 24 * 60 * 60, req))
+    const result = await finishSecondFactor(this.db, input.ticket, input.code, input.remember === true)
+    setLoginCookie(res, req, result.token, input.remember === true)
     return result
   }
 
@@ -293,6 +300,18 @@ export class AuthController {
   createPassword(@Req() req: AuthedRequest, @Body() body: unknown) {
     const input = parseBody(appPasswordSchema, body)
     return createAppPassword(this.db, req.user.id, input.label)
+  }
+
+  @Post('sync/iphone')
+  @UseGuards(AuthGuard)
+  async iphoneProfile(@Req() req: AuthedRequest, @Res() res: Response) {
+    const created = await createAppPassword(this.db, req.user.id, 'iPhone')
+    const url = carddavPhoneUrl(publicCarddavUrl(req)) || publicCarddavUrl(req)
+    const profile = buildAppleSyncProfile({ email: req.user.email, password: created.password, url })
+    res.status(200)
+    res.setHeader('Content-Type', 'application/x-apple-aspen-config')
+    res.setHeader('Content-Disposition', 'attachment; filename="rolodex.mobileconfig"')
+    res.send(profile)
   }
 
   @Delete('app-passwords/:id')

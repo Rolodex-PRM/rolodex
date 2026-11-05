@@ -8,7 +8,8 @@ import { hashToken, newToken } from './secrets'
 import { createAddressBook } from './books'
 import { createWorkspace } from './workspaces'
 
-const SESSION_MS = 30 * 24 * 60 * 60 * 1000
+const REMEMBER_MS = 30 * 24 * 60 * 60 * 1000
+const BROWSER_SESSION_MS = 24 * 60 * 60 * 1000
 
 export type PublicUser = { id: string; email: string; displayName: string }
 
@@ -16,9 +17,9 @@ export function publicUser(user: { id: string; email: string; displayName: strin
   return { id: user.id, email: user.email, displayName: user.displayName }
 }
 
-async function createSession(db: Database, userId: string) {
+async function createSession(db: Database, userId: string, ttlMs = REMEMBER_MS) {
   const token = newToken()
-  const expiresAt = new Date(Date.now() + SESSION_MS)
+  const expiresAt = new Date(Date.now() + ttlMs)
   await db.insert(sessions).values({ userId, tokenHash: hashToken(token), expiresAt })
   return { token, expiresAt }
 }
@@ -85,10 +86,10 @@ export async function createOauthUser(db: Database, emailInput: string, displayN
   })
 }
 
-export async function openSession(db: Database, userId: string) {
+export async function openSession(db: Database, userId: string, remember = false) {
   const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1)
   if (!user) throw new AppError(404, 'Account not found')
-  const session = await createSession(db, userId)
+  const session = await createSession(db, userId, remember ? REMEMBER_MS : BROWSER_SESSION_MS)
   return { user: publicUser(user), token: session.token, expiresAt: session.expiresAt }
 }
 

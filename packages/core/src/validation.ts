@@ -28,6 +28,7 @@ export const appearanceSchema = z.object({
 export const loginSchema = z.object({
   email: z.string().trim().email().max(200),
   password: z.string().min(1).max(200),
+  remember: z.boolean().optional(),
 })
 
 export const workspaceSchema = z.object({
@@ -380,6 +381,7 @@ export const oauthExchangeSchema = z.object({
 export const mfaSchema = z.object({
   ticket: z.string().min(20).max(4000),
   code: z.string().trim().min(6).max(12),
+  remember: z.boolean().optional(),
 })
 
 export const totpConfirmSchema = z.object({

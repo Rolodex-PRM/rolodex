@@ -43,6 +43,8 @@ const reverseType: Record<string, string> = {
   child: 'parent',
   grandparent: 'grandchild',
   grandchild: 'grandparent',
+  'great-grandparent': 'great-grandchild',
+  'great-grandchild': 'great-grandparent',
   sibling: 'sibling',
   'aunt/uncle': 'niece/nephew',
   'niece/nephew': 'aunt/uncle',
@@ -75,6 +77,7 @@ const defaultRelationshipTypes = [
   ['spouse', 'spouse'],
   ['parent', 'child'],
   ['grandparent', 'grandchild'],
+  ['great-grandparent', 'great-grandchild'],
   ['sibling', 'sibling'],
   ['aunt/uncle', 'niece/nephew'],
   ['cousin', 'cousin'],
@@ -262,15 +265,36 @@ export async function syncInferredRelationships(db: Database, workspaceId: strin
   const inferred = rows.filter((row) => row.origin === 'inferred')
   const dismissals = await db.select().from(relationshipDismissals).where(eq(relationshipDismissals.workspaceId, workspaceId))
   const dismissed = new Set(dismissals.map((row) => `${row.fromContactId}\0${row.toContactId}\0${row.type.toLowerCase()}`))
-  const desired = inferRelationships(explicit.map((row) => ({ from: row.fromContactId, to: row.toContactId, type: row.type })))
+  const memberships = await db
+    .select({ organizationId: organizationMemberships.organizationId, contactId: organizationMemberships.contactId })
+    .from(organizationMemberships)
+    .innerJoin(organizations, eq(organizations.id, organizationMemberships.organizationId))
+    .innerJoin(contacts, eq(contacts.id, organizationMemberships.contactId))
+    .where(and(eq(organizations.workspaceId, workspaceId), isNull(organizations.deletedAt), isNull(contacts.deletedAt)))
+  const byOrg = new Map<string, string[]>()
+  for (const membership of memberships) {
+    const list = byOrg.get(membership.organizationId) ?? []
+    list.push(membership.contactId)
+    byOrg.set(membership.organizationId, list)
+  }
+  const desired = inferRelationships(
+    explicit.map((row) => ({ from: row.fromContactId, to: row.toContactId, type: row.type })),
+    [...byOrg.values()].filter((group) => group.length > 1),
+  )
   const desiredKey = (from: string, to: string, type: string) => `${from}\0${to}\0${type.toLowerCase()}`
   const wanted = new Set(desired.map((edge) => desiredKey(edge.from, edge.to, edge.type)))
   const stale = inferred.filter((row) => !wanted.has(desiredKey(row.fromContactId, row.toContactId, row.type)))
   if (stale.length) await db.delete(relationships).where(inArray(relationships.id, stale.map((row) => row.id)))
-  const present = new Set(rows.map((row) => desiredKey(row.fromContactId, row.toContactId, row.type)))
+  const present = new Map(rows.map((row) => [desiredKey(row.fromContactId, row.toContactId, row.type), row]))
+  const typeId = (type: string) => types.find((row) => row.label.toLowerCase() === type || row.reciprocalLabel.toLowerCase() === type)?.id ?? null
+  for (const edge of desired) {
+    const key = desiredKey(edge.from, edge.to, edge.type)
+    const row = present.get(key)
+    if (!row || row.origin !== 'inferred' || (row.description ?? '') === (edge.reason ?? '')) continue
+    await db.update(relationships).set({ description: edge.reason ?? null, updatedAt: new Date() }).where(eq(relationships.id, row.id))
+  }
   const missing = desired.filter((edge) => !present.has(desiredKey(edge.from, edge.to, edge.type)) && !dismissed.has(desiredKey(edge.from, edge.to, edge.type)))
   if (!missing.length) return
-  const typeId = (type: string) => types.find((row) => row.label.toLowerCase() === type || row.reciprocalLabel.toLowerCase() === type)?.id ?? null
   await db.insert(relationships).values(missing.map((edge) => ({
     workspaceId,
     relationshipTypeId: typeId(edge.type),
@@ -279,6 +303,7 @@ export async function syncInferredRelationships(db: Database, workspaceId: strin
     category: 'inferred',
     type: edge.type,
     reciprocalType: reciprocal(edge.type),
+    description: edge.reason ?? null,
     origin: 'inferred',
   }))).onConflictDoNothing()
 }

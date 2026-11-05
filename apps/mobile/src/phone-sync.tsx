@@ -39,12 +39,11 @@ export function PhoneSync({ lastCheckedIn }: { lastCheckedIn: string | null }) {
       .catch((caught: Error) => setError(caught.message))
   }, [workspace])
 
-  async function readFile(file: File) {
+  async function previewVcf(text: string, failure: string) {
     setError('')
     setMessage('')
     setPending(true)
     try {
-      const text = await file.text()
       setVcf(text)
       const result = await api<Preview>(`/api/workspaces/${workspace?.id}/address-books/${bookId}/import`, {
         method: 'POST',
@@ -54,9 +53,31 @@ export function PhoneSync({ lastCheckedIn }: { lastCheckedIn: string | null }) {
       setSelected(result.contacts.filter((contact) => contact.duplicates.length === 0).map((contact) => contact.fingerprint))
     } catch (caught) {
       setPreview(null)
-      setError(caught instanceof Error ? caught.message : 'Could not read that file')
+      setError(caught instanceof Error ? caught.message : failure)
     } finally {
       setPending(false)
+    }
+  }
+
+  async function readFile(file: File) {
+    try {
+      await previewVcf(await file.text(), 'Could not read that file')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not read that file')
+    }
+  }
+
+  async function chooseContacts() {
+    const picker = contactPicker()
+    if (!picker || !bookId) return
+    setError('')
+    try {
+      const people = await picker.select(['name', 'email', 'tel', 'address'], { multiple: true })
+      if (!people.length) return
+      await previewVcf(peopleToVcard(people), 'Could not read those contacts')
+    } catch (caught) {
+      if (caught instanceof DOMException && (caught.name === 'AbortError' || caught.name === 'InvalidStateError')) return
+      setError(caught instanceof Error ? caught.message : 'Could not open Contacts')
     }
   }
 
@@ -94,12 +115,13 @@ export function PhoneSync({ lastCheckedIn }: { lastCheckedIn: string | null }) {
   return (
     <View style={styles.block}>
       <Text style={styles.heading}>Send Rolodex to the iPhone</Text>
-      <Text style={styles.meta}>The iPhone downloads this account. Open Contacts on the phone and pull down to refresh. People in Rolodex arrive on the phone, and edits made in the Rolodex account come back here.</Text>
-      <Text style={styles.meta}>{checkedIn && !Number.isNaN(checkedIn.getTime()) ? `The phone last checked in ${checkedIn.toLocaleString()}.` : 'The phone has not checked in yet.'}</Text>
+      <Text style={styles.meta}>Saving the account does not download people. The iPhone fetches on its own schedule, and Rolodex cannot start that fetch. To fetch now, open Settings, Apps, Contacts, Contacts Accounts, tap this account, turn Contacts off, wait a few seconds, and turn it on. On an older iPhone that list is under Settings, Contacts, Accounts.</Text>
+      <Text style={styles.meta}>Each Rolodex address book then shows up as its own list. In the Contacts app, tap Lists and turn on every Rolodex list. A list that is off stays hidden. Edits made in that account come back here on the next fetch.</Text>
+      <Text style={styles.meta}>{checkedIn && !Number.isNaN(checkedIn.getTime()) ? `The phone last checked in ${checkedIn.toLocaleString()}.` : 'The phone has not checked in yet. The check-in time updates after that fetch reaches Rolodex.'}</Text>
       {canEdit ? (
         <>
-          <Text style={styles.heading}>Choose people on the iPhone</Text>
-          <Text style={styles.meta}>People kept in iCloud stay there until you share them. On the iPhone, open Contacts, tap Select, choose people, tap Share, and save the vCard. Choose that file here.</Text>
+          <Text style={styles.heading}>Choose people from Contacts</Text>
+          <Text style={styles.meta}>{contactPicker() ? 'Choose the people on this device. They are added to the address book you pick here.' : 'This browser cannot open the Contacts app. On an iPhone, people in the Rolodex account come and go through CardDAV. A vCard file still works if you already have one.'}</Text>
           {books.length > 1 ? (
             <View style={styles.books}>
               {books.map((book) => (
@@ -110,6 +132,8 @@ export function PhoneSync({ lastCheckedIn }: { lastCheckedIn: string | null }) {
             </View>
           ) : null}
           {books.length === 0 ? <Text style={styles.meta}>Create an address book before adding people.</Text> : null}
+          {contactPicker() && bookId ? <Button label={pending ? 'Opening Contacts' : 'Choose from Contacts'} onPress={() => void chooseContacts()} disabled={pending} /> : null}
+          {Platform.OS === 'web' && bookId ? <Text style={styles.meta}>Or choose a vCard file.</Text> : null}
           {Platform.OS === 'web' && bookId
             ? createElement('input', {
                 type: 'file',
@@ -149,6 +173,39 @@ export function PhoneSync({ lastCheckedIn }: { lastCheckedIn: string | null }) {
       ) : null}
     </View>
   )
+}
+
+type PickedAddress = { addressLine?: string[]; city?: string; region?: string; postalCode?: string; country?: string }
+type PickedContact = { name?: string[]; email?: string[]; tel?: string[]; address?: PickedAddress[] }
+type ContactPicker = { select: (properties: string[], options: { multiple: boolean }) => Promise<PickedContact[]> }
+
+function contactPicker() {
+  if (Platform.OS !== 'web' || typeof navigator === 'undefined') return null
+  const contacts = (navigator as Navigator & { contacts?: ContactPicker }).contacts
+  return typeof contacts?.select === 'function' ? contacts : null
+}
+
+function peopleToVcard(people: PickedContact[]) {
+  return people.map((person) => {
+    const name = person.name?.[0]?.trim() || 'Unknown'
+    const split = name.lastIndexOf(' ')
+    const first = split > 0 ? name.slice(0, split) : name
+    const last = split > 0 ? name.slice(split + 1) : ''
+    const lines = ['BEGIN:VCARD', 'VERSION:3.0', `FN:${vcardEscape(name)}`, `N:${vcardEscape(last)};${vcardEscape(first)};;;`]
+    for (const email of person.email ?? []) if (email.trim()) lines.push(`EMAIL:${vcardEscape(email.trim())}`)
+    for (const tel of person.tel ?? []) if (tel.trim()) lines.push(`TEL:${vcardEscape(tel.trim())}`)
+    for (const address of person.address ?? []) {
+      const street = (address.addressLine ?? []).filter(Boolean).join(', ')
+      const value = ['', '', street, address.city || '', address.region || '', address.postalCode || '', address.country || ''].map(vcardEscape).join(';')
+      lines.push(`ADR:${value}`)
+    }
+    lines.push('END:VCARD')
+    return lines.join('\r\n')
+  }).join('\r\n')
+}
+
+function vcardEscape(value: string) {
+  return value.replaceAll('\\', '\\\\').replaceAll('\n', '\\n').replaceAll(';', '\\;').replaceAll(',', '\\,')
 }
 
 const styles = StyleSheet.create({

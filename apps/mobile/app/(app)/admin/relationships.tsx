@@ -25,6 +25,7 @@ export default function RelationshipsPage() {
     <View style={styles.card}>
       <Text style={styles.heading}>Relationships</Text>
       <Text style={styles.meta}>Name both sides. If Ada is a grandparent, the other person is a grandchild. Use the same word twice when both people share it, such as friend and friend.</Text>
+      <Text style={styles.meta}>Saved links suggest the rest. A coworker of one person is suggested for the others in that group, including people at the same organization. Another child of a grandparent is suggested as an aunt or uncle of the grandchild. Suggestions show on the person and on the relationship chart. Remove a suggestion to dismiss it.</Text>
       {error ? <Notice text={error} /> : null}
       {rows.map((row) => (
         <View key={row.id} style={styles.pair}>

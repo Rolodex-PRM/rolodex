@@ -7,7 +7,7 @@ import { api, type Agenda } from './api'
 import { useAccent } from './accent'
 import { useAuth } from './auth'
 import { useColorScheme } from './color-scheme'
-import { AiMenu } from './ai-enrich'
+import { AiMenu, contactIdFromPath } from './ai-enrich'
 import { Icon } from './icons'
 import { RolodexMark } from './logo'
 import { font, theme } from './theme'
@@ -24,6 +24,7 @@ const moreLinks = [
 export function MobileShell({ children }: { children: ReactNode }) {
   const { session, workspace, workspaces, selectWorkspace, signOut } = useAuth()
   const canManage = workspace?.role === 'owner' || workspace?.role === 'administrator'
+  const canWrite = canManage || workspace?.role === 'editor'
   const menuLinks = [...moreLinks, ...(canManage ? [{ href: '/admin', label: 'Admin', icon: 'briefcase' as const }] : [])]
   const { accent, onAccent } = useAccent()
   const { scheme, toggleScheme } = useColorScheme()
@@ -92,7 +93,7 @@ export function MobileShell({ children }: { children: ReactNode }) {
       </View>
       {menu === 'ai' && workspace ? (
         <View style={[styles.popover, styles.popoverRight, { top: 64 + insets.top + 8 }]}>
-          <AiMenu workspaceId={workspace.id} canManage={canManage} onOpen={(href) => { setMenu(null); router.push(href) }} />
+          <AiMenu workspaceId={workspace.id} contactId={contactIdFromPath(path)} canWrite={canWrite} canManage={canManage} onOpen={(href) => { setMenu(null); router.push(href) }} />
         </View>
       ) : null}
       {menu === 'notifications' ? (

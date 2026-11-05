@@ -22,14 +22,14 @@ import {
   type Database,
 } from '@rolodex/db'
 import { and, eq, gte, inArray, isNull, lt, or, sql } from 'drizzle-orm'
-import { requireMembership } from './access'
+import { requireMembership, requireWriter } from './access'
 import { storedEventsInMonth, datesInMonth } from './calendar'
 import { deleteContact, requireContactWrite, visibleContactSql, writeAudit } from './contacts'
 import { AppError } from './errors'
 import { syncInferredRelationships } from './crm'
 
 const mailHosts = new Set(['gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'live.com', 'icloud.com', 'me.com', 'mac.com', 'yahoo.com', 'aol.com', 'proton.me', 'protonmail.com', 'pm.me', 'gmx.com', 'fastmail.com'])
-const familyTypes = new Set(['spouse', 'parent', 'child', 'sibling', 'grandparent', 'grandchild', 'aunt/uncle', 'niece/nephew', 'cousin', 'boyfriend/girlfriend'])
+const familyTypes = new Set(['spouse', 'parent', 'child', 'sibling', 'grandparent', 'grandchild', 'great-grandparent', 'great-grandchild', 'aunt/uncle', 'niece/nephew', 'cousin', 'boyfriend/girlfriend'])
 
 export type DuplicatePerson = { id: string; name: string; emails: string[]; phones: string[] }
 export type DuplicateGroup = { reason: 'email' | 'phone' | 'name'; contactIds: string[] }
@@ -273,13 +273,19 @@ async function moveRelationships(db: Database, keepId: string, duplicateId: stri
 
 export async function workspaceNetwork(db: Database, userId: string, workspaceId: string) {
   await requireMembership(db, userId, workspaceId)
+  try {
+    await requireWriter(db, userId, workspaceId)
+    await syncInferredRelationships(db, workspaceId)
+  } catch (error) {
+    if (!(error instanceof AppError) || error.status !== 403) throw error
+  }
   const people = await db
     .select({ id: contacts.id, name: contacts.displayName, followUpFrequency: contacts.followUpFrequency, lastInteractionAt: contacts.lastInteractionAt, birthday: contacts.birthday })
     .from(contacts)
     .where(and(eq(contacts.workspaceId, workspaceId), isNull(contacts.deletedAt), visibleContactSql(userId)))
   const edges = people.length
     ? await db
-        .select({ id: relationships.id, from: relationships.fromContactId, to: relationships.toContactId, type: relationships.type, origin: relationships.origin })
+        .select({ id: relationships.id, from: relationships.fromContactId, to: relationships.toContactId, type: relationships.type, reciprocal: relationships.reciprocalType, reason: relationships.description, origin: relationships.origin })
         .from(relationships)
         .where(eq(relationships.workspaceId, workspaceId))
     : []
@@ -305,7 +311,7 @@ export async function workspaceNetwork(db: Database, userId: string, workspaceId
   const followUps = suggestFollowUps(people)
   return {
     nodes: ranked.map((person) => ({ id: person.id, name: person.name, degree: degree.get(person.id) ?? 0 })),
-    edges: links.map((edge) => ({ id: edge.id, from: edge.from, to: edge.to, type: edge.type, inferred: edge.origin === 'inferred' })),
+    edges: links.map((edge) => ({ id: edge.id, from: edge.from, to: edge.to, type: edge.type, reciprocal: edge.reciprocal, reason: edge.reason, inferred: edge.origin === 'inferred' })),
     insights,
     followUps,
   }

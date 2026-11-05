@@ -23,11 +23,12 @@ export function readToken(req: Request) {
   return pair ? decodeURIComponent(pair.slice(COOKIE.length + 1)) : undefined
 }
 
-export function sessionCookie(token: string, maxAgeSeconds: number, req?: Request) {
+export function sessionCookie(token: string, maxAgeSeconds: number | null, req?: Request) {
   const forwarded = req?.headers['x-forwarded-proto']
   const https = process.env.COOKIE_SECURE === 'true' || req?.secure === true || forwarded === 'https' || (Array.isArray(forwarded) && forwarded.includes('https'))
   const secure = https ? '; Secure' : ''
-  return `${COOKIE}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${maxAgeSeconds}${secure}`
+  const maxAge = maxAgeSeconds == null ? '' : `; Max-Age=${maxAgeSeconds}`
+  return `${COOKIE}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax${maxAge}${secure}`
 }
 
 export function clearSessionCookie() {

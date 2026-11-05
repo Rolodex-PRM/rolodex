@@ -1,6 +1,6 @@
 import { Link, useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { Platform, StyleSheet, Text } from 'react-native'
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import { api, apiUrl, ApiError } from '../../src/api'
 import { AuthenticatorSetup } from '../../src/authenticator-setup'
 import { AuthFrame } from '../../src/auth-screen'
@@ -16,6 +16,7 @@ export default function SignIn() {
   const oauthError = firstParam(params.oauthError)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(false)
   const [code, setCode] = useState('')
   const [challenge, setChallenge] = useState<Challenge | null>(null)
   const [error, setError] = useState(oauthError)
@@ -85,16 +86,17 @@ export default function SignIn() {
   }
 
   async function submit() {
+    if (pending) return
     setPending(true)
     setError('')
     try {
       if (challenge) {
-        const result = await api<{ token: string }>('/api/auth/login/mfa', { method: 'POST', body: JSON.stringify({ ticket: challenge.ticket, code }) })
+        const result = await api<{ token: string }>('/api/auth/login/mfa', { method: 'POST', body: JSON.stringify({ ticket: challenge.ticket, code, remember }) })
         await completeOauth(result.token)
         router.replace('/')
         return
       }
-      const result = await api<Challenge | { token: string }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email: email.trim(), password }) })
+      const result = await api<Challenge | { token: string }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email: email.trim(), password, remember }) })
       if ('kind' in result) {
         setChallenge(result)
         return
@@ -130,12 +132,25 @@ export default function SignIn() {
           keyboardType="number-pad"
           value={code}
           onChangeText={setCode}
+          onSubmitEditing={() => void submit()}
           hint={challenge.methods.includes('authenticator') ? 'Six digits from the app, or from the email when you ask for one.' : 'Six digits from the email.'}
         />
       ) : (
         <>
-          <Field label="Email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} placeholder="you@email.com" />
-          <Field label="Password" secureTextEntry value={password} onChangeText={setPassword} />
+          <Field label="Email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} placeholder="you@email.com" onSubmitEditing={() => void submit()} />
+          <Field label="Password" secureTextEntry value={password} onChangeText={setPassword} onSubmitEditing={() => void submit()} />
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: remember }}
+            aria-checked={remember}
+            onPress={() => setRemember((current) => !current)}
+            style={styles.remember}
+          >
+            <View style={[styles.box, remember && styles.boxOn]}>
+              <Text style={[styles.mark, remember && styles.markOn]}>{remember ? '✓' : ''}</Text>
+            </View>
+            <Text style={styles.rememberLabel}>Remember Me</Text>
+          </Pressable>
         </>
       )}
       <Button label={pending ? 'Signing in' : challenge ? 'Confirm code' : 'Sign in'} onPress={submit} disabled={pending} />
@@ -161,4 +176,10 @@ function firstParam(value: string | string[] | undefined) {
 const styles = StyleSheet.create({
   footer: { fontFamily: font, color: theme.muted, textAlign: 'center', marginTop: 4 },
   link: { fontFamily: font, color: theme.text, fontWeight: '700' },
+  remember: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  rememberLabel: { fontFamily: font, color: theme.text, fontWeight: '600' },
+  box: { width: 22, height: 22, borderWidth: 1, borderColor: theme.border, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  boxOn: { backgroundColor: theme.text, borderColor: theme.text },
+  mark: { fontFamily: font, color: theme.text, fontSize: 14, lineHeight: 16 },
+  markOn: { color: theme.on },
 })

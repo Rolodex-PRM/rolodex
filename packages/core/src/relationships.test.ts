@@ -57,4 +57,54 @@ describe('relationship inference', () => {
     ])
     expect(edges.some((edge) => edge.from === 'ann' && edge.to === 'cam')).toBe(false)
   })
+
+  it('suggests an aunt or uncle for another child of a grandparent', () => {
+    const edges = inferRelationships([
+      { from: 'ada', to: 'bea', type: 'grandchild' },
+      { from: 'cy', to: 'bea', type: 'child' },
+    ])
+    expect(has(edges, 'cy', 'ada', 'aunt/uncle')).toBe(true)
+    expect(has(edges, 'ada', 'cy', 'niece/nephew')).toBe(true)
+    expect(edges.find((edge) => edge.from === 'cy' && edge.to === 'ada')?.reason).toBe('Another child of a grandparent')
+  })
+
+  it('treats a parent’s spouse as a parent and an aunt’s spouse as an aunt or uncle', () => {
+    const edges = inferRelationships([
+      { from: 'mom', to: 'kid', type: 'parent' },
+      { from: 'mom', to: 'dad', type: 'spouse' },
+      { from: 'mom', to: 'uncle', type: 'sibling' },
+      { from: 'uncle', to: 'aunt', type: 'spouse' },
+    ])
+    expect(has(edges, 'dad', 'kid', 'parent')).toBe(true)
+    expect(has(edges, 'uncle', 'kid', 'aunt/uncle')).toBe(true)
+    expect(has(edges, 'aunt', 'kid', 'aunt/uncle')).toBe(true)
+    expect(edges.find((edge) => edge.from === 'aunt' && edge.to === 'kid')?.reason).toBe('Partner of an aunt or uncle')
+  })
+
+  it('names a parent of a grandparent as a great-grandparent', () => {
+    const edges = inferRelationships([
+      { from: 'ada', to: 'bea', type: 'parent' },
+      { from: 'bea', to: 'cy', type: 'parent' },
+      { from: 'cy', to: 'dee', type: 'parent' },
+    ])
+    expect(has(edges, 'ada', 'cy', 'grandparent')).toBe(true)
+    expect(has(edges, 'ada', 'dee', 'great-grandparent')).toBe(true)
+    expect(has(edges, 'dee', 'ada', 'great-grandchild')).toBe(true)
+    expect(has(edges, 'bea', 'dee', 'grandparent')).toBe(true)
+  })
+
+  it('suggests coworkers who share an organization with someone already linked', () => {
+    const edges = inferRelationships(
+      [
+        { from: 'ann', to: 'bo', type: 'coworker' },
+        { from: 'ann', to: 'dee', type: 'friend' },
+      ],
+      [['bo', 'cam']],
+    )
+    expect(has(edges, 'ann', 'cam', 'coworker')).toBe(true)
+    expect(edges.find((edge) => edge.from === 'ann' && edge.to === 'cam')?.reason).toBe('Shares a coworker')
+    expect(edges.find((edge) => edge.from === 'bo' && edge.to === 'cam')?.reason).toBe('Works at the same organization')
+    expect(has(edges, 'dee', 'cam', 'coworker')).toBe(false)
+    expect(has(edges, 'ann', 'dee', 'coworker')).toBe(false)
+  })
 })

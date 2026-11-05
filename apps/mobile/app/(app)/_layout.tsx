@@ -1,7 +1,7 @@
 import { Link, Slot, usePathname, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
-import { AiMenu } from '../../src/ai-enrich'
+import { AiMenu, contactIdFromPath } from '../../src/ai-enrich'
 import { SearchPanel } from '../../src/search-panel'
 import { useAuth } from '../../src/auth'
 import { useColorScheme } from '../../src/color-scheme'
@@ -26,6 +26,7 @@ export default function AppLayout() {
   const wrapBar = width < 1100
   const [menu, setMenu] = useState<'account' | 'ai' | 'search' | null>(null)
   const canManage = workspace?.role === 'owner' || workspace?.role === 'administrator'
+  const canWrite = canManage || workspace?.role === 'editor'
   const { scheme, toggleScheme } = useColorScheme()
   const mark = initials(session?.displayName)
 
@@ -68,7 +69,7 @@ export default function AppLayout() {
           </Pressable>
           {menu === 'ai' && workspace ? (
             <View style={[styles.menu, styles.aiMenu]}>
-              <AiMenu workspaceId={workspace.id} canManage={canManage} onOpen={(href) => { setMenu(null); router.push(href) }} />
+              <AiMenu workspaceId={workspace.id} contactId={contactIdFromPath(path)} canWrite={canWrite} canManage={canManage} onOpen={(href) => { setMenu(null); router.push(href) }} />
             </View>
           ) : null}
           {menu === 'account' ? (
