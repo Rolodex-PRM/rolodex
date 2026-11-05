@@ -15,7 +15,7 @@ describe('iPhone service discovery', () => {
         ip: '192.168.1.20',
       })
       expect(result.status).toBe(301)
-      expect(result.headers.Location).toBe('http://192.168.1.140:4101/')
+      expect(result.headers.Location).toBe(path.endsWith('caldav') ? 'http://192.168.1.140:4101/caldav/' : 'http://192.168.1.140:4101/carddav/')
     }
   })
 
@@ -27,7 +27,20 @@ describe('iPhone service discovery', () => {
       body: '',
     })
     expect(result.status).toBe(301)
-    expect(result.headers.Location).toBe('https://rolodex.demo.com/')
+    expect(result.headers.Location).toBe('https://rolodex.demo.com/carddav/')
+  })
+
+  it('keeps both sync paths behind the application password', async () => {
+    for (const path of ['/carddav/', '/caldav/']) {
+      const result = await handleDav(db, {
+        method: 'PROPFIND',
+        path,
+        headers: { host: 'rolodex.demo.com', 'x-forwarded-proto': 'https' },
+        body: '',
+      })
+      expect(result.status).toBe(401)
+      expect(result.headers['WWW-Authenticate']).toContain('Basic')
+    }
   })
 
   it('keeps the service root behind the application password', async () => {

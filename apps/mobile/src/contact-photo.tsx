@@ -1,9 +1,7 @@
 import { createElement, useEffect, useState } from 'react'
 import { Platform, StyleSheet, Text, View } from 'react-native'
-import { api, ApiError } from './api'
+import { api, apiUrl, ApiError } from './api'
 import { font, theme } from './theme'
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4100'
 
 function authHeaders() {
   if (Platform.OS !== 'web' || typeof sessionStorage === 'undefined') return undefined
@@ -38,7 +36,7 @@ export function ContactPortrait({
     if (Platform.OS !== 'web') return
     let url = ''
     let stop = false
-    fetch(`${API_URL}/api/workspaces/${workspaceId}/contacts/${contactId}/photo?v=${revision}`, { headers: authHeaders(), credentials: 'include' })
+    fetch(`${apiUrl}/api/workspaces/${workspaceId}/contacts/${contactId}/photo?v=${revision}`, { headers: authHeaders(), credentials: 'include' })
       .then((response) => (response.ok ? response.blob() : null))
       .then((blob) => {
         if (!blob || stop) return

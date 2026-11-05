@@ -1,10 +1,8 @@
 import { createElement, useEffect, useState, type ReactNode } from 'react'
 import { Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
-import { api, send, type Activity, type ImmichGallery, type ImmichPersonHit } from './api'
+import { api, apiUrl, send, type Activity, type ImmichGallery, type ImmichPersonHit } from './api'
 import { font, theme } from './theme'
 import { Button, Notice, Panel } from './ui'
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4100'
 
 function authHeaders() {
   if (Platform.OS !== 'web' || typeof sessionStorage === 'undefined') return undefined
@@ -18,7 +16,7 @@ export function AuthImage({ path, size, radius = 12, fallback = null }: { path: 
   useEffect(() => {
     let url = ''
     let stop = false
-    fetch(`${API_URL}${path}`, { headers: authHeaders(), credentials: 'include' })
+    fetch(`${apiUrl}${path}`, { headers: authHeaders(), credentials: 'include' })
       .then((response) => (response.ok ? response.blob() : null))
       .then((blob) => {
         if (!blob || stop) return

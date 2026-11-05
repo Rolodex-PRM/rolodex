@@ -1,10 +1,8 @@
 import { createElement, useEffect, useRef, useState } from 'react'
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
-import { api, send, type Activity, type ImmichGallery, type Note } from './api'
+import { api, apiUrl, send, type Activity, type ImmichGallery, type Note } from './api'
 import { readCoverSeconds } from './cover-timing'
 import { font, theme } from './theme'
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4100'
 
 function authHeaders() {
   if (Platform.OS !== 'web' || typeof sessionStorage === 'undefined') return undefined
@@ -217,7 +215,7 @@ function useFrameSrcs(paths: string[]) {
     const list = signature ? signature.split('\n') : []
     setSrcs({})
     for (const path of list) {
-      fetch(`${API_URL}${path}`, { headers: authHeaders(), credentials: 'include' })
+      fetch(`${apiUrl}${path}`, { headers: authHeaders(), credentials: 'include' })
         .then((response) => (response.ok ? response.blob() : null))
         .then((blob) => {
           if (!blob || stop) return

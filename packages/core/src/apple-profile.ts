@@ -11,13 +11,14 @@ export function buildAppleSyncProfile(input: { email: string; password: string; 
   const ssl = parsed.protocol === 'https:'
   const port = Number(parsed.port || (ssl ? 443 : 80))
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new AppError(400, 'The phone address has no port')
-  const principal = `${parsed.protocol}//${parsed.host}/`
+  const origin = `${parsed.protocol}//${parsed.host}`
   const details = {
     host: parsed.hostname,
     email: input.email,
     password: input.password,
     port,
-    principal,
+    cardPrincipal: `${origin}/carddav/`,
+    calPrincipal: `${origin}/caldav/`,
     ssl,
   }
   const profileId = randomUUID()
@@ -27,8 +28,8 @@ export function buildAppleSyncProfile(input: { email: string; password: string; 
 <dict>
 <key>PayloadContent</key>
 <array>
-${account('com.apple.carddav.account', 'CardDAV', 'Rolodex Contacts', details)}
-${account('com.apple.caldav.account', 'CalDAV', 'Rolodex Calendar', details)}
+${account('com.apple.carddav.account', 'CardDAV', 'Rolodex Contacts', details, details.cardPrincipal)}
+${account('com.apple.caldav.account', 'CalDAV', 'Rolodex Calendar', details, details.calPrincipal)}
 </array>
 <key>PayloadDisplayName</key>
 <string>Rolodex</string>
@@ -49,7 +50,7 @@ ${account('com.apple.caldav.account', 'CalDAV', 'Rolodex Calendar', details)}
 `
 }
 
-function account(type: string, prefix: 'CardDAV' | 'CalDAV', title: string, details: { host: string; email: string; password: string; port: number; principal: string; ssl: boolean }) {
+function account(type: string, prefix: 'CardDAV' | 'CalDAV', title: string, details: { host: string; email: string; password: string; port: number; ssl: boolean }, principal: string) {
   const id = randomUUID()
   return `<dict>
 <key>${prefix}AccountDescription</key><string>${xml(title)}</string>
@@ -57,7 +58,7 @@ function account(type: string, prefix: 'CardDAV' | 'CalDAV', title: string, deta
 <key>${prefix}Username</key><string>${xml(details.email)}</string>
 <key>${prefix}Password</key><string>${xml(details.password)}</string>
 <key>${prefix}Port</key><integer>${details.port}</integer>
-<key>${prefix}PrincipalURL</key><string>${xml(details.principal)}</string>
+<key>${prefix}PrincipalURL</key><string>${xml(principal)}</string>
 <key>${prefix}UseSSL</key>${details.ssl ? '<true/>' : '<false/>'}
 <key>PayloadDescription</key><string>${xml(title)}</string>
 <key>PayloadDisplayName</key><string>${xml(title)}</string>

@@ -9,8 +9,10 @@ import { Button, Field, Notice, Panel } from './ui'
 
 export function SyncClients() {
   const { session } = useAuth()
-  const phone = phoneTarget(session?.carddavPhoneUrl)
-  const base = session?.carddavPhoneUrl || session?.carddavUrl || ''
+  const origin = (session?.carddavPhoneUrl || session?.carddavUrl || '').replace(/\/$/, '')
+  const phone = phoneTarget(origin)
+  const carddav = origin ? `${origin}/carddav` : ''
+  const caldav = origin ? `${origin}/caldav` : ''
   const [passwords, setPasswords] = useState<AppPassword[]>([])
   const [name, setName] = useState('')
   const [created, setCreated] = useState('')
@@ -53,24 +55,25 @@ export function SyncClients() {
     <>
       <Panel>
         <Text style={styles.name}>Phone and computer sync</Text>
-        <Text style={styles.meta}>CardDAV is the address book. CalDAV is the calendar and the tasks. Both use the same address as this website, your sign-in email, and a client password from the list below. The website password does not work in those apps.</Text>
+        <Text style={styles.meta}>CardDAV is the address book. CalDAV is the calendar and the tasks. Contacts are /carddav on this website, and the calendar is /caldav. Both use your sign-in email and a client password from the list below. The website password does not work in those apps.</Text>
         <Fact label="Username" value={session?.email || ''} />
         {phone ? (
           <>
             <Fact label="Server" value={phone.host} />
             <Fact label="Port" value={phone.port} />
             <Fact label="SSL" value={phone.ssl ? 'On' : 'Off'} />
-            <Fact label="Base URL" value={base} nativeID="base-url" />
+            <Fact label="CardDAV" value={carddav} nativeID="base-url" />
+            <Fact label="CalDAV" value={caldav} />
             <Text style={styles.meta}>{phone.ssl ? 'This address is HTTPS, so turn SSL on.' : 'This server is plain HTTP, so leave SSL off in the client.'}</Text>
           </>
         ) : (
           <Fact label="Server" value={session?.carddavUrl || ''} />
         )}
-        {Platform.OS === 'web' && base ? (
-          <Button label={copied || 'Copy base URL'} tone="ghost" onPress={() => void copyBase(base, setCopied)} />
+        {Platform.OS === 'web' && carddav ? (
+          <Button label={copied || 'Copy CardDAV URL'} tone="ghost" onPress={() => void copyBase(carddav, setCopied)} />
         ) : null}
         <Device title="iPhone and iPad" open={openDevice === 'iphone'} onPress={() => setOpenDevice((current) => current === 'iphone' ? '' : 'iphone')}>
-          {Platform.OS === 'web' && base ? (
+          {Platform.OS === 'web' && carddav ? (
             <>
               <Button label="Add contacts to iPhone" onPress={downloadIphoneProfile} />
               <Text style={styles.meta}>Safari downloads a profile with a new client password named iPhone. Install the profile when iOS asks. The contacts account and the calendar account then appear in Settings.</Text>
@@ -80,13 +83,13 @@ export function SyncClients() {
           <Steps items={iphoneSteps(phone)} />
         </Device>
         <Device title="Android" open={openDevice === 'android'} onPress={() => setOpenDevice((current) => current === 'android' ? '' : 'android')}>
-          <Steps items={['Install DAVx5.', 'Add an account with the base URL, the email, and a client password.', 'Choose the address books and the calendars it offers.']} />
+          <Steps items={['Install DAVx5.', 'Add a CardDAV account with the CardDAV URL, the email, and a client password.', 'Add a CalDAV account with the CalDAV URL and the same email and password.', 'Choose the address books and the calendars it offers.']} />
         </Device>
         <Device title="Mac" open={openDevice === 'mac'} onPress={() => setOpenDevice((current) => current === 'mac' ? '' : 'mac')}>
           <Steps items={['Open System Settings, Internet Accounts, Add Other Account.', 'Add a CardDAV account. Choose Manual.', 'Use the server, email, client password, port, and SSL above.', 'Add a CalDAV account with the same details.']} />
         </Device>
         <Device title="Thunderbird and other apps" open={openDevice === 'apps'} onPress={() => setOpenDevice((current) => current === 'apps' ? '' : 'apps')}>
-          <Text style={styles.meta}>Any CardDAV or CalDAV app uses the base URL, the email, and a client password. People kept in iCloud or Google stay there until you export a vCard and import it on the Address books tab.</Text>
+          <Text style={styles.meta}>Any CardDAV or CalDAV app uses the matching URL above, the email, and a client password. People kept in iCloud or Google stay there until you export a vCard and import it on the Address books tab.</Text>
         </Device>
         <SyncStatus />
         <PhoneSync lastCheckedIn={passwords.reduce<string | null>((latest, item) => {
@@ -164,7 +167,7 @@ function iphoneSteps(phone: { port: string; ssl: boolean } | null) {
     : 'Open Advanced and match SSL and the port to the server above.'
   return [
     'Open Settings, Contacts, Accounts, Add Account, Other, Add CardDAV Account.',
-    'In Server, enter only the host above. Leave the URL and the port out of that field.',
+    'In Server, enter only the host above. Leave the URL and the port out of that field. The phone finds /carddav and /caldav from that host.',
     'User Name is the email. Password is a client password.',
     ssl,
     'Add a CalDAV account from Calendar, Accounts, Add Account, Other, with the same host, email, password, and port. Events are the Rolodex calendar. Tasks are the Tasks calendar.',

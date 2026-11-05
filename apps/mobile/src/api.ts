@@ -1,4 +1,8 @@
-export const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4100'
+const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4100'
+const directWebPort = process.env.EXPO_PUBLIC_WEB_PORT || '4181'
+
+export const apiUrl =
+  typeof window === 'undefined' || window.location.port === directWebPort ? configuredApiUrl : ''
 
 export class ApiError extends Error {
   status: number

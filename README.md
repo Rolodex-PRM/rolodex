@@ -53,9 +53,9 @@ Host ports live in `.env`. Docker publishes the site on `PORT`. Postgres is publ
 | Service | Variable | Default | Where it is reached |
 | --- | --- | --- | --- |
 | Postgres | `POSTGRES_PORT` | 5472 | `127.0.0.1:5472` (5432 inside Compose) |
-| Docker site | `PORT` | 8080 | `http://<host>:8080/` for the website, `/api`, and phone sync |
+| Site gateway | `PORT` | 8080 | One address: `/` website, `/api` API, `/carddav` contacts, `/caldav` calendar |
 | API | `API_PORT` | 4100 | Dev only: `http://localhost:4100` |
-| CardDAV / CalDAV | `CARDDAV_PORT` | 4101 | Dev only: `http://localhost:4101`. Docker uses the site address |
+| CardDAV / CalDAV | `CARDDAV_PORT` | 4101 | Dev only, behind the gateway. Public paths are `/carddav` and `/caldav` |
 | Expo dev server | `WEB_DEV_PORT` | 4181 | `http://localhost:4181` |
 
 If a port is already taken, change that variable and the URL that uses it (`DATABASE_URL`, `S3_ENDPOINT`, `EXPO_PUBLIC_API_URL`, `PUBLIC_CARDDAV_URL`, or `CORS_ORIGIN`). Then run `docker compose up -d`.
@@ -65,10 +65,13 @@ If a port is already taken, change that variable and the URL that uses it (`DATA
 1. Copy the environment file: `cp .env.example .env` (PowerShell: `Copy-Item .env.example .env`). Comments in that file call out what to change for production.
 2. Start Postgres: `docker compose up postgres -d`. Local photo uploads use the S3 settings in `.env`. Start that store with `docker compose --profile s3 up minio -d` when you need it. Docker self-hosting stores files on disk instead and does not start it.
 3. Install and migrate: `pnpm install` then `pnpm db:migrate`.
-4. Start the app in three terminals:
+4. Start the app in four terminals:
    - `pnpm dev:api`
    - `pnpm dev:carddav`
    - `pnpm dev:web`
+   - `pnpm dev:gateway`
+
+`pnpm dev:gateway` listens on `PORT` (8080 unless you change it). Point a tunnel or `http://<this-machine>:8080` at that one port. `/` is the website, `/api` is the API, `/carddav` is contacts, and `/caldav` is the calendar.
 
 Open `http://localhost:4181`. The first person creates the administrator account. The dev server reads `EXPO_PUBLIC_API_URL` from `.env` and calls the API at `http://localhost:4100`.
 

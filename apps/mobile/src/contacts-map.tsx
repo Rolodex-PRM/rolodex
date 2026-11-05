@@ -1,11 +1,10 @@
 import { createElement, useEffect, useRef, useState } from 'react'
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
-import { api, send, type ContactSummary, type MapSettings, type Place } from './api'
+import { api, apiUrl, send, type ContactSummary, type MapSettings, type Place } from './api'
 import { AuthImage } from './immich-photos'
 import { mapboxStyle, tileTemplate } from './map-themes'
 import { font, theme } from './theme'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4100'
 const emptyMap: MapSettings = { engine: 'leaflet', templateId: 'osm', tileUrl: '', cartoKey: '', mapboxToken: '', googleKey: '' }
 const cacheKey = 'rolodex.address-points'
 
@@ -162,7 +161,7 @@ export function ContactsMap({
     void Promise.all(withPhoto.map(async (contact) => {
       const raw = sessionStorage.getItem('rolodex.session')
       const token = raw ? (JSON.parse(raw) as { token?: string }).token : ''
-      const response = await fetch(`${API_URL}/api/workspaces/${contact.workspaceId}/contacts/${contact.id}/photo`, {
+      const response = await fetch(`${apiUrl}/api/workspaces/${contact.workspaceId}/contacts/${contact.id}/photo`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         credentials: 'include',
       })

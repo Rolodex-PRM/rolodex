@@ -17,7 +17,7 @@ import {
 } from '@rolodex/core'
 import type { Database, WorkspaceRole } from '@rolodex/db'
 import { handleCalendar } from './caldav'
-import { absoluteHref, requestOrigin, type DavRequest, type DavResult } from './dav-types'
+import { davHref, mountPrefix, requestOrigin, servicePath, type DavMount, type DavRequest, type DavResult } from './dav-types'
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -41,7 +41,7 @@ export async function handleDav(db: Database, request: DavRequest): Promise<DavR
   const discovery = matchPath(request.path)
   if (discovery.kind === 'wellknown' && (method === 'GET' || method === 'HEAD' || method === 'PROPFIND')) {
     const origin = requestOrigin(request.headers)
-    return redirect(origin ? `${origin}/` : '/')
+    return redirect(davHref(origin, '/', mountPrefix(request.path)))
   }
   const credentials = basic(header(request.headers, 'authorization'))
   if (!credentials) return unauthorized()
@@ -56,13 +56,14 @@ export async function handleDav(db: Database, request: DavRequest): Promise<DavR
   if (route.kind === 'unknown' || route.kind === 'wellknown') return text(404, 'Not found', baseHeaders)
   if (route.kind !== 'root' && route.userId !== user.id) return text(403, 'Forbidden', baseHeaders)
   const origin = requestOrigin(request.headers)
+  const prefix = mountPrefix(request.path)
 
   try {
     if (method === 'GET' && route.kind === 'root') {
-      return redirect(absoluteHref(origin, `/principals/${user.id}/`))
+      return redirect(davHref(origin, `/principals/${user.id}/`, prefix))
     }
     if (method === 'PROPFIND' && (route.kind === 'root' || route.kind === 'principal')) {
-      return route.kind === 'root' ? propfindRoot(origin, user.id) : propfindPrincipal(origin, user)
+      return route.kind === 'root' ? propfindRoot(origin, user.id, prefix) : propfindPrincipal(origin, user, prefix)
     }
     if (method === 'PROPFIND' && route.kind === 'home') return propfindHome(db, origin, user.id, depth(request))
     if (method === 'PROPFIND' && route.kind === 'book') return propfindBook(db, origin, user.id, route.segment, depth(request))
@@ -91,7 +92,7 @@ export async function handleDav(db: Database, request: DavRequest): Promise<DavR
 async function propfindHome(db: Database, origin: string, userId: string, deep: boolean) {
   const books = await listAddressBooks(db, userId)
   const self = ok(
-    absoluteHref(origin, `/addressbooks/${userId}/`),
+    davHref(origin, `/addressbooks/${userId}/`),
     `<d:resourcetype><d:collection/></d:resourcetype><d:displayname>Address Books</d:displayname>`,
   )
   if (!deep) return multi(self)
@@ -191,22 +192,24 @@ async function proppatch(db: Database, origin: string, userId: string, segment: 
   return multi(ok(bookHref(origin, userId, updated.urlSegment), `<d:displayname>${xmlEscape(updated.name)}</d:displayname>`))
 }
 
-function propfindRoot(origin: string, userId: string) {
-  const principal = absoluteHref(origin, `/principals/${userId}/`)
+function propfindRoot(origin: string, userId: string, prefix: DavMount) {
+  const principal = davHref(origin, `/principals/${userId}/`, prefix)
+  const books = davHref(origin, `/addressbooks/${userId}/`, prefix)
+  const calendars = davHref(origin, `/calendars/${userId}/`, prefix)
   return multi(
     ok(
-      absoluteHref(origin, '/'),
-      `<d:current-user-principal><d:href>${xmlEscape(principal)}</d:href></d:current-user-principal><d:principal-URL><d:href>${xmlEscape(principal)}</d:href></d:principal-URL><d:resourcetype><d:collection/></d:resourcetype>`,
+      davHref(origin, '/', prefix),
+      `<d:current-user-principal><d:href>${xmlEscape(principal)}</d:href></d:current-user-principal><d:principal-URL><d:href>${xmlEscape(principal)}</d:href></d:principal-URL><d:resourcetype><d:collection/></d:resourcetype><card:addressbook-home-set><d:href>${xmlEscape(books)}</d:href></card:addressbook-home-set><cal:calendar-home-set><d:href>${xmlEscape(calendars)}</d:href></cal:calendar-home-set>`,
     ),
   )
 }
 
-function propfindPrincipal(origin: string, user: { id: string; displayName: string }) {
-  const principal = absoluteHref(origin, `/principals/${user.id}/`)
+function propfindPrincipal(origin: string, user: { id: string; displayName: string }, prefix: DavMount) {
+  const principal = davHref(origin, `/principals/${user.id}/`, prefix)
   return multi(
     ok(
       principal,
-      `<d:displayname>${xmlEscape(user.displayName)}</d:displayname><d:resourcetype><d:collection/><d:principal/></d:resourcetype><card:addressbook-home-set><d:href>${xmlEscape(absoluteHref(origin, `/addressbooks/${user.id}/`))}</d:href></card:addressbook-home-set><cal:calendar-home-set><d:href>${xmlEscape(absoluteHref(origin, `/calendars/${user.id}/`))}</d:href></cal:calendar-home-set><d:current-user-principal><d:href>${xmlEscape(principal)}</d:href></d:current-user-principal>`,
+      `<d:displayname>${xmlEscape(user.displayName)}</d:displayname><d:resourcetype><d:collection/><d:principal/></d:resourcetype><card:addressbook-home-set><d:href>${xmlEscape(davHref(origin, `/addressbooks/${user.id}/`))}</d:href></card:addressbook-home-set><cal:calendar-home-set><d:href>${xmlEscape(davHref(origin, `/calendars/${user.id}/`))}</d:href></cal:calendar-home-set><d:current-user-principal><d:href>${xmlEscape(principal)}</d:href></d:current-user-principal>`,
     ),
   )
 }
@@ -224,7 +227,7 @@ function cardProperties(card: { etag: string; updatedAt: Date; vcardText: string
 }
 
 function matchPath(input: string) {
-  const path = decodeURIComponent((input.split('?')[0] || '/')).replace(/\/+$/, '') || '/'
+  const path = servicePath(input)
   if (path === '/.well-known/carddav' || path === '/.well-known/caldav') return { kind: 'wellknown' as const, userId: '' }
   if (path === '/') return { kind: 'root' as const, userId: '' }
   const principal = path.match(/^\/principals\/([^/]+)$/)
@@ -244,11 +247,11 @@ function uidFromHref(href: string) {
 }
 
 function bookHref(origin: string, userId: string, segment: string) {
-  return absoluteHref(origin, `/addressbooks/${userId}/${segment}/`)
+  return davHref(origin, `/addressbooks/${userId}/${segment}/`)
 }
 
 function cardHref(origin: string, userId: string, segment: string, uid: string) {
-  return absoluteHref(origin, `/addressbooks/${userId}/${segment}/${encodeURIComponent(uid)}.vcf`)
+  return davHref(origin, `/addressbooks/${userId}/${segment}/${encodeURIComponent(uid)}.vcf`)
 }
 
 function multi(responses: string, syncToken?: string) {

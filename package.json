@@ -8,6 +8,7 @@
     "dev:api": "pnpm --filter @rolodex/api dev",
     "dev:carddav": "pnpm --filter @rolodex/carddav dev",
     "dev:web": "node scripts/dev-web.mjs",
+    "dev:gateway": "node scripts/dev-gateway.mjs",
     "db:migrate": "pnpm --filter @rolodex/db migrate",
     "db:generate": "pnpm --filter @rolodex/db generate",
     "test": "pnpm -r --if-present test",
