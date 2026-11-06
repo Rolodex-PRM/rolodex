@@ -63,12 +63,14 @@ export default function ContactProfile() {
           onChange={load}
         />
       ) : null}
-      <View style={[styles.header, scope ? styles.headerOver : null]}>
-        <View style={styles.identity}>
-          {scope ? <ContactPortrait workspaceId={scope} contactId={contact.id} name={contact.displayName} hasPhoto={contact.hasPhoto} editing={false} /> : <View style={styles.avatar}><Text style={styles.avatarText}>{contact.displayName.slice(0, 1)}</Text></View>}
-          <View>
-            <Text style={styles.title}>{contact.displayName}</Text>
-            <Text style={styles.muted}>{[contact.title, contact.organizationName].filter(Boolean).join(' · ')}</Text>
+      <View style={[styles.headerWrap, scope ? styles.headerOver : null]}>
+        <View style={styles.header}>
+          <View style={styles.identity}>
+            {scope ? <ContactPortrait workspaceId={scope} contactId={contact.id} name={contact.displayName} hasPhoto={contact.hasPhoto} editing={false} /> : <View style={styles.avatar}><Text style={styles.avatarText}>{contact.displayName.slice(0, 1)}</Text></View>}
+            <View style={styles.nameWrap}>
+              <Text style={styles.title}>{contact.displayName}</Text>
+              <Text style={styles.muted}>{[contact.title, contact.organizationName].filter(Boolean).join(' · ')}</Text>
+            </View>
           </View>
         </View>
         {canEdit ? (
@@ -112,10 +114,12 @@ export default function ContactProfile() {
 
 const styles = StyleSheet.create({
   page: { gap: 16 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, alignItems: 'center' },
+  headerWrap: { gap: 12 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' },
   headerOver: { marginTop: -64, paddingHorizontal: 12 },
-  identity: { flexDirection: 'row', gap: 14, alignItems: 'center' },
-  actions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  identity: { flexDirection: 'row', gap: 14, alignItems: 'center', flex: 1, minWidth: 0 },
+  nameWrap: { flex: 1, minWidth: 0 },
+  actions: { flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
   title: { fontFamily: font, fontSize: 28, fontWeight: '700', color: theme.text },
   section: { fontFamily: font, fontSize: 13, color: theme.muted, marginBottom: 8, letterSpacing: 0.4 },
   body: { fontFamily: font, color: theme.text, fontSize: 15, marginBottom: 6 },

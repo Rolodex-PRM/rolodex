@@ -15,17 +15,18 @@ export function Field({ label, hint, style, ...props }: { label: string; hint?: 
 
 export function DateField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   const [open, setOpen] = useState(false)
-  const [cursor, setCursor] = useState(() => parseIso(value) ?? new Date())
+  const [cursor, setCursor] = useState(() => parseIso(value)?.date ?? new Date())
   const hold = useRef(false)
   const input = useRef<TextInputInstance>(null)
   const valueRef = useRef(value)
   valueRef.current = value
-  const selected = parseIso(value)
+  const parsed = parseIso(value)
+  const selected = parsed?.date
   const days = monthDays(cursor)
 
   function show() {
     const parsed = parseIso(valueRef.current)
-    if (parsed) setCursor(parsed)
+    if (parsed) setCursor(parsed.date)
     setOpen(true)
   }
 
@@ -41,7 +42,7 @@ export function DateField({ label, value, onChange }: { label: string; value: st
       <Text style={styles.label}>{label}</Text>
       <TextInput
         ref={input}
-        placeholder="YYYY-MM-DD"
+        placeholder="YYYY-MM-DD or --MM-DD"
         placeholderTextColor={theme.muted}
         style={styles.input}
         value={value}
@@ -76,12 +77,12 @@ export function DateField({ label, value, onChange }: { label: string; value: st
           </View>
           <View style={styles.days}>
             {days.map((day) => {
-              const iso = formatIso(day)
+              const iso = formatIso(day, parsed?.hasYear ?? true)
               const inMonth = day.getMonth() === cursor.getMonth()
-              const on = selected ? formatIso(selected) === iso : false
+              const on = selected ? formatIso(selected, parsed?.hasYear ?? true) === iso : false
               return (
                 <Pressable
-                  key={iso}
+                  key={formatIso(day, true)}
                   onPressIn={() => { hold.current = true }}
                   onPress={() => {
                     onChange(iso)
@@ -100,18 +101,31 @@ export function DateField({ label, value, onChange }: { label: string; value: st
   )
 }
 
-function parseIso(value: string) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
-  if (!match) return null
-  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
-  if (date.getFullYear() !== Number(match[1]) || date.getMonth() !== Number(match[2]) - 1 || date.getDate() !== Number(match[3])) return null
-  return date
+function parseIso(value: string): { date: Date; hasYear: boolean } | null {
+  const trimmed = value.trim()
+  
+  const fullMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed)
+  if (fullMatch) {
+    const date = new Date(Number(fullMatch[1]), Number(fullMatch[2]) - 1, Number(fullMatch[3]))
+    if (date.getFullYear() !== Number(fullMatch[1]) || date.getMonth() !== Number(fullMatch[2]) - 1 || date.getDate() !== Number(fullMatch[3])) return null
+    return { date, hasYear: true }
+  }
+  
+  const noYearMatch = /^--(\d{2})-(\d{2})$/.exec(trimmed)
+  if (noYearMatch) {
+    const currentYear = new Date().getFullYear()
+    const date = new Date(currentYear, Number(noYearMatch[1]) - 1, Number(noYearMatch[2]))
+    if (date.getMonth() !== Number(noYearMatch[1]) - 1 || date.getDate() !== Number(noYearMatch[2])) return null
+    return { date, hasYear: false }
+  }
+  
+  return null
 }
 
-function formatIso(date: Date) {
+function formatIso(date: Date, withYear = true) {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
-  return `${date.getFullYear()}-${month}-${day}`
+  return withYear ? `${date.getFullYear()}-${month}-${day}` : `--${month}-${day}`
 }
 
 function monthDays(cursor: Date) {
