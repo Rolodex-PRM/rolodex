@@ -16,6 +16,10 @@ describe('plugins', () => {
       version: '1.0.0',
       description: 'A note.',
       entry: 'index.html',
+      settings: [
+        { key: 'heading', label: 'Heading', type: 'text' },
+        { key: 'bad', label: '', type: 'text' },
+      ],
     }))
     const bad = path.join(root, 'escape')
     mkdirSync(bad)
@@ -28,6 +32,7 @@ describe('plugins', () => {
     }))
     const found = discoverPlugins([root])
     expect(found.map((plugin) => plugin.id)).toEqual(['scratch-pad'])
+    expect(found[0]?.settings).toEqual([{ key: 'heading', label: 'Heading', type: 'text' }])
   })
 
   it('wraps the page so it cannot call the network and can talk to Rolodex', () => {

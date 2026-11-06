@@ -119,7 +119,7 @@ export function ContactsTable({ contacts, onOpen }: { contacts: ContactSummary[]
           </Pressable>
         ))}
       </View>
-      <Text style={styles.meta}>{shown.length} {shown.length === 1 ? 'person' : 'people'}</Text>
+      {shown.length !== contacts.length ? <Text style={styles.meta}>{shown.length} of the loaded people match these columns</Text> : null}
     </View>
   )
 }

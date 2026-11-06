@@ -99,12 +99,14 @@ export function AddressEditor({
   const { accent, onAccent } = useAccent()
   const [map, setMap] = useState<MapSettings>(emptyMap)
   const [point, setPoint] = useState<{ lat: number; lon: number } | null>(null)
+  const [query, setQuery] = useState('')
+  const [searching, setSearching] = useState(false)
   const [results, setResults] = useState<Place[]>([])
   const [error, setError] = useState('')
   const [adjusting, setAdjusting] = useState(false)
   const [wide, setWide] = useState(true)
   const placed = useRef(false)
-  const suppressSearch = useRef(false)
+  const holdSearch = useRef(false)
   const valueRef = useRef(value)
   valueRef.current = value
 
@@ -143,18 +145,13 @@ export function AddressEditor({
   }, [workspaceId, value.street, value.city, value.region, value.postalCode, value.country])
 
   useEffect(() => {
-    const query = value.street.trim()
-    if (suppressSearch.current) {
-      suppressSearch.current = false
-      setResults([])
-      return
-    }
-    if (!workspaceId || query.length < 2) {
+    const text = query.trim()
+    if (!searching || !workspaceId || text.length < 2) {
       setResults([])
       return
     }
     const handle = setTimeout(() => {
-      api<Place[]>(`/api/workspaces/${workspaceId}/places?q=${encodeURIComponent(query)}`)
+      api<Place[]>(`/api/workspaces/${workspaceId}/places?q=${encodeURIComponent(text)}`)
         .then((rows) => {
           setResults(rows)
           setError('')
@@ -163,13 +160,14 @@ export function AddressEditor({
           setResults([])
           setError(caught.message)
         })
-    }, 150)
+    }, 200)
     return () => clearTimeout(handle)
-  }, [workspaceId, value.street])
+  }, [workspaceId, query, searching])
 
   function apply(place: Place) {
     placed.current = true
-    suppressSearch.current = true
+    setQuery('')
+    setSearching(false)
     setResults([])
     onChange({
       street: place.street || valueRef.current.street,
@@ -194,11 +192,9 @@ export function AddressEditor({
     setPoint({ lat, lon })
     if (!workspaceId) return
     placed.current = true
-    suppressSearch.current = true
     api<Place>(`/api/workspaces/${workspaceId}/places/reverse?lat=${encodeURIComponent(String(lat))}&lon=${encodeURIComponent(String(lon))}`)
       .then((place) => {
         placed.current = true
-        suppressSearch.current = true
         onChange({
           street: place.street,
           city: place.city,
@@ -216,6 +212,48 @@ export function AddressEditor({
     <View style={[styles.card, wide && styles.cardWide]}>
       <View style={styles.fields}>
         <Text style={styles.heading}>Street address</Text>
+        <Text style={styles.label}>Search</Text>
+        <TextInput
+          value={query}
+          onChangeText={(text) => {
+            setQuery(text)
+            setSearching(true)
+          }}
+          onFocus={() => setSearching(true)}
+          onBlur={() => {
+            setTimeout(() => {
+              if (holdSearch.current) {
+                holdSearch.current = false
+                return
+              }
+              setSearching(false)
+              setResults([])
+            }, 200)
+          }}
+          placeholder="Search for an address"
+          placeholderTextColor={theme.muted}
+          style={styles.input}
+        />
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {searching && results.length ? (
+          <View style={styles.menu}>
+            {results.map((place) => (
+              <Pressable
+                key={`${place.provider}-${place.id}`}
+                onPressIn={() => { holdSearch.current = true }}
+                onPress={() => void choose(place)}
+                style={styles.option}
+              >
+                <View style={styles.optionCopy}>
+                  <Text style={styles.optionTitle}>{placeText(place)}</Text>
+                </View>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{place.provider === 'google' ? 'Google' : place.provider === 'mapbox' ? 'Mapbox' : 'OpenStreetMap'}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
         <Text style={styles.label}>Address</Text>
         <TextInput
           value={value.street}
@@ -224,25 +262,6 @@ export function AddressEditor({
           placeholderTextColor={theme.muted}
           style={styles.input}
         />
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {results.length ? (
-          <View style={styles.menu}>
-            {results.map((place) => {
-              const lines = placeLines(place)
-              return (
-                <Pressable key={`${place.provider}-${place.id}`} onPress={() => void choose(place)} style={styles.option}>
-                  <View style={styles.optionCopy}>
-                    <Text style={styles.optionTitle}>{lines.title}</Text>
-                    {lines.subtitle ? <Text style={styles.optionSub}>{lines.subtitle}</Text> : null}
-                  </View>
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{lines.badge}</Text>
-                  </View>
-                </Pressable>
-              )
-            })}
-          </View>
-        ) : null}
         <Field label="City" value={value.city} onChangeText={(city) => onChange({ ...value, city })} />
         <View style={styles.row}>
           <Field style={styles.grow} label="State" value={value.region} onChangeText={(region) => onChange({ ...value, region })} />
@@ -260,11 +279,11 @@ export function AddressEditor({
   )
 }
 
-function placeLines(place: Place) {
-  const title = (place.street || place.label.split(',')[0] || place.label).trim()
-  const subtitle = [place.city, place.country].filter(Boolean).join(', ')
-  const badge = place.provider === 'google' ? 'Google' : place.provider === 'mapbox' ? 'Mapbox' : 'OpenStreetMap'
-  return { title, subtitle, badge }
+function placeText(place: Place) {
+  const composed = [place.street, place.city, place.region, place.postalCode, place.country].filter(Boolean).join(', ')
+  const label = place.label.trim()
+  if (label && label.length >= composed.length) return label
+  return composed || label
 }
 
 const styles = StyleSheet.create({
@@ -279,8 +298,7 @@ const styles = StyleSheet.create({
   menu: { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 16, overflow: 'hidden' },
   option: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border },
   optionCopy: { flex: 1, gap: 2 },
-  optionTitle: { fontFamily: font, color: theme.text, fontSize: 16, fontWeight: '700' },
-  optionSub: { fontFamily: font, color: theme.muted, fontSize: 14 },
+  optionTitle: { fontFamily: font, color: theme.text, fontSize: 15, fontWeight: '700' },
   badge: { borderWidth: 1, borderColor: theme.border, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   badgeText: { fontFamily: font, color: theme.muted, fontSize: 12 },
   error: { color: theme.danger, fontFamily: font, fontSize: 13 },

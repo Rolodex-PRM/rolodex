@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { api, type AddressBook, type ContactSummary } from '../../../src/api'
 import { ContactsMap } from '../../../src/contacts-map'
@@ -10,6 +10,8 @@ import { Loader } from '../../../src/logo'
 import { font, theme } from '../../../src/theme'
 import { Button } from '../../../src/ui'
 
+const pageSize = 48
+
 export default function Contacts() {
   const { workspace } = useAuth()
   const router = useRouter()
@@ -18,10 +20,14 @@ export default function Contacts() {
   const [tag, setTag] = useState('')
   const [bookId, setBookId] = useState('')
   const [rows, setRows] = useState<ContactSummary[]>([])
+  const [total, setTotal] = useState(0)
   const [books, setBooks] = useState<AddressBook[]>([])
   const [tags, setTags] = useState<{ id: string; name: string }[]>([])
   const [error, setError] = useState('')
   const [loaded, setLoaded] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const generation = useRef(0)
+  const loadingMoreRef = useRef(false)
   const [view, setView] = useState<'card' | 'table' | 'map'>('card')
   const canWrite = workspace?.role === 'owner' || workspace?.role === 'administrator' || workspace?.role === 'editor'
 
@@ -44,32 +50,70 @@ export default function Contacts() {
 
   const selectedBook = books.find((book) => book.id === bookId)
 
-  useEffect(() => {
-    setLoaded(false)
-  }, [workspace?.id])
+  function contactQuery(offset: number) {
+    const scope = selectedBook?.workspaceId ?? workspace?.id
+    const params = new URLSearchParams()
+    params.set('limit', String(pageSize))
+    params.set('offset', String(offset))
+    if (q.trim()) params.set('q', q.trim())
+    if (selectedBook) params.set('addressBookId', selectedBook.id)
+    if (tag) params.set('tag', tag)
+    return { scope, path: `/api/workspaces/${scope}/contacts?${params}` }
+  }
 
   useEffect(() => {
     if (!workspace) return
+    const id = ++generation.current
+    loadingMoreRef.current = false
+    setLoadingMore(false)
     const handle = setTimeout(() => {
-      const scope = selectedBook?.workspaceId ?? workspace.id
-      const params = new URLSearchParams()
-      params.set('limit', '200')
-      if (q.trim()) params.set('q', q.trim())
-      if (selectedBook) params.set('addressBookId', selectedBook.id)
-      const queryText = params.toString()
-      const query = queryText ? `?${queryText}` : ''
-      api<{ contacts: ContactSummary[] }>(`/api/workspaces/${scope}/contacts${query}`)
+      const query = contactQuery(0)
+      if (!query.scope) return
+      api<{ contacts: ContactSummary[]; total: number }>(query.path)
         .then((result) => {
+          if (generation.current !== id) return
           setRows(result.contacts)
+          setTotal(result.total)
           setError('')
         })
-        .catch((caught: Error) => setError(caught.message))
-        .finally(() => setLoaded(true))
+        .catch((caught: Error) => {
+          if (generation.current !== id) return
+          setError(caught.message)
+        })
+        .finally(() => {
+          if (generation.current === id) setLoaded(true)
+        })
     }, 200)
     return () => clearTimeout(handle)
-  }, [workspace, q, selectedBook])
+  }, [workspace, q, selectedBook, tag])
 
-  const visible = tag ? rows.filter((contact) => contact.tags.some((item) => item.name === tag)) : rows
+  function loadMore() {
+    if (!workspace || loadingMoreRef.current || rows.length >= total) return
+    const id = generation.current
+    const query = contactQuery(rows.length)
+    if (!query.scope) return
+    loadingMoreRef.current = true
+    setLoadingMore(true)
+    api<{ contacts: ContactSummary[]; total: number }>(query.path)
+      .then((result) => {
+        if (generation.current !== id) return
+        const seen = new Set(rows.map((contact) => contact.id))
+        const added = result.contacts.filter((contact) => !seen.has(contact.id))
+        if (!added.length) {
+          setTotal(rows.length)
+          return
+        }
+        setTotal(result.total)
+        setRows([...rows, ...added])
+      })
+      .catch((caught: Error) => {
+        if (generation.current === id) setError(caught.message)
+      })
+      .finally(() => {
+        loadingMoreRef.current = false
+        if (generation.current === id) setLoadingMore(false)
+      })
+  }
 
   return (
     <View style={styles.page}>
@@ -77,7 +121,7 @@ export default function Contacts() {
         <View>
           <Text style={styles.kicker}>{workspace?.name}</Text>
           <Text style={styles.title}>Contacts</Text>
-          <Text style={styles.meta}>{visible.length} {visible.length === 1 ? 'person' : 'people'}</Text>
+          <Text style={styles.meta}>{loaded ? `${total.toLocaleString()} ${total === 1 ? 'person' : 'people'}` : ''}</Text>
         </View>
         <View style={styles.headerActions}>
           <View style={styles.filters}>
@@ -118,10 +162,10 @@ export default function Contacts() {
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {!loaded ? <Loader /> : null}
-      {loaded && view === 'table' ? <ContactsTable contacts={visible} onOpen={(contact) => router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)} /> : null}
-      {loaded && view === 'map' ? <ContactsMap contacts={visible} canWrite={canWrite} onOpen={(contact) => router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)} /> : null}
+      {loaded && view === 'table' ? <ContactsTable contacts={rows} onOpen={(contact) => router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)} /> : null}
+      {loaded && view === 'map' ? <ContactsMap contacts={rows} canWrite={canWrite} onOpen={(contact) => router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)} /> : null}
       {loaded && view === 'card' ? <View style={[styles.grid, wide && styles.gridWide]}>
-        {visible.map((contact) => (
+        {rows.map((contact) => (
           <Pressable
             key={contact.id}
             onPress={() => router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)}
@@ -159,7 +203,31 @@ export default function Contacts() {
           </Pressable>
         ))}
       </View> : null}
-      {loaded && !visible.length ? <Text style={styles.detail}>No contacts yet.</Text> : null}
+      {loaded && rows.length < total ? <LoadMore loading={loadingMore} onLoad={loadMore} /> : null}
+      {loaded && !rows.length ? <Text style={styles.detail}>No contacts yet.</Text> : null}
+    </View>
+  )
+}
+
+function LoadMore({ loading, onLoad }: { loading: boolean; onLoad: () => void }) {
+  const nodeRef = useRef<Element | null>(null)
+  const onLoadRef = useRef(onLoad)
+  onLoadRef.current = onLoad
+
+  useEffect(() => {
+    if (loading || Platform.OS !== 'web') return
+    const node = nodeRef.current
+    if (!node || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) onLoadRef.current()
+    }, { rootMargin: '480px' })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [loading])
+
+  return (
+    <View ref={(node) => { nodeRef.current = node as unknown as Element | null }} style={styles.more}>
+      <Button label={loading ? 'Loading…' : 'Load more'} tone="ghost" onPress={onLoad} disabled={loading} />
     </View>
   )
 }
@@ -193,4 +261,5 @@ const styles = StyleSheet.create({
   book: { fontFamily: font, fontSize: 12, color: theme.text, backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.border, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   cardTag: { fontFamily: font, fontSize: 12, color: theme.on, backgroundColor: theme.text, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   error: { color: theme.danger, fontFamily: font },
+  more: { alignItems: 'flex-start' },
 })

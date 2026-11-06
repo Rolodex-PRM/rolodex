@@ -3,6 +3,11 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { api, type ContactSummary } from './api'
 import { font, theme } from './theme'
 
+export function titleRelationship(value: string) {
+  if (value !== value.toLowerCase()) return value
+  return value.replace(/[\p{L}\p{N}]+/gu, (word) => word.charAt(0).toUpperCase() + word.slice(1))
+}
+
 export function Choice({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={[styles.chip, on && styles.chipOn]}>

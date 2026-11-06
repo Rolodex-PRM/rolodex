@@ -61,6 +61,7 @@ import {
   revokeContactGroupGrant,
   listContactDates,
   addContactDate,
+  updateContactDate,
   deleteContactDate,
   listUserGroups,
   createUserGroup,
@@ -452,6 +453,17 @@ export class DataController {
   @Post('workspaces/:workspaceId/contacts/:contactId/dates')
   createDate(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('contactId') contactId: string, @Body() body: unknown) {
     return addContactDate(this.db, req.user.id, workspaceId, contactId, parseBody(contactDateSchema, body))
+  }
+
+  @Patch('workspaces/:workspaceId/contacts/:contactId/dates/:dateId')
+  updateDate(
+    @Req() req: AuthedRequest,
+    @Param('workspaceId') workspaceId: string,
+    @Param('contactId') contactId: string,
+    @Param('dateId') dateId: string,
+    @Body() body: unknown,
+  ) {
+    return updateContactDate(this.db, req.user.id, workspaceId, contactId, dateId, parseBody(contactDateSchema, body))
   }
 
   @Delete('workspaces/:workspaceId/contacts/:contactId/dates/:dateId')
