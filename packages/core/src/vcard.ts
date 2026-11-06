@@ -38,6 +38,7 @@ export type ParsedCard = {
   phones: VCardValue[]
   socials: VCardValue[]
   addresses: VCardAddress[]
+  categories?: string[]
   unknown: string[]
 }
 
@@ -62,6 +63,7 @@ const KNOWN = new Set([
   'EMAIL',
   'ADR',
   'X-SOCIALPROFILE',
+  'CATEGORIES',
   'REV',
 ])
 
@@ -148,6 +150,7 @@ export function serializeVcard(card: ParsedCard): string {
   if (card.url) lines.push(`URL:${escapeText(card.url)}`)
   if (card.birthday) lines.push(`BDAY:${card.birthday}`)
   if (card.anniversary) lines.push(`X-ANNIVERSARY:${card.anniversary}`)
+  if (card.categories?.length) lines.push(`CATEGORIES:${card.categories.map(escapeText).join(',')}`)
 
   let item = 1
   const pushMethod = (prop: 'TEL' | 'EMAIL', entry: VCardValue, types: Record<string, string>) => {
@@ -299,6 +302,12 @@ function applyKnown(card: ParsedCard, line: LogicalLine) {
     case 'ANNIVERSARY':
     case 'X-ANNIVERSARY':
       card.anniversary = parseDate(value)
+      return
+    case 'CATEGORIES':
+      card.categories = splitUnescaped(line.value, ',')
+        .map(unescapeText)
+        .map((part) => part.trim())
+        .filter(Boolean)
       return
     case 'TEL':
       applyContactLine(card, line)
