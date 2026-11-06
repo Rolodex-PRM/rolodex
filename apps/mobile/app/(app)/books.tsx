@@ -92,6 +92,7 @@ export function AddressBooksPage() {
       {canEdit ? (
         <Panel>
           <Text style={styles.name}>Import</Text>
+          <Text style={styles.meta}>Settings, then Import, reads a vCard or a spreadsheet and shows the contacts in a table.</Text>
           {books.map((book) => (
             <Text key={book.id} onPress={() => setBookId(book.id)} style={[styles.choice, bookId === book.id && styles.choiceActive]}>
               {book.name}

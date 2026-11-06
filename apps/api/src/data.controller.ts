@@ -111,6 +111,7 @@ import {
   unlinkImmichPerson,
   importAddressBook,
   importSchema,
+  rolodexContactTemplate,
   listActivities,
   listAddressBooks,
   listBookShares,
@@ -1014,6 +1015,14 @@ export class DataController {
   async unshareBook(@Req() req: AuthedRequest, @Param('bookId') bookId: string, @Param('memberId') memberId: string) {
     await unshareAddressBook(this.db, req.user.id, bookId, memberId)
     return { ok: true }
+  }
+
+  @Get('contacts/import-template')
+  contactTemplate(@Res() res: Response) {
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', 'attachment; filename="rolodex-contacts.csv"')
+    res.setHeader('Cache-Control', 'no-store')
+    res.send(rolodexContactTemplate())
   }
 
   @Post('workspaces/:workspaceId/address-books/:bookId/import')

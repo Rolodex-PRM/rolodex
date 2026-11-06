@@ -1,6 +1,7 @@
 import 'reflect-metadata'
 import { Module } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
+import type { NestExpressApplication } from '@nestjs/platform-express'
 import { dispatchDueNotifications, loadEnv, syncDueImmich } from '@rolodex/core'
 import { createDb } from '@rolodex/db'
 import { AuthController } from './auth.controller'
@@ -27,7 +28,9 @@ class AppModule {}
 async function main() {
   loadEnv()
   process.env.DATABASE_URL ||= 'postgres://rolodex:rolodex@localhost:5472/rolodex'
-  const app = await NestFactory.create(AppModule)
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false })
+  app.useBodyParser('json', { limit: '8mb' })
+  app.useBodyParser('urlencoded', { extended: true, limit: '8mb' })
   const expressApp = app.getHttpAdapter().getInstance() as { set: (key: string, value: number) => void }
   expressApp.set('trust proxy', 1)
   app.setGlobalPrefix('api')
