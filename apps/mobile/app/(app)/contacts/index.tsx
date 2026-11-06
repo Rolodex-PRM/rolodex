@@ -23,6 +23,9 @@ export default function Contacts() {
   const [error, setError] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [view, setView] = useState<'card' | 'table' | 'map'>('card')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkActionMode, setBulkActionMode] = useState(false)
+  const [showBulkMenu, setShowBulkMenu] = useState(false)
   const canWrite = workspace?.role === 'owner' || workspace?.role === 'administrator' || workspace?.role === 'editor'
 
   useEffect(() => {
@@ -71,13 +74,63 @@ export default function Contacts() {
 
   const visible = tag ? rows.filter((contact) => contact.tags.some((item) => item.name === tag)) : rows
 
+  function toggleSelect(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  function selectAll() {
+    setSelectedIds(new Set(visible.map((contact) => contact.id)))
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set())
+    setBulkActionMode(false)
+  }
+
+  async function bulkDelete() {
+    if (!workspace || selectedIds.size === 0) return
+    if (!confirm(`Delete ${selectedIds.size} contact${selectedIds.size === 1 ? '' : 's'}?`)) return
+    
+    try {
+      await Promise.all(
+        Array.from(selectedIds).map((id) =>
+          api(`/api/workspaces/${workspace.id}/contacts/${id}`, { method: 'DELETE' })
+        )
+      )
+      setRows((current) => current.filter((contact) => !selectedIds.has(contact.id)))
+      clearSelection()
+      setShowBulkMenu(false)
+    } catch (caught) {
+      setError((caught as Error).message)
+    }
+  }
+
+  function toggleBulkMode() {
+    setBulkActionMode(!bulkActionMode)
+    if (bulkActionMode) {
+      clearSelection()
+    }
+  }
+
   return (
     <View style={styles.page}>
       <View style={styles.header}>
         <View>
           <Text style={styles.kicker}>{workspace?.name}</Text>
           <Text style={styles.title}>Contacts</Text>
-          <Text style={styles.meta}>{visible.length} {visible.length === 1 ? 'person' : 'people'}</Text>
+          <Text style={styles.meta}>
+            {bulkActionMode && selectedIds.size > 0
+              ? `${selectedIds.size} selected`
+              : `${visible.length} ${visible.length === 1 ? 'person' : 'people'}`}
+          </Text>
         </View>
         <View style={styles.headerActions}>
           <View style={styles.filters}>
@@ -87,9 +140,32 @@ export default function Contacts() {
               </Pressable>
             ))}
           </View>
-          <Button label="New contact" onPress={() => router.push('/contacts/new')} />
+          {canWrite ? (
+            <>
+              <Button label={bulkActionMode ? 'Done' : 'Select'} tone="ghost" onPress={toggleBulkMode} />
+              <Button label="New contact" onPress={() => router.push('/contacts/new')} />
+            </>
+          ) : (
+            <Button label="New contact" onPress={() => router.push('/contacts/new')} />
+          )}
         </View>
       </View>
+      {bulkActionMode && selectedIds.size > 0 ? (
+        <View style={styles.bulkActions}>
+          <Button label="Select all" tone="ghost" onPress={selectAll} />
+          <Button label="Clear" tone="ghost" onPress={clearSelection} />
+          <Pressable onPress={() => setShowBulkMenu(!showBulkMenu)} style={styles.bulkMenuButton}>
+            <Text style={styles.bulkMenuButtonText}>Actions ▼</Text>
+          </Pressable>
+          {showBulkMenu ? (
+            <View style={styles.bulkMenu}>
+              <Pressable onPress={bulkDelete} style={styles.bulkMenuItem}>
+                <Text style={styles.bulkMenuItemTextDanger}>Delete selected</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
       <TextInput
         value={q}
         onChangeText={setQ}
@@ -118,15 +194,36 @@ export default function Contacts() {
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {!loaded ? <Loader /> : null}
-      {loaded && view === 'table' ? <ContactsTable contacts={visible} onOpen={(contact) => router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)} /> : null}
+      {loaded && view === 'table' ? (
+        <ContactsTable 
+          contacts={visible} 
+          onOpen={(contact) => router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)} 
+          bulkActionMode={bulkActionMode}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+        />
+      ) : null}
       {loaded && view === 'map' ? <ContactsMap contacts={visible} canWrite={canWrite} onOpen={(contact) => router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)} /> : null}
       {loaded && view === 'card' ? <View style={[styles.grid, wide && styles.gridWide]}>
         {visible.map((contact) => (
           <Pressable
             key={contact.id}
-            onPress={() => router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)}
-            style={styles.card}
+            onPress={() => {
+              if (bulkActionMode) {
+                toggleSelect(contact.id)
+              } else {
+                router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)
+              }
+            }}
+            style={[styles.card, bulkActionMode && selectedIds.has(contact.id) && styles.cardSelected]}
           >
+            {bulkActionMode ? (
+              <View style={styles.selectCheckbox}>
+                <View style={[styles.checkbox, selectedIds.has(contact.id) && styles.checkboxChecked]}>
+                  {selectedIds.has(contact.id) ? <Text style={styles.checkmark}>✓</Text> : null}
+                </View>
+              </View>
+            ) : null}
             <View style={styles.avatarSlot}>
               {contact.hasPhoto ? (
                 <AuthImage
@@ -181,9 +278,21 @@ const styles = StyleSheet.create({
   tagActive: { backgroundColor: theme.text },
   tagText: { fontFamily: font, color: theme.text, fontSize: 12 },
   tagTextActive: { color: theme.on },
+  bulkActions: { flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: 12, backgroundColor: theme.surface, borderRadius: 16, borderWidth: 1, borderColor: theme.border },
+  bulkMenuButton: { backgroundColor: theme.text, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center' },
+  bulkMenuButtonText: { color: theme.on, fontFamily: font, fontSize: 14, fontWeight: '600' },
+  bulkMenu: { position: 'absolute', top: '100%', right: 0, marginTop: 4, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 12, minWidth: 180, zIndex: 1000, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  bulkMenuItem: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border },
+  bulkMenuItemText: { fontFamily: font, fontSize: 14, color: theme.text },
+  bulkMenuItemTextDanger: { fontFamily: font, fontSize: 14, color: theme.danger },
   grid: { gap: 12 },
   gridWide: { flexDirection: 'row', flexWrap: 'wrap' },
-  card: { backgroundColor: theme.surface, borderRadius: 22, borderWidth: 1, borderColor: theme.border, padding: 18, gap: 6, width: '100%', maxWidth: 340 },
+  card: { backgroundColor: theme.surface, borderRadius: 22, borderWidth: 1, borderColor: theme.border, padding: 18, gap: 6, width: '100%', maxWidth: 340, position: 'relative' },
+  cardSelected: { borderColor: theme.text, borderWidth: 2 },
+  selectCheckbox: { position: 'absolute', top: 12, right: 12, zIndex: 10 },
+  checkbox: { width: 24, height: 24, borderWidth: 2, borderColor: theme.border, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surface },
+  checkboxChecked: { backgroundColor: theme.text, borderColor: theme.text },
+  checkmark: { fontFamily: font, fontSize: 14, color: theme.on, fontWeight: '700' },
   avatarSlot: { marginBottom: 6 },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: theme.accentMuted, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: theme.text, fontFamily: font, fontWeight: '700' },
