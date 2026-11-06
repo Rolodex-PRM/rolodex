@@ -12,7 +12,7 @@ import { PluginBar } from '../../src/plugin-bar'
 import { font, theme } from '../../src/theme'
 
 const links = [
-  { href: '/', label: 'Contacts' },
+  { href: '/contacts', label: 'Contacts' },
   { href: '/calendar', label: 'Calendar' },
   { href: '/interactions', label: 'Interactions' },
   { href: '/tasks', label: 'Tasks' },
@@ -49,7 +49,7 @@ export default function AppLayout() {
         </Pressable>
         <View style={styles.links}>
           {links.map((link) => {
-            const active = link.href === '/' ? path === '/' : path.startsWith(link.href)
+            const active = path === link.href || path.startsWith(`${link.href}/`)
             return (
               <Link key={link.href} href={link.href} style={[styles.link, active && styles.linkActive]}>
                 {link.label}

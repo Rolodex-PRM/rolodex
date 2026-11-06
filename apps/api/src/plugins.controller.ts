@@ -1,4 +1,4 @@
-import { AppError, callPlugin, createRateLimiter, listWorkspacePlugins, pluginDocument, setWorkspacePlugin } from '@rolodex/core'
+import { AppError, callPlugin, createRateLimiter, listWorkspacePlugins, pluginDocument, setWorkspacePlugin, updatePluginSettings } from '@rolodex/core'
 import { type Database } from '@rolodex/db'
 import { Body, Controller, Get, Inject, Param, Put, Req, UseGuards } from '@nestjs/common'
 import { AuthGuard, DB, type AuthedRequest } from './http'
@@ -19,6 +19,11 @@ export class PluginsController {
   set(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('pluginId') pluginId: string, @Body() body: { enabled?: boolean }) {
     if (typeof body?.enabled !== 'boolean') throw new AppError(400, 'Choose whether the plugin is on')
     return setWorkspacePlugin(this.db, req.user.id, workspaceId, pluginId, body.enabled)
+  }
+
+  @Put('workspaces/:workspaceId/plugins/:pluginId/settings')
+  settings(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('pluginId') pluginId: string, @Body() body: { values?: unknown }) {
+    return updatePluginSettings(this.db, req.user.id, workspaceId, pluginId, body?.values)
   }
 
   @Get('workspaces/:workspaceId/plugins/:pluginId/document')

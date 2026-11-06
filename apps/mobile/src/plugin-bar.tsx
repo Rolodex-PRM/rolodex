@@ -1,6 +1,6 @@
-import { usePathname, useRouter } from 'expo-router'
+import { Link, usePathname } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native'
+import { Platform, ScrollView, StyleSheet } from 'react-native'
 import { api } from './api'
 import { useAuth } from './auth'
 import { font, theme } from './theme'
@@ -10,7 +10,6 @@ type PluginLink = { id: string; name: string; enabled: boolean }
 export function PluginBar() {
   const { workspace } = useAuth()
   const path = usePathname()
-  const router = useRouter()
   const [rows, setRows] = useState<PluginLink[]>([])
 
   useEffect(() => {
@@ -39,11 +38,12 @@ export function PluginBar() {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bar} contentContainerStyle={styles.row}>
       {rows.map((plugin) => {
-        const active = path === `/plugins/${plugin.id}`
+        const href = `/plugins/${plugin.id}`
+        const active = path === href || path.startsWith(`${href}/`)
         return (
-          <Pressable key={plugin.id} accessibilityRole="button" onPress={() => router.push(`/plugins/${plugin.id}`)} style={[styles.link, active && styles.linkOn]}>
-            <Text style={[styles.label, active && styles.labelOn]}>{plugin.name}</Text>
-          </Pressable>
+          <Link key={plugin.id} href={href} style={[styles.link, active && styles.linkActive]}>
+            {plugin.name}
+          </Link>
         )
       })}
     </ScrollView>
@@ -51,10 +51,8 @@ export function PluginBar() {
 }
 
 const styles = StyleSheet.create({
-  bar: { flexGrow: 0, backgroundColor: theme.bg, borderBottomWidth: 1, borderBottomColor: theme.border, maxHeight: 52 },
-  row: { alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8 },
-  link: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
-  linkOn: { backgroundColor: theme.text, borderColor: theme.text },
-  label: { fontFamily: font, color: theme.text, fontSize: 13, fontWeight: '600' },
-  labelOn: { color: theme.on },
+  bar: { flexGrow: 0, backgroundColor: theme.surface, borderBottomWidth: 1, borderBottomColor: theme.border },
+  row: { alignItems: 'center', gap: 4, paddingHorizontal: 22, paddingVertical: 8 },
+  link: { color: theme.muted, fontFamily: font, fontSize: 14, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 },
+  linkActive: { backgroundColor: theme.text, color: theme.on },
 })

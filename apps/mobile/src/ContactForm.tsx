@@ -5,7 +5,7 @@ import { useAuth } from './auth'
 import { AddressList, addressDraftFrom, addressLabelOf, emptyAddress, type AddressDraft } from './address-editor'
 import { cadences } from './cadence'
 import { TagField } from './fields'
-import { Choice } from './people'
+import { Choice, titleRelationship } from './people'
 import { MethodList, type MethodDraft } from './methods'
 import { SocialList } from './socials'
 import { OrganizationField } from './organization-field'
@@ -144,7 +144,7 @@ export function ContactForm({
       <View style={styles.chips}>
         <Choice label="Not set" on={!userRelationship} onPress={() => setUserRelationship('')} />
         {relationTypes.map((type) => (
-          <Choice key={type} label={type} on={userRelationship === type} onPress={() => setUserRelationship(type)} />
+          <Choice key={type} label={titleRelationship(type)} on={userRelationship === type} onPress={() => setUserRelationship(type)} />
         ))}
       </View>
       <Text style={styles.section}>Addresses</Text>

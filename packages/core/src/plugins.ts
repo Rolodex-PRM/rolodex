@@ -7,15 +7,19 @@ import { requireManager, requireMembership } from './access'
 import { visibleContactSql } from './contacts'
 import { AppError } from './errors'
 
+export type PluginSetting = { key: string; label: string; type: 'text' | 'boolean' }
+
 export type PluginSummary = {
   id: string
   name: string
   version: string
   description: string
   enabled: boolean
+  settings: PluginSetting[]
+  values: Record<string, string>
 }
 
-type DiscoveredPlugin = Omit<PluginSummary, 'enabled'> & { entryPath: string }
+type DiscoveredPlugin = Omit<PluginSummary, 'enabled' | 'values'> & { entryPath: string }
 
 const idPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const bridge = `
@@ -55,7 +59,8 @@ const bridge = `
     contacts: function () { return call('contacts.list') },
     me: function () { return call('me') },
     get: function (key) { return call('storage.get', { key: key }) },
-    set: function (key, value) { return call('storage.set', { key: key, value: value }) }
+    set: function (key, value) { return call('storage.set', { key: key, value: value }) },
+    settings: function () { return call('settings') }
   }
 })()
 </script>`
@@ -114,7 +119,32 @@ function readManifest(dir: string, manifestPath: string): DiscoveredPlugin | nul
   const root = path.resolve(dir)
   if (entryPath !== root && !entryPath.startsWith(root + path.sep)) return null
   if (!existsSync(entryPath) || !statSync(entryPath).isFile()) return null
-  return { id, name, version, description, entryPath }
+  return { id, name, version, description, settings: readSettings(record.settings), entryPath }
+}
+
+function readSettings(value: unknown): PluginSetting[] {
+  if (!Array.isArray(value)) return []
+  const settings: PluginSetting[] = []
+  for (const item of value.slice(0, 12)) {
+    if (!item || typeof item !== 'object') continue
+    const row = item as Record<string, unknown>
+    const key = typeof row.key === 'string' ? row.key.trim() : ''
+    const label = typeof row.label === 'string' ? row.label.trim() : ''
+    const type = row.type === 'boolean' ? 'boolean' : row.type === 'text' ? 'text' : ''
+    if (!idPattern.test(key) || key.length > 40 || !label || label.length > 40 || !type) continue
+    if (settings.some((setting) => setting.key === key)) continue
+    settings.push({ key, label, type })
+  }
+  return settings
+}
+
+function settingValues(settings: PluginSetting[], stored: unknown) {
+  const source = stored && typeof stored === 'object' ? (stored as Record<string, unknown>) : {}
+  return Object.fromEntries(settings.map((setting) => {
+    const raw = source[setting.key]
+    if (setting.type === 'boolean') return [setting.key, raw === true || raw === 'true' ? 'true' : 'false']
+    return [setting.key, typeof raw === 'string' ? raw.slice(0, 200) : '']
+  }))
 }
 
 export function composePluginDocument(source: string) {
@@ -124,18 +154,24 @@ export function composePluginDocument(source: string) {
   return /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${bridge}</body>`) : `${html}${bridge}`
 }
 
-export async function listWorkspacePlugins(db: Database, userId: string, workspaceId: string) {
-  const member = await requireMembership(db, userId, workspaceId)
-  const enabled = new Set(
-    (await db.select().from(workspacePlugins).where(and(eq(workspacePlugins.workspaceId, workspaceId), eq(workspacePlugins.enabled, true)))).map((row) => row.pluginId),
-  )
-  const plugins = discoverPlugins().map((plugin) => ({
+function presentPlugin(plugin: DiscoveredPlugin, enabled: boolean, stored: unknown): PluginSummary {
+  return {
     id: plugin.id,
     name: plugin.name,
     version: plugin.version,
     description: plugin.description,
-    enabled: enabled.has(plugin.id),
-  }))
+    enabled,
+    settings: plugin.settings,
+    values: settingValues(plugin.settings, stored),
+  }
+}
+
+export async function listWorkspacePlugins(db: Database, userId: string, workspaceId: string) {
+  const member = await requireMembership(db, userId, workspaceId)
+  const saved = await db.select().from(workspacePlugins).where(eq(workspacePlugins.workspaceId, workspaceId))
+  const enabled = new Set(saved.filter((row) => row.enabled).map((row) => row.pluginId))
+  const stored = new Map(saved.map((row) => [row.pluginId, row.settings]))
+  const plugins = discoverPlugins().map((plugin) => presentPlugin(plugin, enabled.has(plugin.id), stored.get(plugin.id)))
   const manager = member.role === 'owner' || member.role === 'administrator'
   return {
     plugins: manager ? plugins : plugins.filter((plugin) => plugin.enabled),
@@ -151,7 +187,31 @@ export async function setWorkspacePlugin(db: Database, userId: string, workspace
     .insert(workspacePlugins)
     .values({ workspaceId, pluginId, enabled })
     .onConflictDoUpdate({ target: [workspacePlugins.workspaceId, workspacePlugins.pluginId], set: { enabled } })
-  return { id: plugin.id, name: plugin.name, version: plugin.version, description: plugin.description, enabled }
+  const [row] = await db
+    .select({ settings: workspacePlugins.settings })
+    .from(workspacePlugins)
+    .where(and(eq(workspacePlugins.workspaceId, workspaceId), eq(workspacePlugins.pluginId, pluginId)))
+    .limit(1)
+  return presentPlugin(plugin, enabled, row?.settings)
+}
+
+export async function updatePluginSettings(db: Database, userId: string, workspaceId: string, pluginId: string, input: unknown) {
+  await requireManager(db, userId, workspaceId)
+  const plugin = discoverPlugins().find((item) => item.id === pluginId)
+  if (!plugin) throw new AppError(404, 'Plugin not found')
+  const [existing] = await db
+    .select({ enabled: workspacePlugins.enabled })
+    .from(workspacePlugins)
+    .where(and(eq(workspacePlugins.workspaceId, workspaceId), eq(workspacePlugins.pluginId, pluginId), eq(workspacePlugins.enabled, true)))
+    .limit(1)
+  if (!existing) throw new AppError(400, 'Install the plugin before changing its settings')
+  const source = input && typeof input === 'object' ? (input as Record<string, unknown>) : {}
+  const values = settingValues(plugin.settings, source)
+  await db
+    .update(workspacePlugins)
+    .set({ settings: values })
+    .where(and(eq(workspacePlugins.workspaceId, workspaceId), eq(workspacePlugins.pluginId, pluginId)))
+  return presentPlugin(plugin, true, values)
 }
 
 async function enabledPlugin(db: Database, userId: string, workspaceId: string, pluginId: string) {
@@ -182,6 +242,15 @@ function recordKey(value: unknown) {
 export async function callPlugin(db: Database, userId: string, workspaceId: string, pluginId: string, method: string, args: unknown) {
   await enabledPlugin(db, userId, workspaceId, pluginId)
   const record = args && typeof args === 'object' ? (args as Record<string, unknown>) : {}
+  if (method === 'settings') {
+    const [row] = await db
+      .select({ settings: workspacePlugins.settings })
+      .from(workspacePlugins)
+      .where(and(eq(workspacePlugins.workspaceId, workspaceId), eq(workspacePlugins.pluginId, pluginId)))
+      .limit(1)
+    const plugin = discoverPlugins().find((item) => item.id === pluginId)
+    return settingValues(plugin?.settings ?? [], row?.settings)
+  }
   if (method === 'me') {
     const [user] = await db.select({ displayName: users.displayName }).from(users).where(eq(users.id, userId)).limit(1)
     return { displayName: user?.displayName ?? '' }
