@@ -264,10 +264,10 @@ export function send<T>(path: string, method: string, body?: unknown) {
   return api<T>(path, { method, body: body === undefined ? undefined : JSON.stringify(body) })
 }
 
-export async function download(path: string, filename: string) {
+export async function download(path: string, filename: string, method: 'GET' | 'POST' = 'POST') {
   const headers = new Headers()
   if (token) headers.set('Authorization', `Bearer ${token}`)
-  const response = await fetch(`${apiUrl}${path}`, { method: 'POST', headers, credentials: 'include' })
+  const response = await fetch(`${apiUrl}${path}`, { method, headers, credentials: 'include' })
   if (!response.ok) {
     const type = response.headers.get('content-type') || ''
     const body = type.includes('json') ? await response.json().catch(() => null) : null

@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { api } from './api'
 import { font, theme } from './theme'
+import { titleRelationship } from './people'
 import { Panel } from './ui'
 
 const palette = ['#2563eb', '#b45309', '#047857', '#7c3aed', '#be123c', '#0f766e', '#c2410c', '#4338ca']
@@ -73,7 +74,7 @@ export function RelationshipGraph({ workspaceId, contactId, name }: { workspaceI
       {others.length && Platform.OS !== 'web'
         ? placed.map((node) => (
           <Pressable key={node.id} onPress={() => router.push(`/contacts/${node.id}`)}>
-            <Text style={styles.link}><Text style={{ color: colorFor(node.role) }}>● </Text>{node.role} · {node.name}{node.inferred ? ' · suggested' : ''}</Text>
+            <Text style={styles.link}><Text style={{ color: colorFor(node.role) }}>● </Text>{titleRelationship(node.role)} · {node.name}{node.inferred ? ' · suggested' : ''}</Text>
             {node.inferred && node.reason ? <Text style={styles.meta}>{node.reason}</Text> : null}
           </Pressable>
         ))
@@ -81,7 +82,7 @@ export function RelationshipGraph({ workspaceId, contactId, name }: { workspaceI
       {placed.some((node) => node.inferred) ? (
         <View style={styles.reasons}>
           {placed.filter((node) => node.inferred).map((node) => (
-            <Text key={node.id} style={styles.meta}>{node.name} · {node.role}. {node.reason || 'Suggested from the other links.'}</Text>
+            <Text key={node.id} style={styles.meta}>{node.name} · {titleRelationship(node.role)}. {node.reason || 'Suggested from the other links.'}</Text>
           ))}
         </View>
       ) : null}
@@ -155,7 +156,7 @@ function Graph({ name, contactId, nodes, edges, colorFor, onOpen }: { name: stri
           return (
             <Pressable key={node.id} onPress={() => onOpen(node.id)} style={[styles.node, node.inferred && styles.suggested, { left: `${(point.x / width) * 100}%`, top: `${(point.y / height) * 100}%`, borderColor: colorFor(node.role) }]}>
               <Text style={styles.nodeText} numberOfLines={2}>{node.name}</Text>
-              <Text style={[styles.nodeRole, { color: colorFor(node.role) }]} numberOfLines={2}>{node.role}{node.inferred ? ' · suggested' : ''}</Text>
+              <Text style={[styles.nodeRole, { color: colorFor(node.role) }]} numberOfLines={2}>{titleRelationship(node.role)}{node.inferred ? ' · suggested' : ''}</Text>
             </Pressable>
           )
         })}

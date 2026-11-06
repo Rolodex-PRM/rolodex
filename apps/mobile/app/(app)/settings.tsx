@@ -8,6 +8,7 @@ import { accentPresets, useAccent } from '../../src/accent'
 import { readCoverSeconds, writeCoverSeconds } from '../../src/cover-timing'
 import { AccountsPanel } from '../../src/accounts-panel'
 import { api, download } from '../../src/api'
+import { ImportContacts } from '../../src/import-contacts'
 import { SyncClients } from '../../src/sync-clients'
 import { TrashPanel } from '../../src/trash-panel'
 import { TwoFactorPanel } from '../../src/two-factor-panel'
@@ -20,6 +21,7 @@ const tabs = [
   { id: 'general', label: 'General' },
   { id: 'organizations', label: 'Organizations' },
   { id: 'books', label: 'Address books' },
+  { id: 'import', label: 'Import' },
   { id: 'duplicates', label: 'Duplicates' },
   { id: 'trash', label: 'Trash' },
   { id: 'accounts', label: 'Mail and calendars' },
@@ -80,6 +82,7 @@ export default function Settings() {
       </View>
       {tab === 'organizations' ? <OrganizationsPage /> : null}
       {tab === 'books' ? <AddressBooksPage /> : null}
+      {tab === 'import' ? <ImportContacts /> : null}
       {tab === 'duplicates' ? <DuplicatesPage /> : null}
       {tab === 'trash' ? <TrashPanel /> : null}
       {tab === 'accounts' ? (canManage ? <AccountsPanel /> : <Text style={styles.meta}>Only owners and administrators can connect a mailbox or calendar.</Text>) : null}

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { api, send, type RelationshipType } from '../../../src/api'
 import { useAuth } from '../../../src/auth'
 import { font, theme } from '../../../src/theme'
+import { titleRelationship } from '../../../src/people'
 import { Button, Field, Notice } from '../../../src/ui'
 
 export default function RelationshipsPage() {
@@ -29,7 +30,7 @@ export default function RelationshipsPage() {
       {error ? <Notice text={error} /> : null}
       {rows.map((row) => (
         <View key={row.id} style={styles.pair}>
-          <Text style={styles.engineTitle}>{row.label.toLowerCase() === row.reciprocalLabel.toLowerCase() ? row.label : `${row.label} / ${row.reciprocalLabel}`}</Text>
+          <Text style={styles.engineTitle}>{row.label.toLowerCase() === row.reciprocalLabel.toLowerCase() ? titleRelationship(row.label) : `${titleRelationship(row.label)} / ${titleRelationship(row.reciprocalLabel)}`}</Text>
           <Pressable
             onPress={() => {
               setError('')

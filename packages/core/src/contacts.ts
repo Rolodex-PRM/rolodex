@@ -686,7 +686,22 @@ function cardToInput(card: ParsedCard): ContactBody {
       postalCode: entry.postalCode,
       country: entry.country,
     })),
+    tagNames: importTags(card.categories),
   }
+}
+
+function importTags(names: string[] | undefined) {
+  const skip = new Set(['mycontacts', 'my contacts'])
+  const seen = new Set<string>()
+  const tags: string[] = []
+  for (const name of names ?? []) {
+    const trimmed = name.trim().slice(0, 40)
+    const key = trimmed.toLowerCase()
+    if (!trimmed || skip.has(key) || seen.has(key)) continue
+    seen.add(key)
+    tags.push(trimmed)
+  }
+  return tags
 }
 
 async function applyCard(db: Db, contactId: string, card: ParsedCard) {
@@ -1243,6 +1258,17 @@ export async function addContactDate(db: Database, userId: string, workspaceId: 
   await requireContactWrite(db, userId, workspaceId, contactId)
   const [row] = await db.insert(contactDates).values({ contactId, label: input.label.trim(), occursOn: input.occursOn }).returning()
   if (!row) throw new AppError(500, 'Could not save the date')
+  return { id: row.id, label: row.label, occursOn: row.occursOn }
+}
+
+export async function updateContactDate(db: Database, userId: string, workspaceId: string, contactId: string, dateId: string, input: z.infer<typeof contactDateSchema>) {
+  await requireContactWrite(db, userId, workspaceId, contactId)
+  const [row] = await db
+    .update(contactDates)
+    .set({ label: input.label.trim(), occursOn: input.occursOn })
+    .where(and(eq(contactDates.id, dateId), eq(contactDates.contactId, contactId)))
+    .returning()
+  if (!row) throw new AppError(404, 'Date not found')
   return { id: row.id, label: row.label, occursOn: row.occursOn }
 }
 

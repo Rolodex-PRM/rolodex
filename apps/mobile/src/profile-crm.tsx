@@ -16,7 +16,7 @@ import { font, theme } from './theme'
 import { Button, Field, Notice, Panel } from './ui'
 import { IndustryField } from './fields'
 import { OrgLogo } from './org-logo'
-import { Choice, PersonPicker } from './people'
+import { Choice, PersonPicker, titleRelationship } from './people'
 
 export function ProfileCrm({
   workspaceId,
@@ -127,7 +127,7 @@ export function ProfileCrm({
           <View key={link.id} style={styles.row}>
             <View style={styles.copy}>
               <Pressable onPress={() => router.push(`/contacts/${link.contactId}`)}>
-                <Text style={styles.link}>is the {link.type} of {link.displayName}</Text>
+                <Text style={styles.link}>is the {titleRelationship(link.type)} of {link.displayName}</Text>
               </Pressable>
               {link.inferred ? <Text style={styles.meta}>Suggested{link.description ? ` · ${link.description}` : ''}</Text> : null}
             </View>
@@ -140,7 +140,7 @@ export function ProfileCrm({
             <Text style={styles.meta}>This person is the</Text>
             <View style={styles.chips}>
               {sides.map((side) => (
-                <Choice key={side.key} label={side.word} on={chosen?.key === side.key} onPress={() => setRelationKey(side.key)} />
+                <Choice key={side.key} label={titleRelationship(side.word)} on={chosen?.key === side.key} onPress={() => setRelationKey(side.key)} />
               ))}
             </View>
             {!sides.length ? <Text style={styles.meta}>Define relationship pairs in Admin first.</Text> : null}

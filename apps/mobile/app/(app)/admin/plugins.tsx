@@ -1,20 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native'
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { api, send } from '../../../src/api'
 import { useAuth } from '../../../src/auth'
-import { font } from '../../../src/theme'
-import { Notice } from '../../../src/ui'
+import { font, theme } from '../../../src/theme'
+import { Field, Notice } from '../../../src/ui'
 
-type PluginRow = { id: string; name: string; version: string; description: string; enabled: boolean }
+type PluginSetting = { key: string; label: string; type: 'text' | 'boolean' }
+type PluginRow = { id: string; name: string; version: string; description: string; enabled: boolean; settings: PluginSetting[]; values: Record<string, string> }
 
 export default function PluginsPage() {
   const { workspace } = useAuth()
   const router = useRouter()
-  const wide = useWindowDimensions().width >= 980
   const [rows, setRows] = useState<PluginRow[]>([])
   const [tab, setTab] = useState<'discover' | 'installed'>('discover')
   const [query, setQuery] = useState('')
+  const [open, setOpen] = useState<Record<string, boolean>>({})
   const [error, setError] = useState('')
 
   function load() {
@@ -47,13 +48,9 @@ export default function PluginsPage() {
   }
 
   return (
-    <View style={styles.page}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.heading}>Plugins</Text>
-          <Text style={styles.lead}>Add a page of your own. A plugin can read names and keep its notes. It cannot change Rolodex.</Text>
-        </View>
-      </View>
+    <View style={styles.card}>
+      <Text style={styles.heading}>Plugins</Text>
+      <Text style={styles.meta}>Add a page of your own. A plugin can read names and keep its notes. It cannot change Rolodex.</Text>
       <View style={styles.toolbar}>
         <View style={styles.tabs}>
           <Tab label="Installed" count={installed.length} on={tab === 'installed'} onPress={() => setTab('installed')} />
@@ -63,42 +60,100 @@ export default function PluginsPage() {
           value={query}
           onChangeText={setQuery}
           placeholder="Search plugins"
-          placeholderTextColor="#8d8a93"
+          placeholderTextColor={theme.muted}
           style={styles.search}
         />
       </View>
       {error ? <Notice text={error} /> : null}
-      {!visible.length ? <Text style={styles.empty}>{tab === 'installed' ? 'No plugins added yet.' : 'No plugins left to add. Put a folder with rolodex-plugin.json in the plugins directory.'}</Text> : null}
-      <View style={[styles.grid, wide && styles.gridWide]}>
-        {visible.map((plugin) => (
-          <View key={plugin.id} style={styles.card}>
-            <View style={styles.preview}>
-              <Text style={styles.mark}>{plugin.name.slice(0, 1).toUpperCase()}</Text>
-            </View>
-            <View style={styles.body}>
-              <Text style={styles.name}>{plugin.name}</Text>
-              <Text style={styles.description} numberOfLines={3}>{plugin.description}</Text>
-              <View style={styles.footer}>
-                <Text style={styles.meta}>PAGE · v{plugin.version}</Text>
+      {!visible.length ? <Text style={styles.meta}>{tab === 'installed' ? 'No plugins added yet.' : 'No plugins left to add. Put a folder with rolodex-plugin.json in the plugins directory.'}</Text> : null}
+      {visible.map((plugin) => {
+        const expanded = plugin.enabled && open[plugin.id] !== false
+        return (
+          <View key={plugin.id} style={styles.block}>
+            <View style={styles.row}>
+              <View style={styles.copy}>
+                <Text style={styles.name}>{plugin.name}</Text>
+                <Text style={styles.meta}>{plugin.description}</Text>
+                <Text style={styles.version}>Page · v{plugin.version}</Text>
+              </View>
+              <View style={styles.actions}>
                 {plugin.enabled ? (
-                  <View style={styles.actions}>
-                    <Pressable accessibilityRole="button" onPress={() => router.push(`/plugins/${plugin.id}`)} style={styles.open}>
-                      <Text style={styles.openText}>Open</Text>
-                    </Pressable>
-                    <Pressable accessibilityRole="button" onPress={() => toggle(plugin)} style={styles.installed}>
-                      <Text style={styles.installedText}>Installed</Text>
-                    </Pressable>
-                  </View>
-                ) : (
-                  <Pressable accessibilityRole="button" onPress={() => toggle(plugin)} style={styles.install}>
-                    <Text style={styles.installText}>Install</Text>
+                  <Pressable accessibilityRole="button" onPress={() => router.push(`/plugins/${plugin.id}`)} style={styles.toggle}>
+                    <Text style={styles.toggleText}>Open</Text>
                   </Pressable>
-                )}
+                ) : null}
+                <Pressable accessibilityRole="button" onPress={() => toggle(plugin)} style={[styles.toggle, !plugin.enabled && styles.install]}>
+                  <Text style={[styles.toggleText, !plugin.enabled && styles.installText]}>{plugin.enabled ? 'Remove' : 'Install'}</Text>
+                </Pressable>
               </View>
             </View>
+            {plugin.enabled ? (
+              <View style={styles.accordion}>
+                <Pressable
+                  accessibilityLabel={`${expanded ? 'Hide' : 'Show'} ${plugin.name} settings`}
+                  onPress={() => setOpen((current) => ({ ...current, [plugin.id]: !expanded }))}
+                  style={styles.accordionHead}
+                >
+                  <Text style={styles.name}>Settings</Text>
+                  <Text style={styles.chevron}>{expanded ? 'Hide' : 'Show'}</Text>
+                </Pressable>
+                {expanded ? (
+                  <PluginSettings
+                    plugin={plugin}
+                    onSave={(next) => {
+                      if (!workspace) return
+                      setError('')
+                      void send<PluginRow>(`/api/workspaces/${workspace.id}/plugins/${plugin.id}/settings`, 'PUT', { values: next })
+                        .then((saved) => setRows((current) => current.map((item) => (item.id === saved.id ? saved : item))))
+                        .catch((caught: Error) => setError(caught.message))
+                    }}
+                  />
+                ) : null}
+              </View>
+            ) : null}
           </View>
-        ))}
-      </View>
+        )
+      })}
+    </View>
+  )
+}
+
+function PluginSettings({ plugin, onSave }: { plugin: PluginRow; onSave: (values: Record<string, string>) => void }) {
+  const [values, setValues] = useState(plugin.values)
+  useEffect(() => setValues(plugin.values), [plugin.values])
+  if (!plugin.settings.length) return <Text style={styles.meta}>This plugin has no settings.</Text>
+  return (
+    <View style={styles.fields}>
+      {plugin.settings.map((setting) =>
+        setting.type === 'boolean' ? (
+          <View key={setting.key} style={styles.switchRow}>
+            <Text style={styles.name}>{setting.label}</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                const next = { ...values, [setting.key]: values[setting.key] === 'true' ? 'false' : 'true' }
+                setValues(next)
+                onSave(next)
+              }}
+              style={[styles.toggle, values[setting.key] === 'true' && styles.install]}
+            >
+              <Text style={[styles.toggleText, values[setting.key] === 'true' && styles.installText]}>{values[setting.key] === 'true' ? 'On' : 'Off'}</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Field
+            key={setting.key}
+            label={setting.label}
+            value={values[setting.key] ?? ''}
+            onChangeText={(text) => setValues((current) => ({ ...current, [setting.key]: text }))}
+            onBlur={(event) => {
+              const text = event.nativeEvent.text
+              if (text === (plugin.values[setting.key] ?? '')) return
+              onSave({ ...values, [setting.key]: text })
+            }}
+          />
+        ),
+      )}
     </View>
   )
 }
@@ -107,45 +162,36 @@ function Tab({ label, count, on, onPress }: { label: string; count: number; on: 
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={[styles.tab, on && styles.tabOn]}>
       <Text style={[styles.tabText, on && styles.tabTextOn]}>{label}</Text>
-      <View style={[styles.count, on && styles.countOn]}>
-        <Text style={[styles.countText, on && styles.countTextOn]}>{count}</Text>
-      </View>
+      <Text style={[styles.tabCount, on && styles.tabTextOn]}>{count}</Text>
     </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
-  page: { backgroundColor: '#17151c', borderRadius: 24, padding: 18, gap: 16 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  heading: { fontFamily: font, fontSize: 28, fontWeight: '700', color: '#f5f3f7' },
-  lead: { fontFamily: font, color: '#b9b4c0', fontSize: 14, marginTop: 4, maxWidth: 560 },
+  card: { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 22, padding: 18, gap: 12 },
+  heading: { fontFamily: font, fontSize: 22, fontWeight: '700', color: theme.text },
+  meta: { fontFamily: font, color: theme.muted, fontSize: 14 },
   toolbar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  tabs: { flexDirection: 'row', gap: 8 },
-  tab: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12 },
-  tabOn: { backgroundColor: '#2a2630' },
-  tabText: { fontFamily: font, color: '#b9b4c0', fontSize: 14, fontWeight: '700' },
-  tabTextOn: { color: '#ffffff' },
-  count: { minWidth: 22, borderRadius: 999, backgroundColor: '#3a3542', paddingHorizontal: 6, paddingVertical: 2, alignItems: 'center' },
-  countOn: { backgroundColor: '#ff4d6d' },
-  countText: { fontFamily: font, color: '#f5f3f7', fontSize: 12, fontWeight: '700' },
-  countTextOn: { color: '#ffffff' },
-  search: { minWidth: 220, flexGrow: 1, maxWidth: 360, borderRadius: 12, backgroundColor: '#221f27', color: '#f5f3f7', fontFamily: font, fontSize: 14, paddingHorizontal: 14, paddingVertical: 10 },
-  empty: { fontFamily: font, color: '#b9b4c0', fontSize: 14 },
-  grid: { gap: 14 },
-  gridWide: { flexDirection: 'row', flexWrap: 'wrap' },
-  card: { width: '100%', maxWidth: 360, flexGrow: 1, backgroundColor: '#121016', borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: '#2c2832' },
-  preview: { height: 148, backgroundColor: '#2a1740', alignItems: 'center', justifyContent: 'center' },
-  mark: { fontFamily: font, color: '#ffffff', fontSize: 42, fontWeight: '700' },
-  body: { padding: 14, gap: 8 },
-  name: { fontFamily: font, color: '#f5f3f7', fontSize: 18, fontWeight: '700' },
-  description: { fontFamily: font, color: '#b9b4c0', fontSize: 13, minHeight: 52 },
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 6 },
-  meta: { fontFamily: font, color: '#8d8a93', fontSize: 12, fontWeight: '700' },
+  tabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  tab: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12 },
+  tabOn: { backgroundColor: theme.text, borderColor: theme.text },
+  tabText: { fontFamily: font, color: theme.text, fontSize: 13, fontWeight: '700' },
+  tabTextOn: { color: theme.on },
+  tabCount: { fontFamily: font, color: theme.muted, fontSize: 13, fontWeight: '700' },
+  search: { minWidth: 220, flexGrow: 1, maxWidth: 360, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10, fontFamily: font, fontSize: 15, color: theme.text },
+  block: { borderWidth: 1, borderColor: theme.border, borderRadius: 16, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 14 },
+  accordion: { borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.raised, padding: 14, gap: 10 },
+  accordionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  chevron: { fontFamily: font, color: theme.muted, fontSize: 14, fontWeight: '700' },
+  fields: { gap: 12 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  copy: { flex: 1, gap: 4 },
+  name: { fontFamily: font, fontSize: 16, fontWeight: '700', color: theme.text },
+  version: { fontFamily: font, color: theme.muted, fontSize: 12, fontWeight: '700' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  install: { backgroundColor: '#ff4d6d', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 },
-  installText: { fontFamily: font, color: '#ffffff', fontSize: 14, fontWeight: '700' },
-  installed: { backgroundColor: '#2a2630', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
-  installedText: { fontFamily: font, color: '#f5f3f7', fontSize: 14, fontWeight: '700' },
-  open: { paddingHorizontal: 8, paddingVertical: 8 },
-  openText: { fontFamily: font, color: '#f5f3f7', fontSize: 14, fontWeight: '700' },
+  toggle: { borderWidth: 1, borderColor: theme.text, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 },
+  install: { backgroundColor: theme.text },
+  toggleText: { fontFamily: font, color: theme.text, fontSize: 14, fontWeight: '700' },
+  installText: { color: theme.on },
 })

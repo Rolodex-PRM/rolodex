@@ -17,7 +17,10 @@ plugins/my-page/index.html
   "name": "My page",
   "version": "1.0.0",
   "description": "What this page is for.",
-  "entry": "index.html"
+  "entry": "index.html",
+  "settings": [
+    { "key": "heading", "label": "Heading", "type": "text" }
+  ]
 }
 ```
 
@@ -26,5 +29,8 @@ plugins/my-page/index.html
 - `me()` — the signed-in person's display name
 - `contacts()` — id and display name for people this person can see
 - `get(key)` and `set(key, value)` — text stored for this plugin, this person, and this workspace
+- `settings()` — the values an administrator saved for this plugin
+
+`settings` is optional. Each item has a `key`, a `label`, and a `type` of `text` or `boolean`. Installed plugins show those fields under Settings.
 
 An administrator turns the plugin on under Admin → Plugins. The page then appears in the second bar.

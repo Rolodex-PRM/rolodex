@@ -12,7 +12,7 @@ export { twoFactorPolicy, setTwoFactorPolicy, twoFactorStatus, startEnrollment, 
 export { trashPolicy, setTrashPolicy } from './trash'
 export { syncStatus } from './sync-status'
 export { buildAppleSyncProfile } from './apple-profile'
-export { listWorkspacePlugins, setWorkspacePlugin, pluginDocument, callPlugin, composePluginDocument, discoverPlugins, pluginDirectories } from './plugins'
+export { listWorkspacePlugins, setWorkspacePlugin, updatePluginSettings, pluginDocument, callPlugin, composePluginDocument, discoverPlugins, pluginDirectories } from './plugins'
 export { listConnectedAccounts, saveMailboxAccount, saveCalendarAccount, deleteConnectedAccount, syncConnectedAccount } from './accounts'
 export {
   listContacts,
@@ -44,6 +44,7 @@ export {
   revokeContactGroupGrant,
   listContactDates,
   addContactDate,
+  updateContactDate,
   deleteContactDate,
   listAudit,
 } from './contacts'
@@ -119,6 +120,7 @@ export {
 } from './crm'
 export { parseBody, registerSchema, passwordResetSchema, registrationPolicySchema, appearanceSchema, loginSchema, workspaceSchema, memberSchema, memberRoleSchema, addressBookSchema, tagSchema, contactSchema, importSchema, appPasswordSchema, relationshipSchema, relationshipTypeSchema, organizationSchema, organizationMemberSchema, noteSchema, activitySchema, taskSchema, reminderSchema, completeSchema, customFieldSchema, customValueSchema, mapSettingsSchema, addressLocationSchema, addonSchema, aiSettingsSchema, calendarEventSchema, immichInstanceSchema, immichTestSchema, immichLinkSchema, immichPhotoSchema, immichAssetSchema, contactVisibilitySchema, contactOwnerSchema, coverModeSchema, contactGrantSchema, userGroupSchema, userGroupUpdateSchema, userGroupMemberSchema, contactDateSchema, oauthSettingsSchema, notificationSettingsSchema, notificationTestSchema, pushSubscriptionSchema, oauthExchangeSchema, mfaSchema, mfaTicketSchema, totpConfirmSchema, totpCodeSchema, twoFactorPolicySchema, trashPolicySchema, mailboxAccountSchema, calendarAccountSchema } from './validation'
 export { parseVcards, serializeVcard } from './vcard'
+export { parseContactSource, rolodexContactTemplate } from './contact-import'
 export { findDuplicates, mergeContacts, workspaceNetwork, egoNetwork, contactSummary, enrichContact, calendarMonth, calendarIcs, photoMemories, groupDuplicates, enrichFromEmail, buildSummary } from './phase5'
 export { eventTypes, buildVevent, parseVevent, buildVtodo, parseVtodo, calendarContext, listCalendarFeed, listTodoFeed, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, upsertCalendarFromIcs, upsertTodoFromIcs, deleteCalendarUid, deleteTodoUid, isDerivedUid, datesInMonth } from './calendar'
 export { getAiSettings, setAiSettings, testAiConnection, listSuggestions, suggestContactFields, approveSuggestion, rejectSuggestion, publicHttpUrl, pageContains, htmlToText, enrichmentQuery, enrichmentPrompt, parseSearchResultLinks } from './ai'

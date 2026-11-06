@@ -456,6 +456,7 @@ export const workspacePlugins = pgTable(
       .references(() => workspaces.id, { onDelete: 'cascade' }),
     pluginId: text('plugin_id').notNull(),
     enabled: boolean('enabled').notNull().default(false),
+    settings: jsonb('settings').$type<Record<string, string>>().notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.workspaceId, table.pluginId] })],

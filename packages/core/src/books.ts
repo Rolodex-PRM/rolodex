@@ -7,7 +7,8 @@ import { cardFingerprint, createContactFromCard, findDuplicates } from './contac
 import { AppError } from './errors'
 import { normalizeEmail, normalizePhone } from './normalize'
 import { canManageMembers, roleAtLeast } from './permissions'
-import { cardDisplayName, parseVcards, type ParsedCard } from './vcard'
+import { parseContactSource } from './contact-import'
+import { cardDisplayName, type ParsedCard } from './vcard'
 
 export async function createAddressBook(
   db: Database,
@@ -170,7 +171,7 @@ export async function importAddressBook(
   input: { vcf: string; commit?: boolean | undefined; decisions?: { fingerprint: string; action: 'create' | 'skip' }[] | undefined },
 ) {
   const { book } = await requireBook(db, userId, bookId, input.commit === true)
-  const cards = parseVcards(input.vcf)
+  const cards = parseContactSource(input.vcf)
   const previews = []
   for (const card of cards) {
     const emails = card.emails.map((entry) => normalizeEmail(entry.value)).filter(Boolean)
@@ -179,6 +180,11 @@ export async function importAddressBook(
     previews.push({
       fingerprint: cardFingerprint(card),
       displayName: cardDisplayName(card),
+      email: card.emails[0]?.value ?? '',
+      phone: card.phones[0]?.value ?? '',
+      organization: card.organization ?? '',
+      city: card.addresses.find((entry) => entry.city.trim())?.city ?? '',
+      birthday: card.birthday ?? '',
       emails: card.emails.map((entry) => entry.value),
       phones: card.phones.map((entry) => entry.value),
       duplicates,
