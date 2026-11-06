@@ -131,7 +131,7 @@ export default function Contacts() {
   }
 
   function selectAll() {
-    setSelectedIds(new Set(visible.map((contact) => contact.id)))
+    setSelectedIds(new Set(rows.map((contact) => contact.id)))
   }
 
   function clearSelection() {
@@ -174,7 +174,7 @@ export default function Contacts() {
           <Text style={styles.meta}>
             {bulkActionMode && selectedIds.size > 0
               ? `${selectedIds.size} selected`
-              : `${visible.length} ${visible.length === 1 ? 'person' : 'people'}`}
+              : loaded ? `${total.toLocaleString()} ${total === 1 ? 'person' : 'people'}` : ''}
           </Text>
         </View>
         <View style={styles.headerActions}>
@@ -241,14 +241,14 @@ export default function Contacts() {
       {!loaded ? <Loader /> : null}
       {loaded && view === 'table' ? (
         <ContactsTable 
-          contacts={visible} 
+          contacts={rows} 
           onOpen={(contact) => router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)} 
           bulkActionMode={bulkActionMode}
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
         />
       ) : null}
-      {loaded && view === 'map' ? <ContactsMap contacts={visible} canWrite={canWrite} onOpen={(contact) => router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)} /> : null}
+      {loaded && view === 'map' ? <ContactsMap contacts={rows} canWrite={canWrite} onOpen={(contact) => router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)} /> : null}
       {loaded && view === 'card' ? <View style={[styles.grid, wide && styles.gridWide]}>
         {rows.map((contact) => (
           <Pressable
