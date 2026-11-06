@@ -641,6 +641,10 @@ function monthOf(value: string) {
 }
 
 function dayTitle(value: string) {
+  if (value.startsWith('--')) {
+    const [_, month, day] = value.split('-').map(Number)
+    return new Date(new Date().getFullYear(), (month || 1) - 1, day || 1).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
+  }
   const [year, month, day] = value.split('-').map(Number)
   return new Date(year || 2026, (month || 1) - 1, day || 1).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
 }

@@ -193,6 +193,14 @@ function formatPhone(value: string) {
 
 function formatDate(value: string | null) {
   if (!value) return ''
+  
+  if (value.startsWith('--')) {
+    const [_, month, day] = value.split('-').map(Number)
+    if (!month || !day) return value
+    const currentYear = new Date().getFullYear()
+    return new Date(currentYear, month - 1, day).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })
+  }
+  
   const [year, month, day] = value.slice(0, 10).split('-').map(Number)
   if (!year || !month || !day) return value
   return new Date(year, month - 1, day).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })

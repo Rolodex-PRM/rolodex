@@ -136,8 +136,8 @@ export function Timeline({
       setError('Mention someone so this has a person to stay with.')
       return
     }
-    if (remindOn && remind && !/^\d{4}-\d{2}-\d{2}$/.test(remind)) {
-      setError('Use a YYYY-MM-DD date for the reminder.')
+    if (remindOn && remind && !/^(\d{4}|--)?\d{2}-\d{2}$/.test(remind)) {
+      setError('Use a YYYY-MM-DD or --MM-DD date for the reminder.')
       return
     }
     const primary = contactId ?? ids[0]!

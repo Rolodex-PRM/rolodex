@@ -276,10 +276,21 @@ function castField(type: string, value: string) {
 }
 
 function nextDate(iso: string) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
-  if (!match) return new Date().toISOString()
-  const month = Number(match[2]) - 1
-  const day = Number(match[3])
+  let month: number
+  let day: number
+  
+  if (iso.startsWith('--')) {
+    const noYearMatch = /^--(\d{2})-(\d{2})/.exec(iso)
+    if (!noYearMatch) return new Date().toISOString()
+    month = Number(noYearMatch[1]) - 1
+    day = Number(noYearMatch[2])
+  } else {
+    const fullMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+    if (!fullMatch) return new Date().toISOString()
+    month = Number(fullMatch[2]) - 1
+    day = Number(fullMatch[3])
+  }
+  
   const target = new Date()
   target.setHours(9, 0, 0, 0)
   target.setMonth(month, day)
