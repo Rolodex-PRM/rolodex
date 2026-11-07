@@ -1,9 +1,10 @@
-import { AppError, callPlugin, createRateLimiter, listWorkspacePlugins, pluginDocument, setWorkspacePlugin, updatePluginSettings } from '@rolodex/core'
+import { AppError, callPlugin, createRateLimiter, downloadPluginFile, listWorkspacePlugins, pluginDocument, setWorkspacePlugin, updatePluginSettings } from '@rolodex/core'
 import { type Database } from '@rolodex/db'
-import { Body, Controller, Get, Inject, Param, Put, Req, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Inject, Param, Put, Req, Res, UseGuards } from '@nestjs/common'
+import type { Response } from 'express'
 import { AuthGuard, DB, type AuthedRequest } from './http'
 
-const calls = createRateLimiter(120, 60_000)
+const calls = createRateLimiter(600, 60_000)
 
 @Controller()
 @UseGuards(AuthGuard)
@@ -24,6 +25,14 @@ export class PluginsController {
   @Put('workspaces/:workspaceId/plugins/:pluginId/settings')
   settings(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('pluginId') pluginId: string, @Body() body: { values?: unknown }) {
     return updatePluginSettings(this.db, req.user.id, workspaceId, pluginId, body?.values)
+  }
+
+  @Get('workspaces/:workspaceId/plugins/:pluginId/files/:fileId')
+  async file(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('pluginId') pluginId: string, @Param('fileId') fileId: string, @Res() res: Response) {
+    const file = await downloadPluginFile(this.db, req.user.id, workspaceId, pluginId, fileId)
+    res.setHeader('Content-Type', file.contentType)
+    res.setHeader('Content-Disposition', `attachment; filename="${file.filename.replace(/"/g, '')}"`)
+    res.send(Buffer.from(file.content, 'base64'))
   }
 
   @Get('workspaces/:workspaceId/plugins/:pluginId/document')
