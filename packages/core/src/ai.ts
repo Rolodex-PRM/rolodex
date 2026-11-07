@@ -387,6 +387,13 @@ async function requireConfig(db: Database, workspaceId: string) {
   return { ...settings, apiKey: decryptSecret(row.credential, credentialsKey()) }
 }
 
+export async function suggestPluginText(db: Database, workspaceId: string, prompt: unknown) {
+  if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 8000) throw new AppError(400, 'Keep the question under 8000 characters')
+  const config = await requireConfig(db, workspaceId)
+  const text = await complete(config, prompt)
+  return { text: text.slice(0, 8000) }
+}
+
 async function complete(config: { baseUrl: string; model: string; apiKey: string }, prompt: string) {
   const response = await fetch(`${config.baseUrl}/chat/completions`, {
     method: 'POST',

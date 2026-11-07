@@ -480,6 +480,43 @@ export const pluginRecords = pgTable(
   (table) => [uniqueIndex('plugin_records_key_idx').on(table.workspaceId, table.userId, table.pluginId, table.recordKey)],
 )
 
+export const pluginDocuments = pgTable(
+  'plugin_documents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    pluginId: text('plugin_id').notNull(),
+    collection: text('collection').notNull(),
+    documentKey: text('document_key').notNull(),
+    body: jsonb('body').$type<Record<string, unknown>>().notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('plugin_documents_key_idx').on(table.workspaceId, table.pluginId, table.collection, table.documentKey),
+    index('plugin_documents_collection_idx').on(table.workspaceId, table.pluginId, table.collection),
+  ],
+)
+
+export const pluginFiles = pgTable(
+  'plugin_files',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    pluginId: text('plugin_id').notNull(),
+    filename: text('filename').notNull(),
+    contentType: text('content_type').notNull(),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('plugin_files_plugin_idx').on(table.workspaceId, table.pluginId)],
+)
+
 export const households = pgTable('households', {
   id: uuid('id').primaryKey().defaultRandom(),
   workspaceId: uuid('workspace_id')

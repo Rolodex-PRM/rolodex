@@ -2,6 +2,12 @@
 
 A plugin adds one page to the bar under the main navigation. It cannot change people, settings, calendars, or any other part of Rolodex.
 
+The plugin space has three parts:
+
+- `plugin-sdk/` — manifest checks, `createMockHost`, and the `rolodex-plugin` command
+- `registry/` — one JSON file per listed plugin; the page itself stays in its own repository
+- `plugin-skill/` — instructions a coding agent follows when it builds a plugin
+
 Put a folder in `plugins/` (or in `DATA_DIR/plugins`, or the directory named by `PLUGINS_DIR`):
 
 ```
@@ -31,6 +37,14 @@ plugins/my-page/index.html
 - `get(key)` and `set(key, value)` — text stored for this plugin, this person, and this workspace
 - `settings()` — the values an administrator saved for this plugin
 
-`settings` is optional. Each item has a `key`, a `label`, and a `type` of `text` or `boolean`. Installed plugins show those fields under Settings.
+A plugin that needs more lists `permissions` in the manifest. The host rejects a call the manifest does not name.
+
+- `contacts:read` — `contactsPage(offset)`, 100 people at a time, with name, email, phone, tags, addresses, and relationship type
+- `data:own` — `records.list`, `get`, `put`, and `remove` for JSON that belongs to this plugin and the workspace
+- `files:own` — store a CSV, spreadsheet, PDF, JSON, or text export and download it through the Rolodex window
+- `ai:suggest` — `suggest(prompt)` returns text from the workspace AI add-on and writes nothing
+- `profile:section` — the same page also opens on a contact, with `window.rolodex.contactId` set
+
+`settings` is optional. Each item has a `key`, a `label`, and a `type` of `text` or `boolean`. Installed plugins show those fields under Settings. Admin → Plugins lists the permissions a plugin declared.
 
 An administrator turns the plugin on under Admin → Plugins. The page then appears in the second bar.

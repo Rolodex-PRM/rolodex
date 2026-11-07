@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { composePluginDocument, discoverPlugins } from './plugins'
+import { composePluginDocument, discoverPlugins, readRegistry } from './plugins'
 
 describe('plugins', () => {
   it('discovers a folder with a manifest and ignores a path that leaves the folder', () => {
@@ -33,6 +33,28 @@ describe('plugins', () => {
     const found = discoverPlugins([root])
     expect(found.map((plugin) => plugin.id)).toEqual(['scratch-pad'])
     expect(found[0]?.settings).toEqual([{ key: 'heading', label: 'Heading', type: 'text' }])
+  })
+
+  it('reads a registry entry and skips a path that leaves the repository', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'rolodex-registry-'))
+    writeFileSync(path.join(root, 'field-notes.json'), JSON.stringify({
+      id: 'field-notes',
+      name: 'Field notes',
+      version: '1.0.0',
+      description: 'Notes.',
+      entry: 'index.html',
+      repo: 'ada/field-notes',
+      path: 'plugins/field-notes',
+    }))
+    writeFileSync(path.join(root, 'escape.json'), JSON.stringify({
+      id: 'escape',
+      name: 'Escape',
+      version: '1.0.0',
+      description: 'No.',
+      repo: 'ada/escape',
+      path: '../secret',
+    }))
+    expect(readRegistry([root]).map((entry) => entry.id)).toEqual(['field-notes'])
   })
 
   it('wraps the page so it cannot call the network and can talk to Rolodex', () => {

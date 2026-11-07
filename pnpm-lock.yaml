@@ -166,6 +166,9 @@ importers:
       '@rolodex/db':
         specifier: workspace:*
         version: link:../db
+      '@rolodex/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../plugin-sdk
       drizzle-orm:
         specifier: ^0.44.6
         version: 0.44.7(postgres@3.4.9)
@@ -201,6 +204,21 @@ importers:
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
+
+  plugin-sdk:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.0
+        version: 22.20.5
+      tsx:
+        specifier: ^4.20.5
+        version: 4.23.15
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.5)(lightningcss@1.33.0)(terser@5.51.2)(tsx@4.23.15)
 
 packages:
 

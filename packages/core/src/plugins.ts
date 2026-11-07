@@ -3,11 +3,24 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { contacts, pluginRecords, users, workspacePlugins, type Database } from '@rolodex/db'
 import { and, asc, eq, isNull } from 'drizzle-orm'
+import { explainPluginManifest, isPluginId, isPluginMethod, parseRegistryEntry, type PluginPermission, type PluginSetting, type RegistryEntry } from '@rolodex/plugin-sdk'
 import { requireManager, requireMembership } from './access'
+import {
+  getPluginRecord,
+  listPluginFiles,
+  listPluginRecords,
+  putPluginFile,
+  putPluginRecords,
+  queryPluginContacts,
+  readPluginFile,
+  removePluginFile,
+  removePluginRecord,
+  suggestForPlugin,
+} from './plugin-host'
 import { visibleContactSql } from './contacts'
 import { AppError } from './errors'
 
-export type PluginSetting = { key: string; label: string; type: 'text' | 'boolean' }
+export type { PluginSetting }
 
 export type PluginSummary = {
   id: string
@@ -16,12 +29,14 @@ export type PluginSummary = {
   description: string
   enabled: boolean
   settings: PluginSetting[]
+  permissions: PluginPermission[]
   values: Record<string, string>
+  present: boolean
+  listed: boolean
 }
 
-type DiscoveredPlugin = Omit<PluginSummary, 'enabled' | 'values'> & { entryPath: string }
+type DiscoveredPlugin = Omit<PluginSummary, 'enabled' | 'values' | 'present' | 'listed'> & { entryPath: string }
 
-const idPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const bridge = `
 <script>
 (function () {
@@ -39,6 +54,7 @@ const bridge = `
     if (data.type === 'rolodex:context') {
       announced = true
       clearInterval(timer)
+      if (window.rolodex) window.rolodex.contactId = data.contactId || null
       window.dispatchEvent(new Event('rolodex'))
       return
     }
@@ -56,11 +72,26 @@ const bridge = `
     })
   }
   window.rolodex = {
+    contactId: null,
     contacts: function () { return call('contacts.list') },
     me: function () { return call('me') },
     get: function (key) { return call('storage.get', { key: key }) },
     set: function (key, value) { return call('storage.set', { key: key, value: value }) },
-    settings: function () { return call('settings') }
+    settings: function () { return call('settings') },
+    contactsPage: function (offset) { return call('contacts.query', { offset: offset || 0 }) },
+    records: {
+      list: function (collection, offset) { return call('records.list', { collection: collection, offset: offset || 0 }) },
+      get: function (collection, id) { return call('records.get', { collection: collection, id: id }) },
+      put: function (collection, body, id) { return call('records.put', { collection: collection, body: body, id: id }) },
+      remove: function (collection, id) { return call('records.remove', { collection: collection, id: id }) }
+    },
+    files: {
+      put: function (file) { return call('files.put', file || {}) },
+      list: function () { return call('files.list') },
+      get: function (id) { return call('files.get', { id: id }) },
+      download: function (id, filename) { return call('files.download', { id: id, filename: filename || '' }) }
+    },
+    suggest: function (prompt) { return call('ai.suggest', { prompt: prompt }) }
   }
 })()
 </script>`
@@ -105,37 +136,48 @@ function readManifest(dir: string, manifestPath: string): DiscoveredPlugin | nul
   } catch {
     return null
   }
-  if (!parsed || typeof parsed !== 'object') return null
-  const record = parsed as Record<string, unknown>
-  const id = typeof record.id === 'string' ? record.id.trim() : ''
-  const name = typeof record.name === 'string' ? record.name.trim() : ''
-  const version = typeof record.version === 'string' ? record.version.trim() : ''
-  const description = typeof record.description === 'string' ? record.description.trim() : ''
-  const entry = typeof record.entry === 'string' && record.entry.trim() ? record.entry.trim() : 'index.html'
-  if (!idPattern.test(id) || id.length > 40) return null
-  if (!name || name.length > 40 || !version || version.length > 20 || description.length > 200) return null
-  if (!/^[a-z0-9.-]+\.html$/i.test(entry)) return null
+  const explained = explainPluginManifest(parsed)
+  if (!explained.manifest) return null
+  const { id, name, version, description, entry, settings, permissions } = explained.manifest
   const entryPath = path.resolve(dir, entry)
   const root = path.resolve(dir)
   if (entryPath !== root && !entryPath.startsWith(root + path.sep)) return null
   if (!existsSync(entryPath) || !statSync(entryPath).isFile()) return null
-  return { id, name, version, description, settings: readSettings(record.settings), entryPath }
+  return { id, name, version, description, settings, permissions, entryPath }
 }
 
-function readSettings(value: unknown): PluginSetting[] {
-  if (!Array.isArray(value)) return []
-  const settings: PluginSetting[] = []
-  for (const item of value.slice(0, 12)) {
-    if (!item || typeof item !== 'object') continue
-    const row = item as Record<string, unknown>
-    const key = typeof row.key === 'string' ? row.key.trim() : ''
-    const label = typeof row.label === 'string' ? row.label.trim() : ''
-    const type = row.type === 'boolean' ? 'boolean' : row.type === 'text' ? 'text' : ''
-    if (!idPattern.test(key) || key.length > 40 || !label || label.length > 40 || !type) continue
-    if (settings.some((setting) => setting.key === key)) continue
-    settings.push({ key, label, type })
+export function registryDirectories() {
+  const here = path.dirname(fileURLToPath(import.meta.url))
+  const candidates = [
+    path.resolve(here, '../../../registry/plugins'),
+    path.resolve(process.cwd(), 'registry/plugins'),
+    path.resolve(process.cwd(), '../../registry/plugins'),
+  ]
+  return [...new Set(candidates)].filter((dir) => existsSync(dir) && statSync(dir).isDirectory())
+}
+
+export function readRegistry(dirs = registryDirectories()): RegistryEntry[] {
+  const found = new Map<string, RegistryEntry>()
+  for (const dir of dirs) {
+    let names: string[] = []
+    try {
+      names = readdirSync(dir)
+    } catch {
+      continue
+    }
+    for (const name of names) {
+      if (!name.endsWith('.json')) continue
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(readFileSync(path.join(dir, name), 'utf8'))
+      } catch {
+        continue
+      }
+      const result = parseRegistryEntry(parsed)
+      if (result.entry && !result.problems.length) found.set(result.entry.id, result.entry)
+    }
   }
-  return settings
+  return [...found.values()]
 }
 
 function settingValues(settings: PluginSetting[], stored: unknown) {
@@ -154,7 +196,7 @@ export function composePluginDocument(source: string) {
   return /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${bridge}</body>`) : `${html}${bridge}`
 }
 
-function presentPlugin(plugin: DiscoveredPlugin, enabled: boolean, stored: unknown): PluginSummary {
+function presentPlugin(plugin: DiscoveredPlugin, enabled: boolean, stored: unknown, listed: boolean): PluginSummary {
   return {
     id: plugin.id,
     name: plugin.name,
@@ -162,7 +204,10 @@ function presentPlugin(plugin: DiscoveredPlugin, enabled: boolean, stored: unkno
     description: plugin.description,
     enabled,
     settings: plugin.settings,
+    permissions: plugin.permissions,
     values: settingValues(plugin.settings, stored),
+    present: true,
+    listed,
   }
 }
 
@@ -171,7 +216,27 @@ export async function listWorkspacePlugins(db: Database, userId: string, workspa
   const saved = await db.select().from(workspacePlugins).where(eq(workspacePlugins.workspaceId, workspaceId))
   const enabled = new Set(saved.filter((row) => row.enabled).map((row) => row.pluginId))
   const stored = new Map(saved.map((row) => [row.pluginId, row.settings]))
-  const plugins = discoverPlugins().map((plugin) => presentPlugin(plugin, enabled.has(plugin.id), stored.get(plugin.id)))
+  const registry = readRegistry()
+  const listed = new Set(registry.map((entry) => entry.id))
+  const discovered = discoverPlugins()
+  const plugins = discovered.map((plugin) => presentPlugin(plugin, enabled.has(plugin.id), stored.get(plugin.id), listed.has(plugin.id)))
+  const known = new Set(discovered.map((plugin) => plugin.id))
+  for (const entry of registry) {
+    if (known.has(entry.id)) continue
+    plugins.push({
+      id: entry.id,
+      name: entry.name,
+      version: entry.version,
+      description: entry.description,
+      enabled: false,
+      settings: entry.settings,
+      permissions: entry.permissions,
+      values: settingValues(entry.settings, {}),
+      present: false,
+      listed: true,
+    })
+  }
+  plugins.sort((left, right) => left.name.localeCompare(right.name))
   const manager = member.role === 'owner' || member.role === 'administrator'
   return {
     plugins: manager ? plugins : plugins.filter((plugin) => plugin.enabled),
@@ -192,7 +257,7 @@ export async function setWorkspacePlugin(db: Database, userId: string, workspace
     .from(workspacePlugins)
     .where(and(eq(workspacePlugins.workspaceId, workspaceId), eq(workspacePlugins.pluginId, pluginId)))
     .limit(1)
-  return presentPlugin(plugin, enabled, row?.settings)
+  return presentPlugin(plugin, enabled, row?.settings, readRegistry().some((entry) => entry.id === plugin.id))
 }
 
 export async function updatePluginSettings(db: Database, userId: string, workspaceId: string, pluginId: string, input: unknown) {
@@ -211,7 +276,7 @@ export async function updatePluginSettings(db: Database, userId: string, workspa
     .update(workspacePlugins)
     .set({ settings: values })
     .where(and(eq(workspacePlugins.workspaceId, workspaceId), eq(workspacePlugins.pluginId, pluginId)))
-  return presentPlugin(plugin, true, values)
+  return presentPlugin(plugin, true, values, readRegistry().some((entry) => entry.id === plugin.id))
 }
 
 async function enabledPlugin(db: Database, userId: string, workspaceId: string, pluginId: string) {
@@ -235,13 +300,14 @@ export async function pluginDocument(db: Database, userId: string, workspaceId: 
 }
 
 function recordKey(value: unknown) {
-  if (typeof value !== 'string' || !idPattern.test(value) || value.length > 40) throw new AppError(400, 'Use a short key made of letters, numbers, and dashes')
+  if (typeof value !== 'string' || !isPluginId(value)) throw new AppError(400, 'Use a short key made of letters, numbers, and dashes')
   return value
 }
 
 export async function callPlugin(db: Database, userId: string, workspaceId: string, pluginId: string, method: string, args: unknown) {
-  await enabledPlugin(db, userId, workspaceId, pluginId)
+  const plugin = await enabledPlugin(db, userId, workspaceId, pluginId)
   const record = args && typeof args === 'object' ? (args as Record<string, unknown>) : {}
+  if (!isPluginMethod(method)) throw new AppError(400, 'That plugin action is not available')
   if (method === 'settings') {
     const [row] = await db
       .select({ settings: workspacePlugins.settings })
@@ -255,6 +321,19 @@ export async function callPlugin(db: Database, userId: string, workspaceId: stri
     const [user] = await db.select({ displayName: users.displayName }).from(users).where(eq(users.id, userId)).limit(1)
     return { displayName: user?.displayName ?? '' }
   }
+  if (method === 'contacts.query') return queryPluginContacts(db, userId, workspaceId, plugin, record.offset)
+  if (method === 'records.list') return listPluginRecords(db, userId, workspaceId, pluginId, plugin, record)
+  if (method === 'records.get') return getPluginRecord(db, userId, workspaceId, pluginId, plugin, record)
+  if (method === 'records.put') return putPluginRecords(db, userId, workspaceId, pluginId, plugin, record)
+  if (method === 'records.remove') return removePluginRecord(db, userId, workspaceId, pluginId, plugin, record)
+  if (method === 'files.put') return putPluginFile(db, userId, workspaceId, pluginId, plugin, record)
+  if (method === 'files.list') return listPluginFiles(db, userId, workspaceId, pluginId, plugin)
+  if (method === 'files.get') {
+    const file = await readPluginFile(db, userId, workspaceId, pluginId, plugin, typeof record.id === 'string' ? record.id : '')
+    return { id: file.id, filename: file.filename, contentType: file.contentType, data: file.content }
+  }
+  if (method === 'files.remove') return removePluginFile(db, userId, workspaceId, pluginId, plugin, record)
+  if (method === 'ai.suggest') return suggestForPlugin(db, userId, workspaceId, plugin, record)
   if (method === 'contacts.list') {
     return db
       .select({ id: contacts.id, displayName: contacts.displayName })
@@ -285,4 +364,9 @@ export async function callPlugin(db: Database, userId: string, workspaceId: stri
     return { ok: true }
   }
   throw new AppError(400, 'That plugin action is not available')
+}
+
+export async function downloadPluginFile(db: Database, userId: string, workspaceId: string, pluginId: string, fileId: string) {
+  const plugin = await enabledPlugin(db, userId, workspaceId, pluginId)
+  return readPluginFile(db, userId, workspaceId, pluginId, plugin, fileId)
 }

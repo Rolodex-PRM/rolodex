@@ -15,6 +15,7 @@ import { RelationshipGraph } from '../../../src/relationship-graph'
 import { ImmichPhotos } from '../../../src/immich-photos'
 import { ProfileCrm } from '../../../src/profile-crm'
 import { Timeline } from '../../../src/timeline'
+import { PluginProfileSections } from '../../../src/plugin-sections'
 import { Button, Panel } from '../../../src/ui'
 
 export default function ContactProfile() {
@@ -92,6 +93,7 @@ export default function ContactProfile() {
               <ContactSummary workspaceId={scope} contactId={contact.id} />
               <AiEnrich workspaceId={scope} contactId={contact.id} canWrite={canWrite} onApplied={load} />
               <ContactOverview workspaceId={scope} contact={contact} />
+              <PluginProfileSections workspaceId={scope} contactId={contact.id} />
               <RelationshipGraph workspaceId={scope} contactId={contact.id} name={contact.displayName} />
               <Panel>
                 <Text style={styles.section}>Details</Text>

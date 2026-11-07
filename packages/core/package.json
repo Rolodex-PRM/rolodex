@@ -13,6 +13,7 @@
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",
     "@rolodex/db": "workspace:*",
+    "@rolodex/plugin-sdk": "workspace:*",
     "drizzle-orm": "^0.44.6",
     "zod": "^3.25.76"
   },

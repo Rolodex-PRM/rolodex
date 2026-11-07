@@ -7,7 +7,7 @@ import { font, theme } from '../../../src/theme'
 import { Field, Notice } from '../../../src/ui'
 
 type PluginSetting = { key: string; label: string; type: 'text' | 'boolean' }
-type PluginRow = { id: string; name: string; version: string; description: string; enabled: boolean; settings: PluginSetting[]; values: Record<string, string> }
+type PluginRow = { id: string; name: string; version: string; description: string; enabled: boolean; settings: PluginSetting[]; permissions?: string[]; values: Record<string, string>; present?: boolean; listed?: boolean }
 
 export default function PluginsPage() {
   const { workspace } = useAuth()
@@ -50,7 +50,7 @@ export default function PluginsPage() {
   return (
     <View style={styles.card}>
       <Text style={styles.heading}>Plugins</Text>
-      <Text style={styles.meta}>Add a page of your own. A plugin can read names and keep its notes. It cannot change Rolodex.</Text>
+      <Text style={styles.meta}>Add a page of your own. A plugin can read names and keep its notes. It cannot change Rolodex. Discover also lists plugins from the registry once their folder is on this server.</Text>
       <View style={styles.toolbar}>
         <View style={styles.tabs}>
           <Tab label="Installed" count={installed.length} on={tab === 'installed'} onPress={() => setTab('installed')} />
@@ -74,7 +74,9 @@ export default function PluginsPage() {
               <View style={styles.copy}>
                 <Text style={styles.name}>{plugin.name}</Text>
                 <Text style={styles.meta}>{plugin.description}</Text>
-                <Text style={styles.version}>Page · v{plugin.version}</Text>
+                <Text style={styles.version}>Page · v{plugin.version}{plugin.listed ? ' · Registry' : ''}</Text>
+                {plugin.permissions?.length ? <Text style={styles.meta}>{plugin.permissions.join(' · ')}</Text> : null}
+                {plugin.present === false ? <Text style={styles.meta}>Listed in the registry. Put its folder in plugins/ on this server to install it.</Text> : null}
               </View>
               <View style={styles.actions}>
                 {plugin.enabled ? (
@@ -82,9 +84,11 @@ export default function PluginsPage() {
                     <Text style={styles.toggleText}>Open</Text>
                   </Pressable>
                 ) : null}
-                <Pressable accessibilityRole="button" onPress={() => toggle(plugin)} style={[styles.toggle, !plugin.enabled && styles.install]}>
-                  <Text style={[styles.toggleText, !plugin.enabled && styles.installText]}>{plugin.enabled ? 'Remove' : 'Install'}</Text>
-                </Pressable>
+                {plugin.present !== false ? (
+                  <Pressable accessibilityRole="button" onPress={() => toggle(plugin)} style={[styles.toggle, !plugin.enabled && styles.install]}>
+                    <Text style={[styles.toggleText, !plugin.enabled && styles.installText]}>{plugin.enabled ? 'Remove' : 'Install'}</Text>
+                  </Pressable>
+                ) : null}
               </View>
             </View>
             {plugin.enabled ? (
