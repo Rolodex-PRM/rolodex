@@ -11,6 +11,5 @@
   "repo": "you/your-plugin",
   "release": "v1.0.0",
   "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-  "asset": "plugin.zip",
   "license": "AGPL-3.0-only"
 }

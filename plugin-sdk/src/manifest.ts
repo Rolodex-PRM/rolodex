@@ -21,9 +21,9 @@ export type RegistryEntry = PluginManifest & {
   license: string
   /** Git tag of the GitHub release whose archive is installed. Empty for a page that already lives on the server. */
   release: string
-  /** SHA-256 of that release archive. */
+  /** SHA-256 of the tag archive at archive/refs/tags/<release>.zip. */
   sha256: string
-  /** Zip file attached to the release. `plugin.zip` when omitted. */
+  /** Ignored. The server downloads the tag archive. */
   asset: string
 }
 

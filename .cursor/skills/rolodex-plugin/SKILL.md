@@ -31,6 +31,6 @@ A plugin is one HTML page. Rolodex serves it in a sandboxed iframe and injects `
 
 ## List it
 
-When the plugin should appear on other servers, publish a GitHub release with `plugin.zip` and add one file to the Rolodex registry: `registry/plugins/<id>.json`. Pin `release`, `sha256`, and a `rolodex` range such as `>=0.1.0 <1.0.0`. The HTML stays in the plugin's own repository. Then run `node registry/build-index.mjs`.
+When the plugin should appear on other servers, publish a GitHub release and add one file to the Rolodex registry: `registry/plugins/<id>.json`. Pin `release`, the SHA-256 of that tag's archive zip, and a `rolodex` range such as `>=0.1.0 <1.0.0`. The HTML stays in the plugin's own repository. Then run `node registry/build-index.mjs`.
 
 Read `references/manifest.md`, `references/bridge.md`, `references/data.md`, and `references/publishing.md` before changing a manifest, the page script, or a registry entry.

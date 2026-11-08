@@ -2,9 +2,9 @@
 
 The registry is `registry/` in the Rolodex repository. It stores no HTML.
 
-1. Publish the plugin as a GitHub release. Attach `plugin.zip` with `rolodex-plugin.json` and the HTML page. Tag it with the plugin version, such as `v1.0.0`.
+1. Publish the plugin as a GitHub release. Tag it with the plugin version, such as `v1.0.0`. Keep `rolodex-plugin.json` and the HTML page at the repository root.
 2. Add `registry/plugins/<id>.json`. Start from `registry/schema/example-entry.json`.
-3. Set `repo` to `owner/name`, `release` to that tag, and `sha256` to the SHA-256 of `plugin.zip`.
+3. Set `repo` to `owner/name`, `release` to that tag, and `sha256` to the SHA-256 of `https://github.com/owner/name/archive/refs/tags/v1.0.0.zip`.
 4. Set `rolodex` to the versions the page supports, such as `>=0.1.0 <1.0.0`. The same range belongs in `rolodex-plugin.json`.
 5. Match `id`, `name`, `version`, `description`, `entry`, and `settings` to `rolodex-plugin.json`.
 6. Run `node registry/build-index.mjs`. Commit the new entry and the generated `registry/dist/index.json`.

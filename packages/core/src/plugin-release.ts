@@ -44,12 +44,30 @@ export function rolodexVersion() {
   return '0.0.0'
 }
 
-export function releaseAssetUrl(repo: string, release: string, asset: string) {
+/** Tag archive GitHub publishes for a release, before it redirects to codeload. */
+export function releaseArchiveUrl(repo: string, release: string) {
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) throw new Error('repo is owner/name')
   if (!/^v?\d+\.\d+\.\d+(?:[+-][A-Za-z0-9.-]+)?$/.test(release)) throw new Error('release is a version tag')
-  if (!/^[A-Za-z0-9._-]+\.zip$/.test(asset)) throw new Error('asset is a zip file name')
   const [owner, name] = repo.split('/')
-  return `https://github.com/${owner}/${name}/releases/download/${encodeURIComponent(release)}/${encodeURIComponent(asset)}`
+  if (!owner || !name) throw new Error('repo is owner/name')
+  return `https://github.com/${owner}/${name}/archive/refs/tags/${encodeURIComponent(release)}.zip`
+}
+
+function releaseTarget(url: string) {
+  const parsed = new URL(url)
+  const match = decodeURIComponent(parsed.pathname).match(/^\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/archive\/refs\/tags\/(v?\d+\.\d+\.\d+(?:[+-][A-Za-z0-9.-]+)?)\.zip$/)
+  if (parsed.protocol !== 'https:' || parsed.hostname.toLowerCase() !== 'github.com' || !match) return null
+  return { owner: match[1] ?? '', name: match[2] ?? '', release: match[3] ?? '' }
+}
+
+function sameRelease(url: URL, target: { owner: string; name: string; release: string }) {
+  const host = url.hostname.toLowerCase()
+  const pathName = decodeURIComponent(url.pathname)
+  const archive = `/${target.owner}/${target.name}/archive/refs/tags/${target.release}.zip`
+  const codeload = `/${target.owner}/${target.name}/zip/refs/tags/${target.release}`
+  if (host === 'github.com') return pathName === archive
+  if (host === 'codeload.github.com') return pathName === codeload
+  return false
 }
 
 export function isPrivateAddress(address: string) {
@@ -68,32 +86,29 @@ export function isPrivateAddress(address: string) {
   return false
 }
 
-function allowedHost(hostname: string) {
-  const host = hostname.toLowerCase()
-  return host === 'github.com' || host.endsWith('.githubusercontent.com')
-}
-
 async function defaultLookup(hostname: string) {
   const records = await lookup(hostname, { all: true })
   return records.map((record) => record.address)
 }
 
-async function assertPublicRelease(url: string, resolve: AddressLookup) {
-  const parsed = new URL(url)
-  if (parsed.protocol !== 'https:') throw new Error('The release address is not https')
-  if (!allowedHost(parsed.hostname)) throw new Error('The release address is not a GitHub release')
-  const addresses = await resolve(parsed.hostname)
+async function assertPublicRelease(url: URL, resolve: AddressLookup) {
+  if (url.protocol !== 'https:') throw new Error('The release address is not https')
+  const addresses = await resolve(url.hostname)
   if (!addresses.length) throw new Error('The release address did not resolve')
   if (addresses.some((address) => isPrivateAddress(address))) throw new Error('The release address is not public')
 }
 
 export async function downloadRelease(url: string, options: InstallOptions = {}) {
+  const target = releaseTarget(url)
+  if (!target) throw new Error('The release address is not a GitHub release')
   const fetchImpl = options.fetch ?? fetch
   const resolve = options.lookup ?? defaultLookup
   let current = url
   const signal = AbortSignal.timeout(20_000)
   for (let hop = 0; hop < 5; hop += 1) {
-    await assertPublicRelease(current, resolve)
+    const parsed = new URL(current)
+    if (!sameRelease(parsed, target)) throw new Error('The release address is not a GitHub release')
+    await assertPublicRelease(parsed, resolve)
     const response = await fetchImpl(current, { redirect: 'manual', signal, headers: { 'User-Agent': 'Rolodex', Accept: 'application/octet-stream' } })
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location')
@@ -209,7 +224,7 @@ async function unpackRelease(entry: RegistryEntry, options: InstallOptions) {
   const pinned = existsSync(pinPath) && readFileSync(pinPath, 'utf8').trim() === entry.sha256 && existsSync(path.join(destination, 'rolodex-plugin.json'))
   if (pinned) return
   if (existsSync(destination)) rmSync(destination, { recursive: true, force: true })
-  const bytes = await downloadRelease(releaseAssetUrl(entry.repo, entry.release, entry.asset || 'plugin.zip'), options)
+  const bytes = await downloadRelease(releaseArchiveUrl(entry.repo, entry.release), options)
   const actual = createHash('sha256').update(bytes).digest('hex')
   if (!hashesMatch(actual, entry.sha256)) throw new Error('The release does not match the registry pin')
   const files = extractPluginZip(bytes)

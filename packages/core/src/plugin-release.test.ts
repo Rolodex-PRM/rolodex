@@ -6,7 +6,7 @@ import { deflateRawSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import type { RegistryEntry } from '@rolodex/plugin-sdk'
 import { discoverPlugins } from './plugins'
-import { extractPluginZip, installRegistryRelease, isPrivateAddress, releaseAssetUrl } from './plugin-release'
+import { extractPluginZip, installRegistryRelease, isPrivateAddress, releaseArchiveUrl } from './plugin-release'
 
 function zip(files: Record<string, Buffer>, method: 0 | 8 = 0) {
   const locals: Buffer[] = []
@@ -80,13 +80,38 @@ function responseFor(body: Buffer, status = 200, headers: Record<string, string>
 
 describe('plugin releases', () => {
   it('builds a GitHub release address and refuses a private one', () => {
-    expect(releaseAssetUrl('Rolodex-PRM/Rolodex-Plugin-Mailing-List', 'v1.0.0', 'plugin.zip')).toBe(
-      'https://github.com/Rolodex-PRM/Rolodex-Plugin-Mailing-List/releases/download/v1.0.0/plugin.zip',
+    expect(releaseArchiveUrl('Rolodex-PRM/Rolodex-Plugin-Mailing-List', 'v1.0.0')).toBe(
+      'https://github.com/Rolodex-PRM/Rolodex-Plugin-Mailing-List/archive/refs/tags/v1.0.0.zip',
     )
     expect(isPrivateAddress('127.0.0.1')).toBe(true)
     expect(isPrivateAddress('10.1.1.1')).toBe(true)
     expect(isPrivateAddress('169.254.169.254')).toBe(true)
     expect(isPrivateAddress('8.8.8.8')).toBe(false)
+  })
+
+  it('follows the tag archive onto codeload and refuses a different host', async () => {
+    const archive = zip({
+      'Rolodex-Plugin-Mailing-List-1.0.0/rolodex-plugin.json': Buffer.from(manifest()),
+      'Rolodex-Plugin-Mailing-List-1.0.0/index.html': Buffer.from('<p>Lists</p>'),
+      'Rolodex-Plugin-Mailing-List-1.0.0/src/app.js': Buffer.from('ignored'),
+    })
+    const root = mkdtempSync(path.join(tmpdir(), 'rolodex-release-'))
+    const codeload = 'https://codeload.github.com/Rolodex-PRM/Rolodex-Plugin-Mailing-List/zip/refs/tags/v1.0.0'
+    await installRegistryRelease(entry(createHash('sha256').update(archive).digest('hex')), {
+      root,
+      version: '0.1.0',
+      lookup: async () => ['8.8.8.8'],
+      fetch: async (url) => String(url).includes('codeload.github.com')
+        ? responseFor(archive)
+        : responseFor(Buffer.alloc(0), 302, { location: codeload }),
+    })
+    expect(readFileSync(path.join(root, 'mailing-lists', 'index.html'), 'utf8')).toBe('<p>Lists</p>')
+    await expect(installRegistryRelease(entry('c'.repeat(64)), {
+      root: mkdtempSync(path.join(tmpdir(), 'rolodex-release-')),
+      version: '0.1.0',
+      lookup: async () => ['8.8.8.8'],
+      fetch: async () => responseFor(Buffer.alloc(0), 302, { location: 'https://example.com/plugin.zip' }),
+    })).rejects.toThrow(/not a GitHub release/)
   })
 
   it('unpacks a deflated release when the hash and Rolodex range match', async () => {
