@@ -24,13 +24,14 @@ plugins/my-page/index.html
   "version": "1.0.0",
   "description": "What this page is for.",
   "entry": "index.html",
+  "rolodex": ">=0.1.0 <1.0.0",
   "settings": [
     { "key": "heading", "label": "Heading", "type": "text" }
   ]
 }
 ```
 
-`id` is lowercase letters, numbers, and dashes. `entry` is one HTML file in that folder. The page runs in a sandboxed frame. It cannot read the Rolodex session or call the network. After the `rolodex` event, `window.rolodex` offers:
+`id` is lowercase letters, numbers, and dashes. `entry` is one HTML file in that folder. `rolodex` is the host versions this page runs on. `>=0.1.0 <1.0.0` means Rolodex 0.1.0 and later, before 1.0.0. A bare `v0.1.0` means that version only. Discover installs a listed plugin from a pinned GitHub release, and the release manifest must declare the same range. The page runs in a sandboxed frame. It cannot read the Rolodex session or call the network. After the `rolodex` event, `window.rolodex` offers:
 
 - `me()` — the signed-in person's display name
 - `contacts()` — id and display name for people this person can see

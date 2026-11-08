@@ -3,5 +3,6 @@
   "name": "Scratch pad",
   "version": "1.0.0",
   "description": "A note that stays inside this plugin. It does not change people in Rolodex.",
-  "entry": "index.html"
+  "entry": "index.html",
+  "rolodex": ">=0.1.0 <1.0.0"
 }

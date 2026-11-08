@@ -1,16 +1,16 @@
 # Rolodex plugins — registry
 
-This folder is a static index. A Rolodex server reads `registry/plugins/*.json` and shows those plugins under Admin → Plugins. There is no account and no install service. The plugin’s code stays in the repository named by `repo`, at `path`.
+This folder is a static index. A Rolodex server reads `registry/plugins/*.json` and shows those plugins under Admin → Plugins. There is no account and no install service.
 
-Community pages are third-party software. They run in a sandboxed frame and can use only the plugin bridge (`me`, `contacts`, `settings`, `get`, `set`). Review a plugin before you copy its folder onto a server. Rolodex does not audit entries in this index.
+Community pages are third-party software. They run in a sandboxed frame. Rolodex does not audit entries in this index. Each entry pins one GitHub **release** archive with its SHA-256. The server downloads that file, checks the hash, and unpacks `rolodex-plugin.json` and the HTML page. It does not clone the repository, and it does not follow a branch.
+
+`rolodex` is the versions that page supports, for example `>=0.1.0 <1.0.0`. A page whose range excludes this server stays listed and cannot be installed.
 
 ## Add a plugin
 
-1. Build the page with `@rolodex/plugin-sdk` (`rolodex-plugin create`, then `rolodex-plugin validate`).
-2. Put the folder in a public git repository.
-3. Open a pull request that adds one file, `registry/plugins/<id>.json`. Copy `schema/example-entry.json`. Do not put the HTML here.
+1. Build the page with `@rolodex/plugin-sdk` (`rolodex-plugin create`, then `rolodex-plugin validate`). Set `rolodex` to the versions it supports.
+2. Publish a GitHub release. Attach `plugin.zip` containing `rolodex-plugin.json` and the HTML page. The tag is the plugin version, such as `v1.0.0`.
+3. Open a pull request that adds one file, `registry/plugins/<id>.json`. Copy `schema/example-entry.json`. Set `release` to that tag and `sha256` to the archive hash. Do not put the HTML here.
 4. Regenerate the index with `node registry/build-index.mjs`. `registry/dist/index.json` is the file another server can fetch. Do not edit `dist/` by hand.
 
-`id` matches `rolodex-plugin.json`. `path` is a folder inside the repository, never a parent directory.
-
-A listed plugin appears in Discover after its folder is on the server. Until then the row says to add that folder under `plugins/`.
+`id` matches `rolodex-plugin.json`. The manifest inside the zip must use the same `id`, `version`, and `rolodex` range as the registry entry.

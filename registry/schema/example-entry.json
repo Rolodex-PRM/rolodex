@@ -4,10 +4,13 @@
   "version": "1.0.0",
   "description": "What this page is for.",
   "entry": "index.html",
+  "rolodex": ">=0.1.0 <1.0.0",
   "settings": [
     { "key": "heading", "label": "Heading", "type": "text" }
   ],
   "repo": "you/your-plugin",
-  "path": "plugins/my-page",
+  "release": "v1.0.0",
+  "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "asset": "plugin.zip",
   "license": "AGPL-3.0-only"
 }

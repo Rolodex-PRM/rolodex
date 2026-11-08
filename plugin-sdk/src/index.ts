@@ -1,9 +1,11 @@
 export { createMockHost, type MockHostOptions, type PluginContact, type PluginHost } from './host'
 export {
   explainPluginManifest,
+  explainRolodexRange,
   isPluginId,
   isPluginMethod,
   parseRegistryEntry,
+  rolodexRangeIncludes,
   pluginMethods,
   pluginPermissions,
   type PluginManifest,

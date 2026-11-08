@@ -7,7 +7,7 @@ import { font, theme } from '../../../src/theme'
 import { Field, Notice } from '../../../src/ui'
 
 type PluginSetting = { key: string; label: string; type: 'text' | 'boolean' }
-type PluginRow = { id: string; name: string; version: string; description: string; enabled: boolean; settings: PluginSetting[]; permissions?: string[]; values: Record<string, string>; present?: boolean; listed?: boolean }
+type PluginRow = { id: string; name: string; version: string; description: string; enabled: boolean; settings: PluginSetting[]; permissions?: string[]; values: Record<string, string>; present?: boolean; listed?: boolean; rolodex?: string; compatible?: boolean }
 
 export default function PluginsPage() {
   const { workspace } = useAuth()
@@ -74,9 +74,10 @@ export default function PluginsPage() {
               <View style={styles.copy}>
                 <Text style={styles.name}>{plugin.name}</Text>
                 <Text style={styles.meta}>{plugin.description}</Text>
-                <Text style={styles.version}>Page · v{plugin.version}{plugin.listed ? ' · Registry' : ''}</Text>
+                <Text style={styles.version}>Page · v{plugin.version}{plugin.listed ? ' · Registry' : ''}{plugin.rolodex ? ` · Rolodex ${plugin.rolodex}` : ''}</Text>
                 {plugin.permissions?.length ? <Text style={styles.meta}>{plugin.permissions.join(' · ')}</Text> : null}
-                {plugin.present === false ? <Text style={styles.meta}>Listed in the registry. Put its folder in plugins/ on this server to install it.</Text> : null}
+                {plugin.compatible === false ? <Text style={styles.meta}>This page is for a different Rolodex version.</Text> : null}
+                {plugin.present === false && plugin.compatible !== false ? <Text style={styles.meta}>Listed in the registry. Its pinned release is not on this server yet.</Text> : null}
               </View>
               <View style={styles.actions}>
                 {plugin.enabled ? (
@@ -84,7 +85,7 @@ export default function PluginsPage() {
                     <Text style={styles.toggleText}>Open</Text>
                   </Pressable>
                 ) : null}
-                {plugin.present !== false ? (
+                {plugin.present !== false && plugin.compatible !== false ? (
                   <Pressable accessibilityRole="button" onPress={() => toggle(plugin)} style={[styles.toggle, !plugin.enabled && styles.install]}>
                     <Text style={[styles.toggleText, !plugin.enabled && styles.installText]}>{plugin.enabled ? 'Remove' : 'Install'}</Text>
                   </Pressable>

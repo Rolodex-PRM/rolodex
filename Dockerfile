@@ -23,6 +23,7 @@ COPY plugin-sdk ./plugin-sdk
 COPY apps/api ./apps/api
 COPY apps/carddav ./apps/carddav
 COPY plugins ./plugins
+COPY registry ./registry
 RUN pnpm install --frozen-lockfile
 COPY scripts/docker-app.mjs ./scripts/docker-app.mjs
 COPY nginx/rolodex.conf /etc/nginx/conf.d/default.conf

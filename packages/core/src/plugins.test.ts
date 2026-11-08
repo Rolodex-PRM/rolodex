@@ -45,6 +45,7 @@ describe('plugins', () => {
       entry: 'index.html',
       repo: 'ada/field-notes',
       path: 'plugins/field-notes',
+      rolodex: '>=0.1.0 <1.0.0',
     }))
     writeFileSync(path.join(root, 'escape.json'), JSON.stringify({
       id: 'escape',

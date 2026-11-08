@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import { createMockHost } from './host'
-import { explainPluginManifest, parseRegistryEntry } from './manifest'
+import { explainPluginManifest, parseRegistryEntry, rolodexRangeIncludes } from './manifest'
 
 describe('plugin manifest', () => {
   it('keeps a valid page and drops a setting that has no label', () => {
@@ -51,7 +51,28 @@ describe('plugin manifest', () => {
     const file = new URL('../../registry/plugins/scratch-pad.json', import.meta.url)
     const parsed = parseRegistryEntry(JSON.parse(readFileSync(file, 'utf8')))
     expect(parsed.problems).toEqual([])
-    expect(parsed.entry).toMatchObject({ id: 'scratch-pad', repo: 'jeffgallini/rolodex', path: 'plugins/scratch-pad' })
+    expect(parsed.entry).toMatchObject({ id: 'scratch-pad', repo: 'jeffgallini/rolodex', path: 'plugins/scratch-pad', rolodex: '>=0.1.0 <1.0.0' })
+  })
+
+  it('accepts this Rolodex line and refuses the next major version', () => {
+    expect(rolodexRangeIncludes('>=0.1.0 <1.0.0', '0.1.0')).toBe(true)
+    expect(rolodexRangeIncludes('>=0.1.0 <1.0.0', 'v0.9.1')).toBe(true)
+    expect(rolodexRangeIncludes('v0.1.0, <1.0.0', '0.1.0')).toBe(true)
+    expect(rolodexRangeIncludes('>=0.1.0 <1.0.0', '1.0.0')).toBe(false)
+    expect(rolodexRangeIncludes('>=0.1.0 <1.0.0', '0.0.9')).toBe(false)
+    const parsed = parseRegistryEntry({
+      id: 'mailing-lists',
+      name: 'Mailing Lists',
+      version: '1.0.0',
+      description: 'Lists.',
+      rolodex: '>=0.1.0 <1.0.0',
+      repo: 'Rolodex-PRM/Rolodex-Plugin-Mailing-List',
+      release: 'v1.0.0',
+      sha256: 'a'.repeat(64),
+    })
+    expect(parsed.problems).toEqual([])
+    expect(parsed.entry?.asset).toBe('plugin.zip')
+    expect(parseRegistryEntry({ ...parsed.entry, sha256: 'nope' }).entry).toBeNull()
   })
 })
 

@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { contacts, pluginRecords, users, workspacePlugins, type Database } from '@rolodex/db'
 import { and, asc, eq, isNull } from 'drizzle-orm'
-import { explainPluginManifest, isPluginId, isPluginMethod, parseRegistryEntry, type PluginPermission, type PluginSetting, type RegistryEntry } from '@rolodex/plugin-sdk'
+import { explainPluginManifest, isPluginId, isPluginMethod, parseRegistryEntry, rolodexRangeIncludes, type PluginPermission, type PluginSetting, type RegistryEntry } from '@rolodex/plugin-sdk'
 import { requireManager, requireMembership } from './access'
 import {
   getPluginRecord,
@@ -19,6 +19,7 @@ import {
 } from './plugin-host'
 import { visibleContactSql } from './contacts'
 import { AppError } from './errors'
+import { installRegistryReleases, releasePluginRoot, rolodexVersion } from './plugin-release'
 
 export type { PluginSetting }
 
@@ -33,6 +34,8 @@ export type PluginSummary = {
   values: Record<string, string>
   present: boolean
   listed: boolean
+  rolodex: string
+  compatible: boolean
 }
 
 type DiscoveredPlugin = Omit<PluginSummary, 'enabled' | 'values' | 'present' | 'listed'> & { entryPath: string }
@@ -104,6 +107,7 @@ export function pluginDirectories() {
     path.resolve(process.cwd(), '../../plugins'),
     process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'plugins') : '',
     process.env.PLUGINS_DIR || '',
+    releasePluginRoot(),
   ].filter(Boolean)
   return [...new Set(candidates)].filter((dir) => existsSync(dir) && statSync(dir).isDirectory())
 }
@@ -118,6 +122,7 @@ export function discoverPlugins(roots = pluginDirectories()): DiscoveredPlugin[]
       continue
     }
     for (const name of names) {
+      if (name.startsWith('.')) continue
       const dir = path.join(root, name)
       if (!statSync(dir).isDirectory()) continue
       const manifestPath = path.join(dir, 'rolodex-plugin.json')
@@ -138,12 +143,12 @@ function readManifest(dir: string, manifestPath: string): DiscoveredPlugin | nul
   }
   const explained = explainPluginManifest(parsed)
   if (!explained.manifest) return null
-  const { id, name, version, description, entry, settings, permissions } = explained.manifest
+  const { id, name, version, description, entry, settings, permissions, rolodex } = explained.manifest
   const entryPath = path.resolve(dir, entry)
   const root = path.resolve(dir)
   if (entryPath !== root && !entryPath.startsWith(root + path.sep)) return null
   if (!existsSync(entryPath) || !statSync(entryPath).isFile()) return null
-  return { id, name, version, description, settings, permissions, entryPath }
+  return { id, name, version, description, settings, permissions, rolodex, compatible: !rolodex || rolodexRangeIncludes(rolodex, rolodexVersion()), entryPath }
 }
 
 export function registryDirectories() {
@@ -208,6 +213,8 @@ function presentPlugin(plugin: DiscoveredPlugin, enabled: boolean, stored: unkno
     values: settingValues(plugin.settings, stored),
     present: true,
     listed,
+    rolodex: plugin.rolodex,
+    compatible: plugin.compatible,
   }
 }
 
@@ -217,6 +224,8 @@ export async function listWorkspacePlugins(db: Database, userId: string, workspa
   const enabled = new Set(saved.filter((row) => row.enabled).map((row) => row.pluginId))
   const stored = new Map(saved.map((row) => [row.pluginId, row.settings]))
   const registry = readRegistry()
+  await installRegistryReleases(registry)
+  const host = rolodexVersion()
   const listed = new Set(registry.map((entry) => entry.id))
   const discovered = discoverPlugins()
   const plugins = discovered.map((plugin) => presentPlugin(plugin, enabled.has(plugin.id), stored.get(plugin.id), listed.has(plugin.id)))
@@ -234,6 +243,8 @@ export async function listWorkspacePlugins(db: Database, userId: string, workspa
       values: settingValues(entry.settings, {}),
       present: false,
       listed: true,
+      rolodex: entry.rolodex,
+      compatible: rolodexRangeIncludes(entry.rolodex, host),
     })
   }
   plugins.sort((left, right) => left.name.localeCompare(right.name))
@@ -246,8 +257,10 @@ export async function listWorkspacePlugins(db: Database, userId: string, workspa
 
 export async function setWorkspacePlugin(db: Database, userId: string, workspaceId: string, pluginId: string, enabled: boolean) {
   await requireManager(db, userId, workspaceId)
+  await installRegistryReleases(readRegistry().filter((entry) => entry.id === pluginId))
   const plugin = discoverPlugins().find((item) => item.id === pluginId)
   if (!plugin) throw new AppError(404, 'Plugin not found')
+  if (!plugin.compatible) throw new AppError(400, 'This plugin is for a different Rolodex version')
   await db
     .insert(workspacePlugins)
     .values({ workspaceId, pluginId, enabled })
@@ -264,6 +277,7 @@ export async function updatePluginSettings(db: Database, userId: string, workspa
   await requireManager(db, userId, workspaceId)
   const plugin = discoverPlugins().find((item) => item.id === pluginId)
   if (!plugin) throw new AppError(404, 'Plugin not found')
+  if (!plugin.compatible) throw new AppError(400, 'This plugin is for a different Rolodex version')
   const [existing] = await db
     .select({ enabled: workspacePlugins.enabled })
     .from(workspacePlugins)
@@ -283,6 +297,7 @@ async function enabledPlugin(db: Database, userId: string, workspaceId: string, 
   await requireMembership(db, userId, workspaceId)
   const plugin = discoverPlugins().find((item) => item.id === pluginId)
   if (!plugin) throw new AppError(404, 'Plugin not found')
+  if (!plugin.compatible) throw new AppError(403, 'This plugin is for a different Rolodex version')
   const [row] = await db
     .select({ enabled: workspacePlugins.enabled })
     .from(workspacePlugins)

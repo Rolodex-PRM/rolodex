@@ -37,6 +37,7 @@ function create(id: string | undefined) {
     version: '1.0.0',
     description: 'A page that stays inside this plugin.',
     entry: 'index.html',
+    rolodex: '>=0.1.0 <1.0.0',
     settings: [],
   }, null, 2)}\n`)
   writeFileSync(path.join(dir, 'index.html'), page(name))

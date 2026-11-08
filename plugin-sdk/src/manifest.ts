@@ -11,12 +11,20 @@ export type PluginManifest = {
   entry: string
   settings: PluginSetting[]
   permissions: PluginPermission[]
+  /** Semver comparators this page supports, such as `>=0.1.0 <1.0.0`. Empty when the page does not say. */
+  rolodex: string
 }
 
 export type RegistryEntry = PluginManifest & {
   repo: string
   path: string
   license: string
+  /** Git tag of the GitHub release whose archive is installed. Empty for a page that already lives on the server. */
+  release: string
+  /** SHA-256 of that release archive. */
+  sha256: string
+  /** Zip file attached to the release. `plugin.zip` when omitted. */
+  asset: string
 }
 
 export const pluginMethods = [
@@ -117,9 +125,66 @@ export function explainPluginManifest(value: unknown): { manifest: PluginManifes
   if (!/^[a-z0-9.-]+\.html$/i.test(entry)) problems.push('entry is one HTML file name in the plugin folder')
   const settings = readSettings(record.settings, problems)
   const permissions = readPermissions(record.permissions, problems)
+  const rolodex = readRolodex(record.rolodex, problems)
   const structural = problems.some((problem) => !problem.startsWith('Drop the '))
   if (structural) return { manifest: null, problems }
-  return { manifest: { id, name, version, description, entry, settings, permissions }, problems }
+  return { manifest: { id, name, version, description, entry, settings, permissions, rolodex }, problems }
+}
+
+/** A Rolodex range is one to four comparators joined by spaces or commas. A bare version means that version only. */
+export function explainRolodexRange(value: string) {
+  const range = value.trim()
+  if (!range || range.length > 80) return ''
+  const parts = range.split(/[\s,]+/).filter(Boolean)
+  if (!parts.length || parts.length > 4) return ''
+  if (parts.some((part) => !/^(?:>=|<=|>|<|=)?v?\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(part))) return ''
+  return parts.join(' ')
+}
+
+function readRolodex(value: unknown, problems: string[]) {
+  if (value === undefined || value === '') return ''
+  if (typeof value !== 'string') {
+    problems.push('rolodex is a version range such as >=0.1.0 <1.0.0')
+    return ''
+  }
+  const range = explainRolodexRange(value)
+  if (!range) problems.push('rolodex is a version range such as >=0.1.0 <1.0.0')
+  return range
+}
+
+function versionPoint(value: string): [number, number, number] | null {
+  const match = value.trim().match(/^v?(\d+)\.(\d+)\.(\d+)/)
+  if (!match) return null
+  return [Number(match[1]), Number(match[2]), Number(match[3])]
+}
+
+function comparePoint(left: [number, number, number], right: [number, number, number]) {
+  for (let index = 0; index < 3; index += 1) {
+    const leftPart = left[index] ?? 0
+    const rightPart = right[index] ?? 0
+    if (leftPart !== rightPart) return leftPart < rightPart ? -1 : 1
+  }
+  return 0
+}
+
+/** True when every comparator in the range accepts `version`. */
+export function rolodexRangeIncludes(range: string, version: string) {
+  const cleaned = explainRolodexRange(range)
+  const point = versionPoint(version)
+  if (!cleaned || !point) return false
+  for (const part of cleaned.split(' ')) {
+    const match = part.match(/^(>=|<=|>|<|=)?v?(\d+)\.(\d+)\.(\d+)$/)
+    if (!match) return false
+    const operator = match[1] || '='
+    const target: [number, number, number] = [Number(match[2]), Number(match[3]), Number(match[4])]
+    const order = comparePoint(point, target)
+    if (operator === '=' && order !== 0) return false
+    if (operator === '>' && order <= 0) return false
+    if (operator === '>=' && order < 0) return false
+    if (operator === '<' && order >= 0) return false
+    if (operator === '<=' && order > 0) return false
+  }
+  return true
 }
 
 function safeRepoPath(value: string) {
@@ -136,12 +201,21 @@ export function parseRegistryEntry(value: unknown): { entry: RegistryEntry | nul
   const repo = text(record.repo)
   const folder = text(record.path)
   const license = text(record.license)
+  const release = text(record.release)
+  const sha256 = text(record.sha256).toLowerCase()
+  const asset = text(record.asset) || 'plugin.zip'
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) problems.push('repo is owner/name')
-  if (!safeRepoPath(folder)) problems.push('path is a folder inside the repository')
+  if (folder && !safeRepoPath(folder)) problems.push('path is a folder inside the repository')
   if (license.length > 60) problems.push('license stays under 60 characters')
+  if (explained.manifest && !explained.manifest.rolodex) problems.push('rolodex is a version range such as >=0.1.0 <1.0.0')
+  if (release || sha256) {
+    if (!/^v?\d+\.\d+\.\d+(?:[+-][A-Za-z0-9.-]+)?$/.test(release)) problems.push('release is a version tag')
+    if (!/^[a-f0-9]{64}$/.test(sha256)) problems.push('sha256 is the release archive hash')
+    if (!/^[A-Za-z0-9._-]+\.zip$/.test(asset)) problems.push('asset is a zip file name')
+  }
   if (!explained.manifest || problems.length > explained.problems.length) return { entry: null, problems }
   return {
-    entry: { ...explained.manifest, repo, path: folder, license },
+    entry: { ...explained.manifest, repo, path: folder, license, release, sha256, asset },
     problems,
   }
 }

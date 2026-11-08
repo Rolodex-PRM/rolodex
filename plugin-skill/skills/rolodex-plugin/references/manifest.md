@@ -16,6 +16,7 @@
 - `id`: lowercase letters, numbers, and dashes, at most 40 characters. It matches the registry file name.
 - `name`: at most 40 characters. `version`: at most 20. `description`: at most 200.
 - `entry`: one HTML file in this folder. `index.html` is the default. A path with a slash or `..` is rejected.
+- `rolodex`: optional on a local page, required in the registry. Comparators such as `>=0.1.0 <1.0.0`. A page outside that range cannot be installed.
 - `settings`: optional, at most 12 items. Each item has `key`, `label` (at most 40 characters), and `type` of `text` or `boolean`.
 
 `permissions` is optional. Each entry is one of:
