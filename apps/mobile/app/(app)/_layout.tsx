@@ -25,6 +25,7 @@ export default function AppLayout() {
   const width = useWindowDimensions().width
   const wide = width >= 880
   const wrapBar = width < 1100
+  const pluginPage = path.startsWith('/plugins/')
   const [menu, setMenu] = useState<'account' | 'ai' | 'search' | null>(null)
   const canManage = workspace?.role === 'owner' || workspace?.role === 'administrator'
   const canWrite = canManage || workspace?.role === 'editor'
@@ -115,7 +116,7 @@ export default function AppLayout() {
         </View>
       </View>
       <PluginBar />
-      <ScrollView contentContainerStyle={styles.content} style={styles.main}>
+      <ScrollView contentContainerStyle={pluginPage ? styles.pluginContent : styles.content} style={styles.main}>
         <Slot />
       </ScrollView>
     </View>
@@ -183,6 +184,7 @@ const styles = StyleSheet.create({
   signOut: { color: theme.danger, fontFamily: font, fontSize: 15, fontWeight: '600' },
   main: { flex: 1 },
   content: { padding: 28, gap: 16, maxWidth: 1120, width: '100%', alignSelf: 'center' },
+  pluginContent: { padding: 0, gap: 0, maxWidth: '100%', width: '100%', alignSelf: 'stretch', flexGrow: 1 },
 })
 
 function initials(name?: string) {

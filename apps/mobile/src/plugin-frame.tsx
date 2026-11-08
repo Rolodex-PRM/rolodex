@@ -6,7 +6,7 @@ import { font, theme } from './theme'
 
 type Frame = { name: string; html: string }
 
-export function PluginFrame({ pluginId, contactId, height = 640, showTitle = false }: { pluginId: string; contactId?: string; height?: number; showTitle?: boolean }) {
+export function PluginFrame({ pluginId, contactId, height = 640, showTitle = false, bleed = false }: { pluginId: string; contactId?: string; height?: number | string; showTitle?: boolean; bleed?: boolean }) {
   const { workspace } = useAuth()
   const [frame, setFrame] = useState<Frame | null>(null)
   const [error, setError] = useState('')
@@ -55,24 +55,33 @@ export function PluginFrame({ pluginId, contactId, height = 640, showTitle = fal
   if (Platform.OS !== 'web') return <Text style={styles.meta}>Plugins open in the browser.</Text>
 
   return (
-    <View style={styles.page}>
-      {showTitle ? <Text style={styles.title}>{frame.name}</Text> : null}
+    <View style={[styles.page, bleed && styles.bleed]}>
+      {showTitle ? <Text style={[styles.title, bleed && styles.bleedTitle]}>{frame.name}</Text> : null}
       {createElement('iframe', {
-    ref: (node: HTMLIFrameElement | null) => {
-      view.current = node
-    },
-    title: frame.name,
-    sandbox: 'allow-scripts allow-downloads',
-    srcDoc: frame.html,
-        style: { width: '100%', height, border: 0, borderRadius: 16, background: theme.surface },
+        ref: (node: HTMLIFrameElement | null) => {
+          view.current = node
+        },
+        title: frame.name,
+        sandbox: 'allow-scripts allow-downloads',
+        srcDoc: frame.html,
+        style: {
+          width: '100%',
+          height,
+          border: 0,
+          borderRadius: bleed ? 0 : 16,
+          display: 'block',
+          background: bleed ? theme.bg : theme.surface,
+        },
       })}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  page: { gap: 12 },
+  page: { gap: 12, width: '100%', alignSelf: 'stretch' },
+  bleed: { gap: 0 },
   title: { fontFamily: font, fontSize: 28, fontWeight: '700', color: theme.text },
+  bleedTitle: { paddingHorizontal: 22, paddingTop: 16, paddingBottom: 12 },
   meta: { fontFamily: font, color: theme.muted, fontSize: 15 },
   error: { fontFamily: font, color: theme.danger, fontSize: 15 },
 })

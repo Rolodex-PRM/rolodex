@@ -168,7 +168,7 @@ export function MobileShell({ children }: { children: ReactNode }) {
           <RolodexMark size={22} tone="paper" />
         </Pressable>
       ) : null}
-      <ScrollView onScroll={onScroll} scrollEventThrottle={16} style={styles.main} contentContainerStyle={styles.content}>
+      <ScrollView onScroll={onScroll} scrollEventThrottle={16} style={styles.main} contentContainerStyle={path.startsWith('/plugins/') ? styles.pluginContent : styles.content}>
         {children}
       </ScrollView>
       {menu === 'more' ? (
@@ -241,6 +241,7 @@ const styles = StyleSheet.create({
   avatarText: { color: '#fff', fontFamily: font, fontWeight: '700', fontSize: 16 },
   main: { flex: 1, zIndex: 1 },
   content: { padding: 16, paddingBottom: 120, gap: 16 },
+  pluginContent: { paddingTop: 0, paddingHorizontal: 0, paddingBottom: 120, gap: 0, width: '100%', maxWidth: '100%', alignSelf: 'stretch' },
   dockWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center', zIndex: 4 },
   dock: {
     flexDirection: 'row',
