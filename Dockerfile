@@ -19,6 +19,7 @@ WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY tsconfig.base.json ./
 COPY packages ./packages
+COPY plugin-sdk ./plugin-sdk
 COPY apps/api ./apps/api
 COPY apps/carddav ./apps/carddav
 COPY plugins ./plugins
