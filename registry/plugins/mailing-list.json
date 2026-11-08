@@ -1,10 +1,15 @@
 {
-  "id": "mailing-list",
+  "id": "mailing-lists",
   "name": "Mailing Lists",
   "version": "1.0.0",
-  "description": "Create mailing lists for households, distribution lists, campaigns, and correspondence exports.",
+  "description": "Households, distribution lists, campaigns, and exports for physical and digital correspondence. Records stay in this plugin.",
   "entry": "index.html",
+  "permissions": ["contacts:read", "data:own", "files:own", "ai:suggest", "profile:section"],
+  "settings": [
+    { "key": "auto-group", "label": "Automatic grouping", "type": "boolean" },
+    { "key": "paper", "label": "Paper size", "type": "text" }
+  ],
   "repo": "Rolodex-PRM/Rolodex-Plugin-Mailing-List",
-  "path": "/",
+  "path": "mailing-lists",
   "license": "AGPL-3.0-only"
 }
