@@ -409,8 +409,10 @@ function isoDate(value: string) {
   if (compact) return validDate(Number(compact[1]), Number(compact[2]), Number(compact[3]))
   const us = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/.exec(text)
   if (!us) return undefined
-  let year = Number(us[3])
-  if (us[3].length <= 2) year += year >= 30 ? 1900 : 2000
+  const yearText = us[3]
+  if (!yearText) return undefined
+  let year = Number(yearText)
+  if (yearText.length <= 2) year += year >= 30 ? 1900 : 2000
   return validDate(year, Number(us[1]), Number(us[2]))
 }
 

@@ -19,7 +19,7 @@ services:
       retries: 20
 
   rolodex:
-    image: rolodex
+    image: ${ROLODEX_IMAGE:-gallinij/rolodex:latest}
     build: .
     restart: unless-stopped
     env_file: .env
