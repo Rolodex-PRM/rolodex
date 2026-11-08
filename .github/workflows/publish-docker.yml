@@ -30,7 +30,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: YOUR_DOCKERHUB_USERNAME/YOUR_IMAGE_NAME
+          images: gallinij/rolodex
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
