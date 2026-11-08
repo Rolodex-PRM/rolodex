@@ -1,0 +1,10 @@
+{
+  "id": "mailing-list",
+  "name": "Mailing Lists",
+  "version": "1.0.0",
+  "description": "Create mailing lists for households, distribution lists, campaigns, and correspondence exports.",
+  "entry": "index.html",
+  "repo": "Rolodex-PRM/Rolodex-Plugin-Mailing-List",
+  "path": "/",
+  "license": "AGPL-3.0-only"
+}
