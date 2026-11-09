@@ -77,7 +77,7 @@ export function MobileShell({ children }: { children: ReactNode }) {
       <View style={[styles.headerClip, { height: shown ? 64 + insets.top : 0, paddingTop: shown ? insets.top : 0 }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.push('/')} style={styles.logoButton}>
-            <RolodexMark size={28} tone="paper" />
+            <RolodexMark size={28} tone="paper" variant="compact" />
           </Pressable>
           <View style={styles.headerActions}>
             <Pressable accessibilityLabel="AI features" onPress={() => toggle('ai')} style={[styles.iconButton, menu === 'ai' && styles.iconButtonOn]}>
@@ -165,7 +165,7 @@ export function MobileShell({ children }: { children: ReactNode }) {
       ) : null}
       {!shown ? (
         <Pressable accessibilityLabel="Home" onPress={() => router.push('/')} style={[styles.homeChip, { top: insets.top + 8 }]}>
-          <RolodexMark size={22} tone="paper" />
+          <RolodexMark size={22} tone="paper" variant="compact" />
         </Pressable>
       ) : null}
       <ScrollView onScroll={onScroll} scrollEventThrottle={16} style={styles.main} contentContainerStyle={path.startsWith('/plugins/') ? styles.pluginContent : styles.content}>

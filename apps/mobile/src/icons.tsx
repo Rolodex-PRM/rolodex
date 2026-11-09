@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { Platform, Text } from 'react-native'
 
-type Name = 'home' | 'contacts' | 'plus' | 'more' | 'bell' | 'settings' | 'logout' | 'phone' | 'mail' | 'pin' | 'briefcase' | 'building' | 'gift' | 'interactions' | 'task' | 'sun' | 'moon' | 'link' | 'search' | 'calendar' | 'sparkle'
+type Name = 'home' | 'contacts' | 'plus' | 'more' | 'bell' | 'settings' | 'logout' | 'phone' | 'mail' | 'pin' | 'briefcase' | 'building' | 'gift' | 'interactions' | 'task' | 'sun' | 'moon' | 'link' | 'search' | 'calendar' | 'sparkle' | 'undo' | 'redo' | 'reset' | 'eye'
 
 export function Icon({ name, color, size }: { name: Name; color: string; size: number }) {
   if (Platform.OS !== 'web') return <Text style={{ color, fontSize: size * 0.7, lineHeight: size }}>{fallback[name]}</Text>
@@ -23,7 +23,7 @@ const fallback: Record<Name, string> = {
   home: '⌂',
   contacts: '•',
   plus: '+',
-  more: '…',
+  more: '≡',
   bell: '!',
   settings: '⚙',
   logout: '→',
@@ -41,6 +41,10 @@ const fallback: Record<Name, string> = {
   search: '⌕',
   calendar: '▦',
   sparkle: '✦',
+  undo: '↺',
+  redo: '↻',
+  reset: '⟳',
+  eye: '◉',
 }
 
 function paths(name: Name, color: string) {
@@ -52,6 +56,7 @@ function paths(name: Name, color: string) {
     ]
   }
   if (name === 'plus') return [createElement('path', { key: 'p', d: 'M12 5v14M5 12h14' })]
+  if (name === 'more') return [createElement('path', { key: 'a', d: 'M4 7h16M4 12h16M4 17h16' })]
   if (name === 'bell') {
     return [
       createElement('path', { key: 'b', d: 'M6 9.2a6 6 0 0 1 12 0c0 4.2 1.6 5.6 1.6 5.6H4.4S6 13.4 6 9.2z' }),
@@ -83,5 +88,9 @@ function paths(name: Name, color: string) {
   if (name === 'link') return [createElement('path', { key: 'l', d: 'M10 13.2a4.2 4.2 0 0 0 6 .4l1.8-1.8a4.2 4.2 0 0 0-6-6L10.4 7.2M14 10.8a4.2 4.2 0 0 0-6-.4l-1.8 1.8a4.2 4.2 0 0 0 6 6l1.4-1.4' })]
   if (name === 'search') return [createElement('circle', { key: 'c', cx: 11, cy: 11, r: 6 }), createElement('path', { key: 'h', d: 'M15.5 15.5 20 20' })]
   if (name === 'calendar') return [createElement('path', { key: 'c', d: 'M5 6.5h14v13H5zM5 10.5h14M8 4.5v3M16 4.5v3' })]
+  if (name === 'undo') return [createElement('path', { key: 'u', d: 'M9 14 4 9l5-5' }), createElement('path', { key: 'p', d: 'M4 9h10.5a5.5 5.5 0 0 1 0 11H12' })]
+  if (name === 'redo') return [createElement('path', { key: 'u', d: 'm15 14 5-5-5-5' }), createElement('path', { key: 'p', d: 'M20 9H9.5a5.5 5.5 0 0 0 0 11H12' })]
+  if (name === 'reset') return [createElement('path', { key: 'r', d: 'M20 12a8 8 0 1 1-2.3-5.7L20 8' }), createElement('path', { key: 'a', d: 'M20 3.5V8h-4.5' })]
+  if (name === 'eye') return [createElement('path', { key: 'e', d: 'M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12z' }), createElement('circle', { key: 'c', cx: 12, cy: 12, r: 2.6 })]
   return [0, 1, 2].map((dot) => createElement('circle', { key: dot, cx: 6 + dot * 6, cy: 12, r: 1.3, fill: color, stroke: 'none' }))
 }

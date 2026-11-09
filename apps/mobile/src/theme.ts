@@ -67,8 +67,8 @@ function schemeSheet(scheme: Scheme) {
   const palette = scheme === 'dark' ? dark : light
   const variables = Object.entries(palette).map(([key, value]) => `${cssName(key)}:${value}`).join(';')
   return [
-    `html{${variables};background:${palette.bg};color-scheme:${scheme};color:${palette.text}}`,
-    `body{background:${palette.bg};color:${palette.text}}`,
+    `html{${variables};background:${palette.bg};color-scheme:${scheme};color:${palette.text};transition:background-color 120ms ease,color 120ms ease}`,
+    `body{background:${palette.bg};color:${palette.text};transition:background-color 120ms ease,color 120ms ease}`,
     'input,textarea{caret-color:var(--rx-text)}',
   ].join('')
 }

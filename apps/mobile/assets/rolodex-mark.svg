@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-label="Rolodex">
+  <title>Rolodex</title>
+  <g transform="skewX(-7) rotate(-2 120 110)">
+    <path d="M48 58 L24 168 L216 168 L192 58" fill="none" stroke="#1B2A4A" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" opacity="0.22"/>
+    <path d="M45 55 L20 165 L220 165 L195 55" fill="none" stroke="#1B2A4A" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M20 165 L220 165" fill="none" stroke="#1B2A4A" stroke-width="11" stroke-linecap="round"/>
+
+    <g transform="rotate(38 120 55)">
+      <rect x="69" y="55" width="102" height="86" rx="7" fill="#93B0D9" stroke="rgba(27,42,74,0.1)" stroke-width="0.7"/>
+    </g>
+    <g transform="rotate(24 120 55)">
+      <rect x="69" y="55" width="102" height="86" rx="7" fill="#93B0D9" stroke="rgba(27,42,74,0.1)" stroke-width="0.7"/>
+    </g>
+    <g transform="rotate(12 120 55)">
+      <rect x="69" y="55" width="102" height="86" rx="7" fill="#B7CCEA" stroke="rgba(27,42,74,0.1)" stroke-width="0.7"/>
+    </g>
+    <g transform="rotate(2 120 55)">
+      <rect x="69" y="55" width="102" height="86" rx="7" fill="#B7CCEA" stroke="rgba(27,42,74,0.1)" stroke-width="0.7"/>
+    </g>
+    <g transform="rotate(-10 120 55)">
+      <rect x="69" y="55" width="102" height="86" rx="7" fill="#D7E4F5" stroke="rgba(27,42,74,0.1)" stroke-width="0.7"/>
+    </g>
+    <g transform="rotate(-26 120 55)">
+      <rect x="69" y="55" width="102" height="86" rx="7" fill="#FFFFFF" stroke="rgba(27,42,74,0.1)" stroke-width="0.7"/>
+      <circle cx="102" cy="79" r="11" fill="#1B2A4A"/>
+      <path d="M86 107 Q86 89 102 89 Q118 89 118 107 Z" fill="#1B2A4A"/>
+      <rect x="124" y="73" width="36" height="6" rx="3" fill="#8AB0D9"/>
+      <rect x="124" y="87" width="28" height="6" rx="3" fill="#8AB0D9"/>
+    </g>
+
+    <line x1="39" y1="55" x2="201" y2="55" stroke="#1B2A4A" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="39" cy="55" r="14" fill="#1B2A4A"/>
+    <circle cx="201" cy="55" r="14" fill="#1B2A4A"/>
+    <circle cx="39" cy="55" r="5" fill="#6B9AD8"/>
+    <circle cx="201" cy="55" r="5" fill="#6B9AD8"/>
+  </g>
+</svg>
