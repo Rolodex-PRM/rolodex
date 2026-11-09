@@ -10,8 +10,8 @@
     { "key": "paper", "label": "Paper size", "type": "text" }
   ],
   "repo": "Rolodex-PRM/Rolodex-Plugin-Mailing-List",
-  "release": "v1.0.0",
-  "sha256": "1404c3b40b0f8448fb21a9b2f36054e06fdaba6631920ba2e38c06fe23e05700",
+  "release": "v1.0.1",
+  "sha256": "ba74c0fd6dc6bdeb9a4c5301a996e1b9929d2042c5e3d866cc165007fdf957b2",
   "rolodex": ">=0.1.0 <1.0.0",
   "license": "AGPL-3.0-only"
 }
