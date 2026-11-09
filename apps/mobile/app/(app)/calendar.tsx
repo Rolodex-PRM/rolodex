@@ -1,12 +1,15 @@
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
-import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
+import { FlatList, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { api, send } from '../../src/api'
 import { useAccent } from '../../src/accent'
 import { useAuth } from '../../src/auth'
 import { AuthImage } from '../../src/immich-photos'
 import { font, theme } from '../../src/theme'
 import { Button, DateField, Field, Panel } from '../../src/ui'
+
+const CONTACT_ROW = 30
+const CONTACT_VISIBLE = 5
 
 type MonthEvent = {
   date: string
@@ -111,6 +114,7 @@ export default function Calendar() {
   const [people, setPeople] = useState<Person[]>([])
   const [categoryOn, setCategoryOn] = useState<Set<string>>(() => new Set(categories))
   const [contactOn, setContactOn] = useState<Set<string> | null>(null)
+  const [contactQuery, setContactQuery] = useState('')
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [anchor, setAnchor] = useState({ x: 80, y: 80 })
@@ -145,6 +149,11 @@ export default function Calendar() {
   }
 
   const peopleById = useMemo(() => new Map(people.map((person) => [person.id, person])), [people])
+  const filteredPeople = useMemo(() => {
+    const needle = contactQuery.trim().toLowerCase()
+    if (!needle) return people
+    return people.filter((person) => person.displayName.toLowerCase().includes(needle))
+  }, [people, contactQuery])
   const visible = events.filter((event) => categoryOn.has(event.kind) && contactVisible(event.contactId))
   const dayEvents = visible
     .filter((event) => event.date === selected)
@@ -293,10 +302,39 @@ export default function Calendar() {
       </View>
       <View>
         <Text style={styles.section}>Contacts</Text>
+        <TextInput
+          value={contactQuery}
+          onChangeText={setContactQuery}
+          placeholder="Filter contacts"
+          placeholderTextColor={theme.muted}
+          style={styles.contactFilter}
+        />
         <Check on={!contactOn || contactOn.has('none')} color={theme.muted} label="No contact" onPress={() => toggleContact('none')} />
-        {people.map((person) => (
-          <Check key={person.id} on={!contactOn || contactOn.has(person.id)} color={accent} label={person.displayName} onPress={() => toggleContact(person.id)} avatar={<ContactAvatar person={person} size={22} />} />
-        ))}
+        <FlatList
+          data={filteredPeople}
+          keyExtractor={(person) => person.id}
+          style={styles.contactList}
+          contentContainerStyle={styles.contactListContent}
+          initialNumToRender={CONTACT_VISIBLE}
+          maxToRenderPerBatch={CONTACT_VISIBLE}
+          windowSize={5}
+          showsVerticalScrollIndicator
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={<Text style={styles.contactEmpty}>{contactQuery.trim() ? 'No matches.' : 'No contacts.'}</Text>}
+          getItemLayout={(_, index) => ({ length: CONTACT_ROW, offset: CONTACT_ROW * index, index })}
+          renderItem={({ item: person }) => (
+            <Check
+              on={!contactOn || contactOn.has(person.id)}
+              color={accent}
+              label={person.displayName}
+              onPress={() => toggleContact(person.id)}
+              avatar={<ContactAvatar person={person} size={22} />}
+            />
+          )}
+        />
+        {filteredPeople.length > CONTACT_VISIBLE ? (
+          <Text style={styles.contactHint}>Scroll for more · {filteredPeople.length} contacts</Text>
+        ) : null}
       </View>
     </>
   )
@@ -719,7 +757,23 @@ const styles = StyleSheet.create({
   kindMark: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   eventChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginTop: 3 },
   section: { fontFamily: font, color: theme.text, fontWeight: '700', fontSize: 14, marginBottom: 8 },
-  check: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  contactFilter: {
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontFamily: font,
+    fontSize: 13,
+    color: theme.text,
+    backgroundColor: theme.surface,
+    marginBottom: 8,
+  },
+  contactList: { maxHeight: CONTACT_ROW * CONTACT_VISIBLE },
+  contactListContent: { flexGrow: 0 },
+  contactEmpty: { fontFamily: font, color: theme.muted, fontSize: 13, paddingVertical: 8 },
+  contactHint: { fontFamily: font, color: theme.muted, fontSize: 11, marginTop: 6 },
+  check: { flexDirection: 'row', alignItems: 'center', gap: 8, height: CONTACT_ROW },
   box: { width: 16, height: 16, borderRadius: 4, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surface },
   boxOn: { backgroundColor: theme.text, borderColor: theme.text },
   mark: { color: theme.on, fontSize: 11, fontFamily: font, lineHeight: 14 },

@@ -122,6 +122,7 @@ export { parseBody, registerSchema, passwordResetSchema, registrationPolicySchem
 export { parseVcards, serializeVcard } from './vcard'
 export { parseContactSource, rolodexContactTemplate } from './contact-import'
 export { findDuplicates, mergeContacts, workspaceNetwork, egoNetwork, contactSummary, enrichContact, calendarMonth, calendarIcs, photoMemories, groupDuplicates, enrichFromEmail, buildSummary } from './phase5'
+export { loadNetworkGraph, personNetwork, organizationNetwork, networkPath, searchNetworkGraph, networkDiscoveries, networkFilters } from './network-graph'
 export { eventTypes, buildVevent, parseVevent, buildVtodo, parseVtodo, calendarContext, listCalendarFeed, listTodoFeed, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, upsertCalendarFromIcs, upsertTodoFromIcs, deleteCalendarUid, deleteTodoUid, isDerivedUid, datesInMonth } from './calendar'
 export { getAiSettings, setAiSettings, testAiConnection, listSuggestions, suggestContactFields, approveSuggestion, rejectSuggestion, publicHttpUrl, pageContains, htmlToText, enrichmentQuery, enrichmentPrompt, parseSearchResultLinks } from './ai'
 export { createRateLimiter } from './rate-limit'

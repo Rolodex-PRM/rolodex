@@ -121,6 +121,13 @@ import {
   mergeContacts,
   workspaceNetwork,
   egoNetwork,
+  loadNetworkGraph,
+  personNetwork,
+  organizationNetwork,
+  networkPath,
+  searchNetworkGraph,
+  networkDiscoveries,
+  networkFilters,
   contactSummary,
   enrichContact,
   calendarMonth,
@@ -673,6 +680,42 @@ export class DataController {
   @Get('workspaces/:workspaceId/network')
   network(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
     return workspaceNetwork(this.db, req.user.id, workspaceId)
+  }
+
+  @Get('workspaces/:workspaceId/network/graph')
+  networkGraph(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
+    return loadNetworkGraph(this.db, req.user.id, workspaceId)
+  }
+
+  @Get('workspaces/:workspaceId/network/people/:contactId')
+  networkPerson(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('contactId') contactId: string) {
+    return personNetwork(this.db, req.user.id, workspaceId, contactId)
+  }
+
+  @Get('workspaces/:workspaceId/network/organizations/:organizationId')
+  networkOrganization(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Param('organizationId') organizationId: string) {
+    return organizationNetwork(this.db, req.user.id, workspaceId, organizationId)
+  }
+
+  @Get('workspaces/:workspaceId/network/paths')
+  networkPaths(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Query('from') from?: string, @Query('to') to?: string) {
+    if (!from || !to) throw new AppError(400, 'Choose two people')
+    return networkPath(this.db, req.user.id, workspaceId, from, to)
+  }
+
+  @Get('workspaces/:workspaceId/network/search')
+  networkSearch(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string, @Query('q') q?: string) {
+    return searchNetworkGraph(this.db, req.user.id, workspaceId, q ?? '')
+  }
+
+  @Get('workspaces/:workspaceId/network/discoveries')
+  networkDiscoveryList(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
+    return networkDiscoveries(this.db, req.user.id, workspaceId)
+  }
+
+  @Get('workspaces/:workspaceId/network/filters')
+  networkFilterList(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
+    return networkFilters(this.db, req.user.id, workspaceId)
   }
 
   @Get('workspaces/:workspaceId/contacts/:contactId/network')
