@@ -1,8 +1,17 @@
 # Rolodex
 
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-1B2A4A?style=flat&logo=gnu&logoColor=white)](LICENSE)
+[![Docker Image](https://img.shields.io/docker/v/gallinij/rolodex/latest?label=docker&logo=docker&logoColor=white&color=5B8FD4)](https://hub.docker.com/r/gallinij/rolodex)
+[![Docker Pulls](https://img.shields.io/docker/pulls/gallinij/rolodex?logo=docker&logoColor=white&color=1B2A4A)](https://hub.docker.com/r/gallinij/rolodex)
+[![GitHub stars](https://img.shields.io/github/stars/Rolodex-PRM/rolodex?style=flat&logo=github&color=5B8FD4)](https://github.com/Rolodex-PRM/rolodex/stargazers)
+[![GitHub last commit](https://img.shields.io/github/last-commit/Rolodex-PRM/rolodex?logo=github&color=1B2A4A)](https://github.com/Rolodex-PRM/rolodex/commits/main)
+[![GitHub Pages](https://img.shields.io/badge/site-GitHub%20Pages-5B8FD4?logo=githubpages&logoColor=white)](https://rolodex-prm.github.io/rolodex/)
+
 **THIS IS UNDER ACTIVE DEVELOPMENT**
 
 Rolodex is a self-hosted relationship manager. One server holds the people, the calendar, the tasks, and the history. A phone or computer syncs the address book through CardDAV and the calendar and tasks through CalDAV. Photos can stay in Immich. An owner can also check an outside mailbox and calendar.
+
+Product site: [rolodex-prm.github.io/rolodex](https://rolodex-prm.github.io/rolodex/) (served from [`docs/`](docs/)).
 
 The first visit creates the administrator. After that, registration is invite-only until an administrator turns open registration on under Admin → Security.
 
