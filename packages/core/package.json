@@ -15,7 +15,7 @@
     "@rolodex/db": "workspace:*",
     "@rolodex/plugin-sdk": "workspace:*",
     "drizzle-orm": "^0.44.6",
-    "zod": "^3.25.76"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
