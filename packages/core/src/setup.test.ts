@@ -18,15 +18,24 @@ const suite = databaseUrl ? describe : describe.skip
 
 suite('first administrator', () => {
   const { db, client } = createDb(databaseUrl || 'postgres://invalid')
-
   afterAll(async () => {
     await client.end()
   })
 
-  it('stays closed once any account exists', async () => {
+  it('opens once, then stays closed', async () => {
+    const before = await setupRequired(db)
+    if (before.required) {
+      const created = await createFirstAdmin(db, {
+        email: `first-admin-${Date.now()}@example.com`,
+        password: 'correct-horse',
+        displayName: 'Admin',
+      })
+      expect(created.user.id).toBeTruthy()
+    }
+
     const status = await setupRequired(db)
     expect(status.required).toBe(false)
-    await expect(createFirstAdmin(db, { email: 'first-admin@example.com', password: 'correct-horse', displayName: 'Admin' })).rejects.toMatchObject({
+    await expect(createFirstAdmin(db, { email: `another-${Date.now()}@example.com`, password: 'correct-horse', displayName: 'Admin' })).rejects.toMatchObject({
       status: 409,
       message: 'This server already has an administrator',
     } satisfies Partial<AppError>)
