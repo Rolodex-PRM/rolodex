@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller'
 import { DataController } from './data.controller'
 import { PluginsController } from './plugins.controller'
 import { AppExceptionFilter, DB, STORAGE } from './http'
+import { mountMcp } from './mcp'
 import { ensureBucket, objectStorage } from './storage'
 
 @Module({
@@ -42,6 +43,8 @@ async function main() {
       .filter(Boolean),
     credentials: true,
   })
+  const database = app.get<ReturnType<typeof createDb>['db']>(DB)
+  mountMcp(app.getHttpAdapter().getInstance(), database)
   try {
     await ensureBucket(app.get(STORAGE))
     console.log('Object storage bucket is ready.')
@@ -52,7 +55,7 @@ async function main() {
   const port = Number(process.env.API_PORT || 4100)
   await app.listen(port, '0.0.0.0')
   console.log(`API listening on ${port}`)
-  const database = app.get<ReturnType<typeof createDb>['db']>(DB)
+  console.log(`MCP listening on /mcp`)
   const syncImmich = () => {
     void syncDueImmich(database).catch((error: unknown) => {
       console.warn(error instanceof Error ? error.message : 'Immich sync failed')

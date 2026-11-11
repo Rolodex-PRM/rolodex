@@ -4,6 +4,7 @@ import { api, send, type Addon } from '../../../src/api'
 import { useAuth } from '../../../src/auth'
 import { AiAdmin } from '../../../src/ai-admin'
 import { ImmichAdmin } from '../../../src/immich-admin'
+import { McpAdmin } from '../../../src/mcp-admin'
 import { font, theme } from '../../../src/theme'
 import { Notice } from '../../../src/ui'
 
@@ -60,6 +61,7 @@ export default function AddonsPage() {
                 </Pressable>
                 {expanded && addon.id === 'immich' && workspace ? <ImmichAdmin workspaceId={workspace.id} embedded /> : null}
                 {expanded && addon.id === 'ai' && workspace ? <AiAdmin workspaceId={workspace.id} /> : null}
+                {expanded && addon.id === 'mcp' ? <McpAdmin /> : null}
               </View>
             ) : null}
           </View>

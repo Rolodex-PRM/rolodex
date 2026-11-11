@@ -1,8 +1,17 @@
 # Rolodex
 
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-1B2A4A?style=flat&logo=gnu&logoColor=white)](LICENSE)
+[![Docker Image](https://img.shields.io/docker/v/gallinij/rolodex/latest?label=docker&logo=docker&logoColor=white&color=5B8FD4)](https://hub.docker.com/r/gallinij/rolodex)
+[![Docker Pulls](https://img.shields.io/docker/pulls/gallinij/rolodex?logo=docker&logoColor=white&color=1B2A4A)](https://hub.docker.com/r/gallinij/rolodex)
+[![GitHub stars](https://img.shields.io/github/stars/Rolodex-PRM/rolodex?style=flat&logo=github&color=5B8FD4)](https://github.com/Rolodex-PRM/rolodex/stargazers)
+[![GitHub last commit](https://img.shields.io/github/last-commit/Rolodex-PRM/rolodex?logo=github&color=1B2A4A)](https://github.com/Rolodex-PRM/rolodex/commits/main)
+[![GitHub Pages](https://img.shields.io/badge/site-GitHub%20Pages-5B8FD4?logo=githubpages&logoColor=white)](https://rolodex-prm.github.io/rolodex/)
+
 **THIS IS UNDER ACTIVE DEVELOPMENT**
 
 Rolodex is a self-hosted relationship manager. One server holds the people, the calendar, the tasks, and the history. A phone or computer syncs the address book through CardDAV and the calendar and tasks through CalDAV. Photos can stay in Immich. An owner can also check an outside mailbox and calendar.
+
+Product site: [rolodex-prm.github.io/rolodex](https://rolodex-prm.github.io/rolodex/) (served from [`docs/`](docs/)).
 
 The first visit creates the administrator. After that, registration is invite-only until an administrator turns open registration on under Admin → Security.
 
@@ -16,7 +25,7 @@ The first visit creates the administrator. After that, registration is invite-on
 
 Two containers: Postgres, and Rolodex. Rolodex listens on one HTTP port. That port is the website, `/api/`, and CardDAV/CalDAV.
 
-The published image is `gallinij/rolodex:latest`. A push to `main` publishes the version in `package.json` and moves `latest` to that same build.
+The published image is `gallinij/rolodex:latest`. Publishing a GitHub Release builds that tag and moves `latest` to the same image (manual dispatch is also available). Pull requests run typecheck, tests, `pnpm audit`, and a Docker build that does not push.
 
 ```sh
 cp .env.example .env
@@ -43,7 +52,7 @@ Uploaded files are stored in the `uploads` volume. Postgres stays on `127.0.0.1`
 - Named sync clients, each with a last check-in. The website password does not work on the phone.
 - Trash for deleted people, until someone restores them or the retention period ends.
 - An optional second factor: an authenticator app, or an emailed code once an administrator turns email on.
-- Immich, and an outside mailbox or calendar. Both stay off until an administrator enables them.
+- Immich, an outside mailbox or calendar, and an MCP Server at `/mcp` for AI clients. Add-ons stay off until an administrator enables them.
 
 Field-by-field behavior, roles, and the admin pages are in [docs/PRODUCT.md](docs/PRODUCT.md).
 
@@ -64,7 +73,7 @@ Host ports live in `.env`. Docker publishes the site on `PORT`. Postgres is publ
 | Service | Variable | Default | Where it is reached |
 | --- | --- | --- | --- |
 | Postgres | `POSTGRES_PORT` | 5472 | `127.0.0.1:5472` (5432 inside Compose) |
-| Site gateway | `PORT` | 8080 | One address: `/` website, `/api` API, `/carddav` contacts, `/caldav` calendar |
+| Site gateway | `PORT` | 8080 | One address: `/` website, `/api` API, `/mcp` MCP, `/carddav` contacts, `/caldav` calendar |
 | API | `API_PORT` | 4100 | Dev only: `http://localhost:4100` |
 | CardDAV / CalDAV | `CARDDAV_PORT` | 4101 | Dev only, behind the gateway. Public paths are `/carddav` and `/caldav` |
 | Expo dev server | `WEB_DEV_PORT` | 4181 | `http://localhost:4181` |
