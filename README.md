@@ -25,7 +25,7 @@ The first visit creates the administrator. After that, registration is invite-on
 
 Two containers: Postgres, and Rolodex. Rolodex listens on one HTTP port. That port is the website, `/api/`, and CardDAV/CalDAV.
 
-The published image is `gallinij/rolodex:latest`. A push to `main` publishes the version in `package.json` and moves `latest` to that same build.
+The published image is `gallinij/rolodex:latest`. Publishing a GitHub Release builds that tag and moves `latest` to the same image (manual dispatch is also available). Pull requests run typecheck, tests, `pnpm audit`, and a Docker build that does not push.
 
 ```sh
 cp .env.example .env

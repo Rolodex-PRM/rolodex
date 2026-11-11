@@ -12,7 +12,8 @@
     "db:migrate": "pnpm --filter @rolodex/db migrate",
     "db:generate": "pnpm --filter @rolodex/db generate",
     "test": "pnpm -r --if-present test",
-    "typecheck": "pnpm -r --if-present typecheck"
+    "typecheck": "pnpm -r --if-present typecheck",
+    "audit": "pnpm audit --audit-level=high"
   },
   "engines": {
     "node": ">=22"
@@ -24,7 +25,8 @@
     "onlyBuiltDependencies": ["esbuild"],
     "overrides": {
       "esbuild": "^0.28.2",
-      "tinypool": "^2.1.1"
+      "tinypool": "^2.1.1",
+      "multer": "^2.5.0"
     }
   }
 }
