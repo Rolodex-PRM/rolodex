@@ -1,5 +1,7 @@
 # Rolodex
 
+**THIS IS UNDER ACTIVE DEVELOPMENT**
+
 Rolodex is a self-hosted relationship manager. One server holds the people, the calendar, the tasks, and the history. A phone or computer syncs the address book through CardDAV and the calendar and tasks through CalDAV. Photos can stay in Immich. An owner can also check an outside mailbox and calendar.
 
 The first visit creates the administrator. After that, registration is invite-only until an administrator turns open registration on under Admin → Security.
