@@ -5,9 +5,9 @@ Rolodex is a self-hosted relationship manager. One server holds the people, the 
 The first visit creates the administrator. After that, registration is invite-only until an administrator turns open registration on under Admin → Security.
 
 <p>
-  <img src="docs/images/login.png" alt="Rolodex Login screen" width="32%">
-  <img src="docs/images/network.png" alt="Rolodex relationship network" width="32%">
-  <img src="docs/images/contact.png" alt="The Contact map" width="32%">
+  <img src="docs/images/login.png" alt="Rolodex Login screen" width="100%">
+  <img src="docs/images/network.png" alt="Rolodex relationship network" width="50%">
+  <img src="docs/images/contact.png" alt="The Contact map" width="50%">
 </p>
 
 ## Run it with Docker
