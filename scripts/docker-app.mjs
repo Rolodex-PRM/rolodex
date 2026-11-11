@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
+import { join } from 'node:path'
 
 function ensureCertificate() {
   const cert = process.env.CARDDAV_TLS_CERT
@@ -23,14 +24,23 @@ function ensureCertificate() {
 
 ensureCertificate()
 
-function start(args) {
-  return spawn('pnpm', args, { stdio: 'inherit' })
+function startNode(script) {
+  return spawn(process.execPath, [join(process.cwd(), script)], {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      DRIZZLE_MIGRATIONS_FOLDER: process.env.DRIZZLE_MIGRATIONS_FOLDER || join(process.cwd(), 'packages/db/drizzle'),
+    },
+  })
 }
 
-const migrate = start(['--filter', '@rolodex/db', 'migrate'])
+const migrate = startNode('packages/db/dist/migrate.js')
 migrate.on('exit', (code, signal) => {
   if (signal || code) process.exit(code || 1)
-  const children = [start(['--filter', '@rolodex/api', 'start']), start(['--filter', '@rolodex/carddav', 'start'])]
+  const children = [
+    startNode('apps/api/dist/main.js'),
+    startNode('apps/carddav/dist/main.js'),
+  ]
   if (process.env.DOCKER_SITE === 'true') {
     mkdirSync(process.env.DATA_DIR || '/data', { recursive: true })
     children.push(spawn('nginx', ['-g', 'daemon off;'], { stdio: 'inherit' }))
