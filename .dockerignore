@@ -12,3 +12,6 @@ backups
 coverage
 .turbo
 .data
+docker-native
+**/docker-native
+

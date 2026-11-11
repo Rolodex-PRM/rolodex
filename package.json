@@ -17,7 +17,14 @@
   "engines": {
     "node": ">=22"
   },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": ["esbuild"],
+    "overrides": {
+      "esbuild": "^0.28.2",
+      "tinypool": "^2.1.1"
+    }
   }
 }
