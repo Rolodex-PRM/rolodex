@@ -12,12 +12,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "drizzle-orm": "^0.44.6",
+    "drizzle-orm": "^0.45.4",
     "postgres": "^3.4.7"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
-    "drizzle-kit": "^0.31.5",
+    "drizzle-kit": "^0.31.11",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"
   }
