@@ -14,6 +14,11 @@ export const addonCatalog = [
     name: 'AI',
     description: 'Suggest contact fields from public pages. Nothing is saved until you approve it.',
   },
+  {
+    id: 'mcp',
+    name: 'MCP Server',
+    description: 'Let AI clients read contacts, relationships, and interactions at /mcp.',
+  },
 ] as const
 
 export type AddonId = (typeof addonCatalog)[number]['id']

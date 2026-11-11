@@ -52,7 +52,7 @@ Uploaded files are stored in the `uploads` volume. Postgres stays on `127.0.0.1`
 - Named sync clients, each with a last check-in. The website password does not work on the phone.
 - Trash for deleted people, until someone restores them or the retention period ends.
 - An optional second factor: an authenticator app, or an emailed code once an administrator turns email on.
-- Immich, and an outside mailbox or calendar. Both stay off until an administrator enables them.
+- Immich, an outside mailbox or calendar, and an MCP Server at `/mcp` for AI clients. Add-ons stay off until an administrator enables them.
 
 Field-by-field behavior, roles, and the admin pages are in [docs/PRODUCT.md](docs/PRODUCT.md).
 
@@ -73,7 +73,7 @@ Host ports live in `.env`. Docker publishes the site on `PORT`. Postgres is publ
 | Service | Variable | Default | Where it is reached |
 | --- | --- | --- | --- |
 | Postgres | `POSTGRES_PORT` | 5472 | `127.0.0.1:5472` (5432 inside Compose) |
-| Site gateway | `PORT` | 8080 | One address: `/` website, `/api` API, `/carddav` contacts, `/caldav` calendar |
+| Site gateway | `PORT` | 8080 | One address: `/` website, `/api` API, `/mcp` MCP, `/carddav` contacts, `/caldav` calendar |
 | API | `API_PORT` | 4100 | Dev only: `http://localhost:4100` |
 | CardDAV / CalDAV | `CARDDAV_PORT` | 4101 | Dev only, behind the gateway. Public paths are `/carddav` and `/caldav` |
 | Expo dev server | `WEB_DEV_PORT` | 4181 | `http://localhost:4181` |

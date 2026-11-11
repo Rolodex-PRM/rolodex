@@ -67,6 +67,19 @@ export { getMapSettings, updateMapSettings, searchWorkspacePlaces, workspacePlac
 export { organizationLogoUrl, websiteDomain } from './organization-logo'
 export { listAddons, setAddon, addonEnabled, addonCatalog, type AddonId } from './addons'
 export {
+  authenticateMcpAuth,
+  resolveMcpWorkspace,
+  mcpListWorkspaces,
+  mcpSearchContacts,
+  mcpGetContact,
+  mcpListRelationships,
+  mcpListInteractions,
+  mcpListNotes,
+  mcpListTasks,
+  mcpContactNetwork,
+  mcpSearchNetwork,
+} from './mcp'
+export {
   listImmichInstances,
   saveImmichInstance,
   deleteImmichInstance,

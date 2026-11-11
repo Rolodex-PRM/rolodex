@@ -39,7 +39,7 @@ Derived birthdays and anniversaries are read-only on the phone.
 
 Settings → Mail and calendars connects an IMAP mailbox and an external CalDAV or ICS calendar. Checking the account imports recent mail and events. This is not a Rolodex sign-in and not a phone client.
 
-Immich stays the owner of photos and face recognition. Rolodex stores the link between an Immich person and a contact. AI suggestions stay pending until someone approves them. Both add-ons stay off until an administrator enables them.
+Immich stays the owner of photos and face recognition. Rolodex stores the link between an Immich person and a contact. AI suggestions stay pending until someone approves them. The MCP Server add-on exposes a read-only Model Context Protocol endpoint at `/mcp` so AI clients can ask about contacts, relationships, and interactions. All add-ons stay off until an administrator enables them.
 
 ## What an administrator sets
 

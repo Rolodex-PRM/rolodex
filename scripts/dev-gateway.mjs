@@ -28,6 +28,7 @@ const davPort = Number(process.env.CARDDAV_PORT || 4101)
 function upstream(url = '/') {
   const path = url.split('?')[0] || '/'
   if (path === '/api' || path.startsWith('/api/')) return apiPort
+  if (path === '/mcp' || path.startsWith('/mcp/')) return apiPort
   if (path === '/carddav' || path.startsWith('/carddav/') || path === '/.well-known/carddav') return davPort
   if (path === '/caldav' || path.startsWith('/caldav/') || path === '/.well-known/caldav') return davPort
   if (
@@ -82,5 +83,5 @@ server.on('upgrade', (req, socket, head) => {
 })
 
 server.listen(listenPort, '0.0.0.0', () => {
-  console.log(`Rolodex on ${listenPort}: / → ${webPort}, /api → ${apiPort}, /carddav and /caldav → ${davPort}`)
+  console.log(`Rolodex on ${listenPort}: / → ${webPort}, /api and /mcp → ${apiPort}, /carddav and /caldav → ${davPort}`)
 })
