@@ -78,6 +78,29 @@ which checks you did run.
 There is no formatter or linter configured yet, so match the style of the
 surrounding code: TypeScript, small functions, and plain names.
 
+## Branching
+
+Work flows in one direction: feature branch to `staging`, then
+`staging` to `main`. Nothing merges into `main` except from `staging`,
+and nothing is pushed directly to `main` or `staging`.
+
+- `main` is what is released. It is protected: pull requests only, no
+  direct pushes, no force pushes, and no deleting the branch. A check
+  in `.github/workflows/require-staging-for-main.yml` fails any pull
+  request to `main` whose source branch is not `staging`.
+- `staging` is where work is integrated and tested together. It is
+  protected the same way: pull requests only, no direct pushes, no
+  force pushes.
+- Feature branches start from `staging`, not from `main`, so they are
+  tested against what is about to be released. Name them by what they
+  do, for example `cursor/contacts-search` or `fix/carddav-birthday`.
+- Dependabot also targets `staging`. Its pull requests are reviewed
+  and merged into `staging` first, then reach `main` with the next
+  staging release.
+- Hotfixes follow the same path. There is no direct hotfix to `main`,
+  even for security fixes. If `main` is broken, fix it on a branch from
+  `staging`, merge to `staging`, verify, then merge `staging` to `main`.
+
 ## Pull requests
 
 - Keep a pull request to one change. A bug fix, a feature, and a refactor

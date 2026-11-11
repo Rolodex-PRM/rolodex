@@ -1,0 +1,30 @@
+# Guard: only the staging branch may merge into main.
+#
+# Branch protection alone cannot say where a pull request comes from,
+# so this check fails any pull request to main whose source branch is
+# not staging. That includes Dependabot, which is why dependabot.yml
+# sets target-branch to staging for every ecosystem. The staging branch
+# itself is protected too, so work reaches it only through a pull
+# request from a feature branch.
+name: Require staging for main
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check-source:
+    name: Source branch is staging
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the source branch
+        run: |
+          if [ "${{ github.head_ref }}" != "staging" ]; then
+            echo "::error::Pull requests to main must come from the staging branch, not '${{ github.head_ref }}'."
+            echo "Merge your work into staging first, then open a staging to main pull request."
+            exit 1
+          fi
+          echo "Source branch is staging. This pull request may merge into main."
