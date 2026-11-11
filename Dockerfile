@@ -1,4 +1,4 @@
-FROM node:22-trixie-slim AS web
+FROM node:26-trixie-slim AS web
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
@@ -9,7 +9,7 @@ ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL
 RUN pnpm install --frozen-lockfile --filter @rolodex/mobile... \
   && pnpm --filter @rolodex/mobile export
 
-FROM node:22-trixie-slim AS build
+FROM node:26-trixie-slim AS build
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
@@ -24,7 +24,7 @@ COPY scripts/docker-bundle.mjs ./scripts/docker-bundle.mjs
 RUN pnpm install --frozen-lockfile --filter @rolodex/api... --filter @rolodex/carddav... --filter rolodex \
   && node scripts/docker-bundle.mjs
 
-FROM node:22-trixie-slim
+FROM node:26-trixie-slim
 RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d && chmod +x /usr/sbin/policy-rc.d \
   && apt-get update \
   && apt-get install -y --no-install-recommends nginx postgresql-client ca-certificates openssl \
