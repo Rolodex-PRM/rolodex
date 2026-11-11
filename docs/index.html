@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rolodex — self-hosted relationship manager</title>
+    <meta
+      name="description"
+      content="Rolodex is a self-hosted relationship manager. People, calendar, tasks, and history on your server — synced to phones with CardDAV and CalDAV."
+    />
+    <meta property="og:title" content="Rolodex" />
+    <meta
+      property="og:description"
+      content="Your people. Your books. A self-hosted relationship manager with CardDAV, CalDAV, and a real history of how you know someone."
+    />
+    <meta property="og:image" content="images/network.png" />
+    <meta name="theme-color" content="#1b2a4a" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231B2A4A'/%3E%3Crect x='8' y='10' width='16' height='12' rx='2' fill='%23fff'/%3E%3Ccircle cx='10' cy='16' r='1.4' fill='%236B9AD8'/%3E%3Cpath d='M13 13.5h8M13 16.5h6M13 19.5h7' stroke='%231B2A4A' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header class="site-header" id="top">
+      <div class="wrap nav">
+        <a class="brand" href="#top" aria-label="Rolodex home">
+          <span class="brand-logo" data-rolodex-logo data-variant="icon" data-size="34" data-animate="false"></span>
+          <span>rolodex</span>
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+        <ul class="nav-links" id="nav-links">
+          <li><a href="#features">Features</a></li>
+          <li><a href="#compare">Compare</a></li>
+          <li><a href="#install">Install</a></li>
+          <li><a href="#configure">Configure</a></li>
+          <li><a href="#sync">Sync</a></li>
+          <li>
+            <a class="nav-cta" href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub</a>
+          </li>
+        </ul>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero wrap">
+        <div class="hero-copy">
+          <div class="hero-lockup reveal">
+            <p class="brand-mark">rolodex</p>
+            <p class="hero-tagline">your people. your books.</p>
+          </div>
+          <h1 class="reveal reveal-delay-1">Your people. Your books. On a server you run.</h1>
+          <p class="hero-lede reveal reveal-delay-2">
+            A self-hosted relationship manager for the people you know — with the history, calendar, and tasks that travel to your phone.
+          </p>
+          <div class="cta-row reveal reveal-delay-3">
+            <a class="btn btn-primary" href="#install">Install with Docker</a>
+            <a class="btn btn-ghost" href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">View on GitHub</a>
+          </div>
+        </div>
+      </section>
+
+      <div class="hero-visual" aria-hidden="true">
+        <img src="images/network.png" alt="" width="1600" height="900" />
+      </div>
+
+      <section class="section" id="features">
+        <div class="wrap">
+          <p class="section-kicker">Features</p>
+          <h2>One place for the people you keep.</h2>
+          <p class="section-lede">
+            Rolodex holds the address book, the calendar, the tasks, and the story of how you know someone — then syncs a clean copy to every device that speaks CardDAV or CalDAV. Share people with the household, and collaborate without handing over the whole book.
+          </p>
+
+          <div class="feature-strip">
+            <div class="feature-copy">
+              <ul class="feature-list">
+                <li>
+                  <span class="dot" aria-hidden="true"></span>
+                  <div>
+                    <strong>People with memory</strong>
+                    <span>How you met, interests, tags, and private notes stay in Rolodex. The card note syncs to the phone.</span>
+                  </div>
+                </li>
+                <li>
+                  <span class="dot" aria-hidden="true"></span>
+                  <div>
+                    <strong>Share &amp; collaborate</strong>
+                    <span>Invite others into the workspace. Share a person with a group for view or edit access, so assistants, partners, and teammates keep the same record.</span>
+                  </div>
+                </li>
+                <li>
+                  <span class="dot" aria-hidden="true"></span>
+                  <div>
+                    <strong>Relationships you can see</strong>
+                    <span>Named ties on both sides, households, and a network map that shows who connects to whom.</span>
+                  </div>
+                </li>
+                <li>
+                  <span class="dot" aria-hidden="true"></span>
+                  <div>
+                    <strong>Reach-out that respects you</strong>
+                    <span>Home suggests who to get back in touch with, on a cadence you choose per person.</span>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <figure class="shot">
+              <img src="images/contact.png" alt="Rolodex contact map showing people and places" width="1200" height="800" loading="lazy" />
+            </figure>
+          </div>
+
+          <div class="features-grid">
+            <article>
+              <h3>Shared contacts</h3>
+              <p>Put a person in a user group with View or Edit. Several accounts can keep one shared record without cloning cards.</p>
+            </article>
+            <article>
+              <h3>Workspace roles</h3>
+              <p>Owner, Administrator, Editor, Contributor, and Viewer decide who can change people, events, and tasks.</p>
+            </article>
+            <article>
+              <h3>Calendar &amp; tasks</h3>
+              <p>Events and to-dos live beside the people they belong to. CalDAV keeps phones and desktops in step.</p>
+            </article>
+            <article>
+              <h3>Named sync clients</h3>
+              <p>Each phone gets its own client password and last check-in. The website password never goes on the device.</p>
+            </article>
+            <article>
+              <h3>Invite-only by default</h3>
+              <p>The first visit creates the administrator. Registration stays invite-only until you open it under Admin → Security.</p>
+            </article>
+            <article>
+              <h3>Second factor</h3>
+              <p>Optional authenticator apps or emailed codes once notifications are turned on.</p>
+            </article>
+            <article>
+              <h3>Immich &amp; outside mail</h3>
+              <p>Link Immich faces to contacts. Optionally pull an outside mailbox or calendar. Both stay off until you enable them.</p>
+            </article>
+            <article>
+              <h3>Trash with retention</h3>
+              <p>Deleted people sit in Trash until restored or the retention window ends — then the next sync catches up.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section compare" id="compare">
+        <div class="wrap">
+          <p class="section-kicker">Compare</p>
+          <h2>Where Rolodex sits.</h2>
+          <p class="section-lede">
+            Clay (now Mesh) captures a wide automatic timeline in the cloud. Monica is the classic open-source personal CRM. Rolodex is built for self-hosters who want phone sync and a living network on their own machine.
+          </p>
+
+          <table class="compare-table">
+            <thead>
+              <tr>
+                <th scope="col">Capability</th>
+                <th scope="col" class="hl">Rolodex</th>
+                <th scope="col">Clay / Mesh</th>
+                <th scope="col">Monica</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Hosting model</td>
+                <td class="hl yes">Self-hosted on your server</td>
+                <td>Hosted SaaS</td>
+                <td class="yes">Self-host or hosted</td>
+              </tr>
+              <tr>
+                <td>License</td>
+                <td class="hl yes">AGPL-3.0</td>
+                <td class="no">Proprietary</td>
+                <td class="yes">AGPL</td>
+              </tr>
+              <tr>
+                <td>Phone address book</td>
+                <td class="hl yes">CardDAV</td>
+                <td>Native apps &amp; imports</td>
+                <td class="no">Web-first (community clients)</td>
+              </tr>
+              <tr>
+                <td>Calendar &amp; tasks</td>
+                <td class="hl yes">CalDAV on the same origin</td>
+                <td>Calendar import / sync</td>
+                <td>Reminders &amp; activities</td>
+              </tr>
+              <tr>
+                <td>Relationship graph</td>
+                <td class="hl yes">Named ties + network map</td>
+                <td>Timeline &amp; enrichment</td>
+                <td class="yes">Family &amp; relationship links</td>
+              </tr>
+              <tr>
+                <td>Share &amp; collaborate</td>
+                <td class="hl yes">Workspace roles + per-person groups (view/edit)</td>
+                <td>Team plans / shared intros</td>
+                <td>Multi-user on a shared instance</td>
+              </tr>
+              <tr>
+                <td>Data capture style</td>
+                <td class="hl">Deliberate records + optional mail/calendar check-in</td>
+                <td>Automatic capture from many accounts</td>
+                <td>Mostly manual, by design</td>
+              </tr>
+              <tr>
+                <td>Photos</td>
+                <td class="hl yes">Immich links (optional)</td>
+                <td>In-app media</td>
+                <td>Contact photos / attachments</td>
+              </tr>
+              <tr>
+                <td>Cost to run yourself</td>
+                <td class="hl yes">Your hardware only</td>
+                <td class="no">Subscription</td>
+                <td class="yes">Your hardware only</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="compare-note">
+            Clay rebranded as Mesh. Feature sets move; this table reflects the usual product shapes as of late 2026: cloud automation versus open-source personal CRM versus Rolodex’s self-hosted sync-first approach.
+          </p>
+        </div>
+      </section>
+
+      <section class="section" id="install">
+        <div class="wrap">
+          <p class="section-kicker">Install</p>
+          <h2>Two containers. One port.</h2>
+          <p class="section-lede">
+            Postgres and Rolodex. The published image is <code>gallinij/rolodex:latest</code>. That single HTTP port is the website, <code>/api/</code>, CardDAV, and CalDAV. Copy <code>.env.example</code> to <code>.env</code>, then pull or build.
+          </p>
+
+          <div class="install-panel" data-install>
+            <div class="install-toolbar">
+              <div class="install-tabs" role="tablist" aria-label="Install views">
+                <button type="button" role="tab" aria-selected="true" data-tab="run">Run</button>
+                <button type="button" role="tab" aria-selected="false" data-tab="build">Build</button>
+                <button type="button" role="tab" aria-selected="false" data-tab="compose">docker-compose.yml</button>
+                <button type="button" role="tab" aria-selected="false" data-tab="env">.env.example</button>
+              </div>
+              <button class="copy-btn" type="button" data-copy>Copy</button>
+            </div>
+            <pre id="panel-run" role="tabpanel"><code>cp .env.example .env
+docker compose pull
+docker compose up -d</code></pre>
+            <pre id="panel-build" role="tabpanel" hidden><code>cp .env.example .env
+docker compose up -d --build</code></pre>
+            <pre id="panel-compose" role="tabpanel" hidden><code>name: rolodex
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rolodex}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rolodex}
+      POSTGRES_DB: ${POSTGRES_DB:-rolodex}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5472}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  rolodex:
+    image: ${ROLODEX_IMAGE:-gallinij/rolodex:latest}
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-rolodex}:${POSTGRES_PASSWORD:-rolodex}@postgres:5432/${POSTGRES_DB:-rolodex}
+      # Files live in the uploads volume. Set DOCKER_S3_ENDPOINT to use S3 instead.
+      S3_ENDPOINT: ${DOCKER_S3_ENDPOINT:-}
+      DATA_DIR: /data
+      API_PORT: 3000
+      CARDDAV_PORT: 3001
+      DOCKER_SITE: "true"
+      CARDDAV_BEHIND_PROXY: "true"
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - uploads:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  minio:
+    profiles: ["s3"]
+    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-rolodex}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-rolodexsecret}
+    ports:
+      - "127.0.0.1:${S3_PORT:-9100}:9000"
+      - "127.0.0.1:${S3_CONSOLE_PORT:-9101}:9001"
+    volumes:
+      - minio-data:/data
+
+volumes:
+  postgres-data:
+  uploads:
+  minio-data:</code></pre>
+            <pre id="panel-env" role="tabpanel" hidden><code># Copy to .env, then edit the values marked required for production.
+ROLODEX_IMAGE=gallinij/rolodex:latest
+
+# --- Host ports ---
+POSTGRES_PORT=5472
+PORT=8080
+
+# --- Database ---
+POSTGRES_USER=rolodex
+POSTGRES_PASSWORD=replace-me
+POSTGRES_DB=rolodex
+
+# --- HTTP ---
+# PUBLIC_URL=https://rolodex.example.com
+
+# --- Secrets ---
+# Generate: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+CREDENTIALS_KEY=replace-with-32-byte-base64
+
+# --- Optional ---
+# DOCKER_S3_ENDPOINT=
+# GOOGLE_MAPS_API_KEY=
+# MAPBOX_ACCESS_TOKEN=
+# PLUGINS_DIR=
+# BACKUP_DIR=./backups</code></pre>
+          </div>
+
+          <div class="install-steps">
+            <div>
+              <div class="step-num">01</div>
+              <h3>Open the site</h3>
+              <p>Visit <code>http://localhost:8080</code>, or your machine’s LAN address on the same port. Change <code>PORT</code> in <code>.env</code> if 8080 is taken.</p>
+            </div>
+            <div>
+              <div class="step-num">02</div>
+              <h3>Create the admin</h3>
+              <p>The first visit creates the administrator. Later accounts stay invite-only until you turn open registration on.</p>
+            </div>
+            <div>
+              <div class="step-num">03</div>
+              <h3>Point phones at it</h3>
+              <p>Use the same address you opened. On a domain, put a reverse proxy or Cloudflare tunnel in front and open the site once so Settings picks up HTTPS.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section configure" id="configure">
+        <div class="wrap">
+          <p class="section-kicker">Configure</p>
+          <h2>Environment variables</h2>
+          <p class="section-lede">
+            Everything lives in <code>.env</code> next to <code>docker-compose.yml</code>. Compose injects the database URL and data directory for the Rolodex service. Replace the sample secrets before the machine is reachable by anyone else.
+          </p>
+
+          <div class="env-groups">
+            <article class="env-group">
+              <h3>Required for Docker</h3>
+              <p class="env-intro">Set these before <code>docker compose up</code> on a shared or public host.</p>
+              <div class="env-table-wrap">
+                <table class="env-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Variable</th>
+                      <th scope="col">Default</th>
+                      <th scope="col">What it does</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>ROLODEX_IMAGE</code></td>
+                      <td><code>gallinij/rolodex:latest</code></td>
+                      <td>Image Compose pulls. Use a version tag for pinned upgrades, or build from this repository instead.</td>
+                    </tr>
+                    <tr>
+                      <td><code>PORT</code></td>
+                      <td><code>8080</code></td>
+                      <td>One public HTTP port: website, <code>/api</code>, <code>/carddav</code>, and <code>/caldav</code>. TLS belongs to your proxy or tunnel.</td>
+                    </tr>
+                    <tr>
+                      <td><code>POSTGRES_USER</code></td>
+                      <td><code>rolodex</code></td>
+                      <td>Postgres role name. Compose builds <code>DATABASE_URL</code> from this, the password, and the database name.</td>
+                    </tr>
+                    <tr>
+                      <td><code>POSTGRES_PASSWORD</code></td>
+                      <td><code>rolodex</code></td>
+                      <td>Postgres password. Change it before exposure. If the volume already exists, update <code>.env</code> and Postgres together.</td>
+                    </tr>
+                    <tr>
+                      <td><code>POSTGRES_DB</code></td>
+                      <td><code>rolodex</code></td>
+                      <td>Database name created on first boot.</td>
+                    </tr>
+                    <tr>
+                      <td><code>CREDENTIALS_KEY</code></td>
+                      <td>sample local key</td>
+                      <td>32-byte base64 secret for encrypted credentials. Generate a new one for production.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="env-group">
+              <h3>Public URL &amp; ports</h3>
+              <p class="env-intro">Most installs only need <code>PORT</code>. Set a public URL when phones should not use the browser origin.</p>
+              <div class="env-table-wrap">
+                <table class="env-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Variable</th>
+                      <th scope="col">Default</th>
+                      <th scope="col">What it does</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>PUBLIC_URL</code></td>
+                      <td>unset</td>
+                      <td>Public site origin when phones use a tunnel or DNS name, for example <code>https://rolodex.example.com</code>. Leave unset when the browser address is already correct.</td>
+                    </tr>
+                    <tr>
+                      <td><code>POSTGRES_PORT</code></td>
+                      <td><code>5472</code></td>
+                      <td>Host port for Postgres on <code>127.0.0.1</code> — for backups and local tools. Inside Compose, Postgres still listens on 5432.</td>
+                    </tr>
+                    <tr>
+                      <td><code>API_PORT</code></td>
+                      <td><code>4100</code></td>
+                      <td>Local <code>pnpm dev</code> only. Docker keeps the API on an internal port behind the gateway.</td>
+                    </tr>
+                    <tr>
+                      <td><code>CARDDAV_PORT</code></td>
+                      <td><code>4101</code></td>
+                      <td>Local <code>pnpm dev</code> sync port. Docker serves CardDAV/CalDAV on <code>PORT</code> instead.</td>
+                    </tr>
+                    <tr>
+                      <td><code>WEB_DEV_PORT</code></td>
+                      <td><code>4181</code></td>
+                      <td>Expo web dev server port. Unused by Docker.</td>
+                    </tr>
+                    <tr>
+                      <td><code>S3_PORT</code> / <code>S3_CONSOLE_PORT</code></td>
+                      <td><code>9100</code> / <code>9101</code></td>
+                      <td>MinIO ports when you start the optional <code>s3</code> Compose profile for local development.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="env-group">
+              <h3>HTTP &amp; development</h3>
+              <p class="env-intro">These matter for <code>pnpm</code> on your machine. Docker reads the browser origin unless you set <code>PUBLIC_URL</code>.</p>
+              <div class="env-table-wrap">
+                <table class="env-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Variable</th>
+                      <th scope="col">Default</th>
+                      <th scope="col">What it does</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>DATABASE_URL</code></td>
+                      <td>localhost Postgres URL</td>
+                      <td>Connection string for local processes. Docker overrides this to talk to the <code>postgres</code> service.</td>
+                    </tr>
+                    <tr>
+                      <td><code>PUBLIC_APP_URL</code></td>
+                      <td><code>http://localhost:4181</code></td>
+                      <td>App origin during local development.</td>
+                    </tr>
+                    <tr>
+                      <td><code>CORS_ORIGIN</code></td>
+                      <td>local web ports</td>
+                      <td>Browser origins allowed to call the API with cookies in development.</td>
+                    </tr>
+                    <tr>
+                      <td><code>COOKIE_SECURE</code></td>
+                      <td><code>false</code></td>
+                      <td>Set <code>true</code> when a local API is reached over HTTPS. Docker follows the forwarded protocol instead.</td>
+                    </tr>
+                    <tr>
+                      <td><code>EXPO_PUBLIC_API_URL</code></td>
+                      <td><code>http://localhost:4100</code></td>
+                      <td>Dev server only. The Docker site calls <code>/api</code> on the same host.</td>
+                    </tr>
+                    <tr>
+                      <td><code>PUBLIC_CARDDAV_URL</code></td>
+                      <td><code>http://localhost:4101</code></td>
+                      <td>Direct CardDAV URL for local sync testing. Public Docker installs use <code>/carddav</code> and <code>/caldav</code> on <code>PORT</code>.</td>
+                    </tr>
+                    <tr>
+                      <td><code>PLUGINS_DIR</code></td>
+                      <td>unset</td>
+                      <td>Extra plugin folders. The project <code>plugins/</code> directory and <code>DATA_DIR/plugins</code> are always read.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="env-group">
+              <h3>Storage, backups &amp; maps</h3>
+              <p class="env-intro">Docker stores uploads on the <code>uploads</code> volume unless you point it at S3. Map keys are optional.</p>
+              <div class="env-table-wrap">
+                <table class="env-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Variable</th>
+                      <th scope="col">Default</th>
+                      <th scope="col">What it does</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>DOCKER_S3_ENDPOINT</code></td>
+                      <td>unset</td>
+                      <td>When set, Docker uses this S3 endpoint instead of the uploads volume. Compose maps it onto <code>S3_ENDPOINT</code> inside the container.</td>
+                    </tr>
+                    <tr>
+                      <td><code>S3_ENDPOINT</code></td>
+                      <td><code>http://127.0.0.1:9100</code></td>
+                      <td>S3-compatible endpoint for <code>pnpm</code> development. Start MinIO with <code>docker compose --profile s3 up minio -d</code>.</td>
+                    </tr>
+                    <tr>
+                      <td><code>S3_REGION</code></td>
+                      <td><code>us-east-1</code></td>
+                      <td>S3 region string passed to the client.</td>
+                    </tr>
+                    <tr>
+                      <td><code>S3_ACCESS_KEY</code> / <code>S3_SECRET_KEY</code></td>
+                      <td>sample keys</td>
+                      <td>Credentials for MinIO or another S3 store. Also seed the optional MinIO service.</td>
+                    </tr>
+                    <tr>
+                      <td><code>S3_BUCKET</code></td>
+                      <td><code>rolodex</code></td>
+                      <td>Bucket name for uploaded files when S3 is in use.</td>
+                    </tr>
+                    <tr>
+                      <td><code>BACKUP_DIR</code></td>
+                      <td><code>./backups</code></td>
+                      <td>Where <code>scripts/backup.sh</code> writes dumps and upload archives on the host.</td>
+                    </tr>
+                    <tr>
+                      <td><code>GOOGLE_MAPS_API_KEY</code></td>
+                      <td>blank</td>
+                      <td>Optional. Leave blank for OpenStreetMap. Can also be saved under Admin → Map.</td>
+                    </tr>
+                    <tr>
+                      <td><code>MAPBOX_ACCESS_TOKEN</code></td>
+                      <td>blank</td>
+                      <td>Optional Mapbox token. Same Admin page can store it later.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+
+          <p class="compare-note">
+            Generate a credentials key with
+            <code>node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"</code>.
+            After any port change, run <code>docker compose up -d</code> again.
+          </p>
+        </div>
+      </section>
+
+      <section class="section" id="sync">
+        <div class="wrap feature-strip reverse">
+          <figure class="shot">
+            <img src="images/login.png" alt="Rolodex sign-in screen" width="1200" height="700" loading="lazy" />
+          </figure>
+          <div class="feature-copy">
+            <p class="section-kicker">Sync</p>
+            <h2>What reaches a phone.</h2>
+            <p class="section-lede" style="margin-bottom: 0">
+              Create a named client password under Settings. Sign in with your email and that client password — never the website password.
+            </p>
+            <ul class="phone-list" style="margin-top: 1.5rem">
+              <li><strong>iPhone &amp; iPad</strong> — CardDAV account plus a separate CalDAV account.</li>
+              <li><strong>Android</strong> — DAVx5 against the base URL.</li>
+              <li><strong>Mac</strong> — Internet Accounts.</li>
+              <li><strong>Desktop</strong> — Thunderbird and any CardDAV / CalDAV client.</li>
+              <li><strong>On the wire</strong> — name, phones, emails, address, birthday, and the card note.</li>
+              <li><strong>Stays in Rolodex</strong> — how you met, interests, tags, private notes, and the network.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="trust">
+        <div class="wrap">
+          <p class="section-kicker">Ownership</p>
+          <h2>Your server. Your copies.</h2>
+          <p class="section-lede">
+            Uploaded files live in the <code>uploads</code> volume. Backups are a Postgres dump plus a tar of uploads. An owner can also download a database dump from Settings when <code>pg_dump</code> is available.
+          </p>
+          <div class="features-grid">
+            <article>
+              <h3>OpenID ready</h3>
+              <p>Administrators can offer Authentik, Authelia, Keycloak, or another OpenID provider. Password sign-in stays available.</p>
+            </article>
+            <article>
+              <h3>Share without cloning</h3>
+              <p>Workspace roles for the household, and groups so one contact can be shared for view or edit across several accounts.</p>
+            </article>
+            <article>
+              <h3>AGPL-3.0</h3>
+              <p>Read the code, run it yourself, and keep modifications that you offer as a network service available to the people using them.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-row">
+        <div>
+          <div class="footer-brand">
+            <span data-rolodex-logo data-variant="icon" data-size="40" data-animate="false"></span>
+            <span>rolodex</span>
+          </div>
+          <p>Self-hosted relationship manager. Active development.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub</a>
+          <a href="https://hub.docker.com/r/gallinij/rolodex" rel="noopener noreferrer">Docker Hub</a>
+          <a href="https://github.com/Rolodex-PRM/rolodex/blob/main/docs/PRODUCT.md" rel="noopener noreferrer">Product notes</a>
+          <a href="https://github.com/Rolodex-PRM/rolodex/blob/main/LICENSE" rel="noopener noreferrer">License</a>
+          <a href="#install">Install</a>
+          <a href="#configure">Configure</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script src="logo.js"></script>
+    <script src="site.js"></script>
+  </body>
+</html>
