@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rolodex logo — profile preview</title>
+    <style>
+      :root { --frame: 520px; }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: #2a2a2a;
+        color: #e8e8e8;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        gap: 1.25rem;
+        padding: 2rem 1rem 3rem;
+      }
+      h1 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: #b0b0b0;
+      }
+      .stage {
+        width: min(92vw, var(--frame));
+        aspect-ratio: 1;
+        background: var(--bg, #ffffff);
+        border-radius: 12px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+      .stage [data-rolodex-logo] {
+        display: block;
+        line-height: 0;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+        max-width: 36rem;
+      }
+      button {
+        appearance: none;
+        border: 1px solid #4a4a4a;
+        background: #1e1e1e;
+        color: #f0f0f0;
+        border-radius: 999px;
+        padding: 0.45rem 0.9rem;
+        font: inherit;
+        font-size: 0.85rem;
+        cursor: pointer;
+      }
+      button[aria-pressed="true"] {
+        background: #f0f0f0;
+        color: #111;
+        border-color: #f0f0f0;
+      }
+      button:hover { border-color: #888; }
+      .hint {
+        margin: 0;
+        font-size: 0.8rem;
+        color: #8a8a8a;
+        text-align: center;
+        max-width: 28rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>GitHub profile preview · square crop</h1>
+    <div class="stage" id="stage">
+      <span id="mark" data-rolodex-logo data-size="380" data-animate="false"></span>
+    </div>
+    <div class="controls" role="group" aria-label="Background">
+      <button type="button" data-bg="#ffffff" data-tone="ink" data-accent="#111111">White · black mark</button>
+      <button type="button" data-bg="#111111" data-tone="paper" data-accent="#111111">Black · white mark</button>
+      <button type="button" data-bg="#1d4ed8" data-tone="paper" data-accent="#1d4ed8">Blue field</button>
+      <button type="button" data-bg="#0f766e" data-tone="paper" data-accent="#0f766e">Teal field</button>
+      <button type="button" data-bg="#15803d" data-tone="paper" data-accent="#15803d">Green field</button>
+      <button type="button" data-bg="#b91c1c" data-tone="paper" data-accent="#b91c1c">Red field</button>
+    </div>
+    <p class="hint">Screenshot the square above — GitHub crops it to a circle. White or black usually reads best as a profile pic.</p>
+    <script>
+      const params = new URLSearchParams(location.search)
+      const bg = params.get('bg') || '#ffffff'
+      const tone = params.get('tone') || 'ink'
+      const accent = params.get('accent') || '#111111'
+      const stage = document.getElementById('stage')
+      const mark = document.getElementById('mark')
+      stage.style.setProperty('--bg', bg)
+      mark.dataset.tone = tone
+      mark.dataset.accent = accent
+      document.querySelectorAll('.controls button').forEach((btn) => {
+        const active = btn.dataset.bg === bg && btn.dataset.tone === tone && btn.dataset.accent === accent
+        btn.setAttribute('aria-pressed', String(active))
+        btn.addEventListener('click', () => {
+          const next = new URLSearchParams({
+            bg: btn.dataset.bg,
+            tone: btn.dataset.tone,
+            accent: btn.dataset.accent,
+          })
+          location.search = next.toString()
+        })
+      })
+    </script>
+    <script src="logo.js"></script>
+  </body>
+</html>
