@@ -16,9 +16,9 @@ Product site: [rolodex-prm.github.io/rolodex](https://rolodex-prm.github.io/rolo
 The first visit creates the administrator. After that, registration is invite-only until an administrator turns open registration on under Admin → Security.
 
 <p>
-  <img src="docs/images/login.png" alt="Rolodex Login screen" width="100%">
+  <img src="docs/images/login.png" alt="Rolodex sign-in screen" width="100%">
   <img src="docs/images/network.png" alt="Rolodex relationship network" width="49%">
-  <img src="docs/images/contact.png" alt="The Contact map" width="49%">
+  <img src="docs/images/contact.png" alt="Rolodex contacts list" width="49%">
 </p>
 
 ## Run it with Docker
