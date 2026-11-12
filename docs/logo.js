@@ -1,79 +1,198 @@
 (() => {
-  const REST_X = [-38, -28, -20, -12, -6, 0]
-  const DELAYS = ['0ms', '80ms', '160ms', '240ms', '320ms', '400ms']
-  const BASE_W = 240
-  const BASE_H = 180
-  const BASE_H_WORD = 210
+  /* Rolodex SVG mark — mirrors apps/mobile/logo.tsx (monochrome via color-mix). */
+  const CARD_W = 62
+  const R_IN = 7
+  const R_OUT = 45
+  const CORNER = 3.5
+  const STROKE = 2.2
+  const FRAME_X = CARD_W / 2 + 4.5
+  const RING_T = 3.2
+  const APEX_Y = 11
+  const FLOOR_Y = -49
+  const SLOPE = (60 * Math.PI) / 180
+  const BASE_HALF = (APEX_Y - FLOOR_Y) / Math.tan(SLOPE)
+  const RING_W = 8.5
+  const ROUND_OUT = [12, 10, 10]
+  const ROUND_IN = [6, 5, 5]
+  const RAIL_W = 4.2
+  const AXLE_W = 3.4
+  const HUB_R = 4.4
+  const SLOTS = [0, 34, 54, 74, 94, 218, 240, 262]
+  const RING = SLOTS.length
+  const SHADE_STEP = 9
+  const SHADE_MAX = 34
+  const YAW = Math.PI / 4
+  const PITCH = (24 * Math.PI) / 180
+  const cy = Math.cos(YAW)
+  const sy = Math.sin(YAW)
+  const cp = Math.cos(PITCH)
+  const sp = Math.sin(PITCH)
+  const SCALE = 1
+  const CX = 64
+  const CY = 57
+  const TONE = { nearRing: 100, nearEdge: 70, rail: 78, farRing: 46, farEdge: 34, axle: 60 }
 
-  const inkPalette = {
-    frame: '#1B2A4A',
-    knob: '#6B9AD8',
-    cardFront: '#FFFFFF',
-    cardNear: '#D7E4F5',
-    cardMid: '#B7CCEA',
-    cardFar: '#93B0D9',
-    detail: '#1B2A4A',
-    lines: '#8AB0D9',
+  function project([x, y, z]) {
+    const xr = x * cy - z * sy
+    const zr = x * sy + z * cy
+    const yUp = y * cp - zr * sp
+    return [xr, -yUp, zr * cp + y * sp]
+  }
+  const toView = (p) => {
+    const [x, y] = project(p)
+    return [CX + x * SCALE, CY + y * SCALE]
+  }
+  const pathOf = (pts) => 'M' + pts.map(([x, y]) => `${x.toFixed(2)} ${y.toFixed(2)}`).join('L') + 'Z'
+  const projectPath = (pts) => pathOf(pts.map(toView))
+
+  function roundedRect(x, y, w, h, r) {
+    const pts = []
+    const corners = [
+      [x + w - r, y + h - r, 0],
+      [x + r, y + h - r, 90],
+      [x + r, y + r, 180],
+      [x + w - r, y + r, 270],
+    ]
+    for (const [ccx, ccy, start] of corners) {
+      for (let i = 0; i <= 5; i++) {
+        const a = ((start + (i * 90) / 5) * Math.PI) / 180
+        pts.push([ccx + r * Math.cos(a), ccy + r * Math.sin(a)])
+      }
+    }
+    return pts
+  }
+  function circle(x, y, r, n = 28) {
+    return Array.from({ length: n }, (_, i) => {
+      const a = (i / n) * Math.PI * 2
+      return [x + r * Math.cos(a), y + r * Math.sin(a)]
+    })
+  }
+  function roundedPolygon(verts, reach, steps = 8) {
+    const out = []
+    verts.forEach((v, i) => {
+      const prev = verts[(i + verts.length - 1) % verts.length]
+      const next = verts[(i + 1) % verts.length]
+      const toward = (p, d) => {
+        const len = Math.hypot(p[0] - v[0], p[1] - v[1])
+        return [v[0] + ((p[0] - v[0]) / len) * d, v[1] + ((p[1] - v[1]) / len) * d]
+      }
+      const a = toward(prev, reach[i])
+      const b = toward(next, reach[i])
+      for (let k = 0; k <= steps; k++) {
+        const t = k / steps
+        out.push([
+          (1 - t) ** 2 * a[0] + 2 * (1 - t) * t * v[0] + t ** 2 * b[0],
+          (1 - t) ** 2 * a[1] + 2 * (1 - t) * t * v[1] + t ** 2 * b[1],
+        ])
+      }
+    })
+    return out
   }
 
-  const paperTone = {
-    frame: '#FFFFFF',
-    knob: '#C4CAD3',
-    cardFront: '#FFFFFF',
-    cardNear: '#E8EBF0',
-    cardMid: '#C4CAD3',
-    cardFar: '#8B95A3',
-    detail: '#1B2A4A',
-    lines: '#C4CAD3',
+  const mix = (ink, bg, inkPct) =>
+    inkPct <= 0 ? bg : inkPct >= 100 ? ink : `color-mix(in srgb, ${ink} ${Math.round(inkPct)}%, ${bg})`
+
+  const TRI = [
+    [0, APEX_Y],
+    [-BASE_HALF, FLOOR_Y],
+    [BASE_HALF, FLOOR_Y],
+  ]
+  const INRADIUS = (APEX_Y - FLOOR_Y) / 3
+  const INCENTER = [0, FLOOR_Y + INRADIUS]
+  const shrink = (INRADIUS - RING_W) / INRADIUS
+  const TRI_IN = TRI.map(([z, y]) => [INCENTER[0] + (z - INCENTER[0]) * shrink, INCENTER[1] + (y - INCENTER[1]) * shrink])
+  const OUTER = roundedPolygon(TRI, ROUND_OUT)
+  const INNER = roundedPolygon(TRI_IN, ROUND_IN)
+  const at = (x) => (p) => [x, p[1], p[0]]
+  const ring = (x) => projectPath(OUTER.map(at(x))) + projectPath(INNER.map(at(x)))
+  const FAR_RING_EDGE = ring(-FRAME_X - RING_T / 2)
+  const FAR_RING = ring(-FRAME_X + RING_T / 2)
+  const NEAR_RING_EDGE = ring(FRAME_X - RING_T / 2)
+  const NEAR_RING = ring(FRAME_X + RING_T / 2)
+  const bar = (a, b) => {
+    const [p, q] = [toView(a), toView(b)]
+    return `M${p[0].toFixed(2)} ${p[1].toFixed(2)}L${q[0].toFixed(2)} ${q[1].toFixed(2)}`
+  }
+  const footY = FLOOR_Y + RING_W / 2
+  const footZ = BASE_HALF - RING_W / 2 / Math.tan(SLOPE / 2)
+  const BACK_RAIL = bar([-FRAME_X, footY, -footZ], [FRAME_X, footY, -footZ])
+  const FRONT_RAIL = bar([-FRAME_X, footY, footZ], [FRAME_X, footY, footZ])
+  const AXLE = bar([-FRAME_X, 0, 0], [FRAME_X, 0, 0])
+  const HUB = projectPath(circle(0, 0, HUB_R, 32).map(at(FRAME_X + RING_T / 2 + 0.01)))
+  const HUB_PIN = projectPath(circle(0, 0, HUB_R * 0.4, 20).map(at(FRAME_X + RING_T / 2 + 0.02)))
+
+  function slotAngleDeg(s) {
+    const i = Math.floor(s) % RING
+    const from = SLOTS[i]
+    let to = i + 1 < RING ? SLOTS[i + 1] : SLOTS[0] + 360
+    if (to < from) to += 360
+    return from + (to - from) * (s - Math.floor(s))
+  }
+  const onCard = (phi) => (u, v) => [u, v * Math.cos(phi), -v * Math.sin(phi)]
+  const CARD_OUTLINE = roundedRect(-CARD_W / 2, R_IN, CARD_W, R_OUT - R_IN, CORNER)
+  const FACE = [
+    circle(-CARD_W / 2 + 14, R_OUT - 13, 6.5),
+    roundedRect(-CARD_W / 2 + 26, R_OUT - 11.5, 22, 3.6, 1.8),
+    roundedRect(-CARD_W / 2 + 26, R_OUT - 18.5, 13, 3.6, 1.8),
+    roundedRect(-CARD_W / 2 + 8, R_IN + 9, 44, 3.6, 1.8),
+  ]
+
+  function cardsAt(t) {
+    const cards = []
+    for (let i = 0; i < RING; i++) {
+      const s = (((i - t) % RING) + RING) % RING
+      const deg = slotAngleDeg(s)
+      const f = onCard((deg * Math.PI) / 180)
+      const away = Math.min(s, RING - s)
+      const faceOpacity = Math.max(0, 1 - away * 1.4)
+      cards.push({
+        outline: projectPath(CARD_OUTLINE.map(([u, v]) => f(u, v))),
+        face: faceOpacity > 0 ? FACE.map((shape) => projectPath(shape.map(([u, v]) => f(u, v)))) : [],
+        faceOpacity,
+        shade: Math.min(SHADE_MAX, away * SHADE_STEP),
+        depth: project(f(0, (R_IN + R_OUT) / 2))[2],
+      })
+    }
+    return cards.sort((a, b) => a.depth - b.depth)
+  }
+
+  function flipProgress(elapsedMs, flipMs) {
+    const n = elapsedMs / flipMs
+    const whole = Math.floor(n)
+    const frac = Math.min(1, (n - whole) / 0.72)
+    const eased = frac < 0.5 ? 4 * frac ** 3 : 1 - (-2 * frac + 2) ** 3 / 2
+    return whole + eased
   }
 
   function rgb(hex) {
     const raw = hex.replace('#', '')
     return [0, 2, 4].map((start) => Number.parseInt(raw.slice(start, start + 2), 16) || 0)
   }
-
   function toHex(channels) {
     return `#${channels.map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, '0')).join('')}`
   }
-
-  function mix(from, to, weight) {
+  function mixHex(from, to, weight) {
     const left = rgb(from)
     const right = rgb(to)
     return toHex([0, 1, 2].map((index) => left[index] * (1 - weight) + right[index] * weight))
   }
-
   function isNearGray(hex) {
     const [red, green, blue] = rgb(hex)
     return Math.max(red, green, blue) - Math.min(red, green, blue) < 30
   }
+  function luminance(hex) {
+    const [red, green, blue] = rgb(hex)
+    return (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255
+  }
 
-  function logoPalette(accent, tone = 'ink') {
+  function markColors(accent, tone = 'ink') {
     if (tone === 'paper') {
-      if (isNearGray(accent)) return paperTone
-      return {
-        frame: mix(accent, '#ffffff', 0.92),
-        knob: mix(accent, '#ffffff', 0.55),
-        cardFront: '#ffffff',
-        cardNear: mix(accent, '#ffffff', 0.88),
-        cardMid: mix(accent, '#ffffff', 0.72),
-        cardFar: mix(accent, '#ffffff', 0.55),
-        detail: mix(accent, '#0a0a0a', 0.45),
-        lines: mix(accent, '#ffffff', 0.5),
+      if (isNearGray(accent) || luminance(accent) < 0.35) {
+        return { color: '#ffffff', background: mixHex('#ffffff', '#111111', 0.18) }
       }
+      return { color: mixHex(accent, '#ffffff', 0.55), background: '#ffffff' }
     }
-    if (!isNearGray(accent)) {
-      return {
-        frame: mix(accent, '#0a1220', 0.55),
-        knob: mix(accent, '#ffffff', 0.35),
-        cardFront: '#ffffff',
-        cardNear: mix(accent, '#ffffff', 0.88),
-        cardMid: mix(accent, '#ffffff', 0.72),
-        cardFar: mix(accent, '#ffffff', 0.52),
-        detail: mix(accent, '#0a1220', 0.45),
-        lines: mix(accent, '#ffffff', 0.42),
-      }
-    }
-    return inkPalette
+    return { color: accent, background: '#ffffff' }
   }
 
   function prefersReducedMotion() {
@@ -82,204 +201,63 @@
       : false
   }
 
-  function faceFill(i, n) {
-    if (i === n - 1) return 'var(--rx-front)'
-    const t = i / Math.max(1, n - 2)
-    if (t < 0.35) return 'var(--rx-far)'
-    if (t < 0.7) return 'var(--rx-mid)'
-    return 'var(--rx-near)'
+  function renderSvg(progress, color, background, size, busy) {
+    const fill = (pct) => mix(color, background, pct)
+    const cards = cardsAt(progress)
+    const cardMarkup = cards
+      .map((c) => {
+        const faces =
+          c.face.length > 0
+            ? `<g fill="${color}"${c.faceOpacity < 1 ? ` opacity="${c.faceOpacity}"` : ''}>${c.face.map((d) => `<path d="${d}" />`).join('')}</g>`
+            : ''
+        return `<g><path d="${c.outline}" fill="${fill(c.shade)}" stroke="${color}" stroke-width="${STROKE}" stroke-linejoin="round" />${faces}</g>`
+      })
+      .join('')
+    return `<svg viewBox="0 0 128 128" width="${size}" height="${size}" role="img" aria-label="${busy ? 'Rolodex, loading' : 'Rolodex'}"${busy ? ' aria-busy="true"' : ''} xmlns="http://www.w3.org/2000/svg">
+      <path d="${FAR_RING_EDGE}" fill="${fill(TONE.farEdge)}" fill-rule="evenodd" />
+      <path d="${FAR_RING}" fill="${fill(TONE.farRing)}" fill-rule="evenodd" />
+      <path d="${BACK_RAIL}" stroke="${fill(TONE.rail)}" stroke-width="${RAIL_W}" stroke-linecap="round" fill="none" />
+      <path d="${AXLE}" stroke="${fill(TONE.axle)}" stroke-width="${AXLE_W}" stroke-linecap="round" fill="none" />
+      ${cardMarkup}
+      <path d="${FRONT_RAIL}" stroke="${fill(TONE.rail)}" stroke-width="${RAIL_W}" stroke-linecap="round" fill="none" />
+      <path d="${NEAR_RING_EDGE}" fill="${fill(TONE.nearEdge)}" fill-rule="evenodd" />
+      <path d="${NEAR_RING}" fill="${fill(TONE.nearRing)}" fill-rule="evenodd" />
+      <path d="${HUB}" fill="${background}" />
+      <path d="${HUB_PIN}" fill="${color}" />
+    </svg>`
   }
-
-  function ensureStyles(uid) {
-    const id = `rx-logo-${uid}`
-    document.getElementById(id)?.remove()
-    const el = document.createElement('style')
-    el.id = id
-    el.textContent = `
-      .rx-${uid} {
-        display: block;
-        line-height: 0;
-        position: relative;
-        width: var(--rx-size, ${BASE_W}px);
-        height: calc(var(--rx-size, ${BASE_W}px) * ${BASE_H} / ${BASE_W});
-        overflow: visible;
-      }
-      .rx-${uid}[data-word='1'] {
-        height: calc(var(--rx-size, ${BASE_W}px) * ${BASE_H_WORD} / ${BASE_W});
-      }
-      .rx-${uid} .rx-viewport {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: ${BASE_W}px;
-        height: ${BASE_H}px;
-        transform: scale(var(--rx-scale, 1));
-        transform-origin: 0 0;
-        perspective: 640px;
-        perspective-origin: 50% 38%;
-      }
-      .rx-${uid}[data-word='1'] .rx-viewport { height: ${BASE_H_WORD}px; }
-      .rx-${uid} .rx-scene {
-        position: absolute;
-        inset: 0;
-        transform-style: preserve-3d;
-        transform: rotateY(-18deg) rotateX(10deg);
-      }
-      .rx-${uid} .rx-stand,
-      .rx-${uid} .rx-axle {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: ${BASE_W}px;
-        height: ${BASE_H}px;
-        overflow: visible;
-        pointer-events: none;
-        transform-style: preserve-3d;
-      }
-      .rx-${uid} .rx-stand { transform: translateZ(-14px); }
-      .rx-${uid} .rx-cards {
-        position: absolute;
-        left: 69px;
-        top: 55px;
-        width: 102px;
-        height: 86px;
-        transform-style: preserve-3d;
-      }
-      .rx-${uid} .rx-axle { transform: translateZ(10px); }
-      .rx-${uid} .rx-card {
-        position: absolute;
-        inset: 0;
-        transform-style: preserve-3d;
-        transform: translateZ(var(--z, 0px));
-      }
-      .rx-${uid} .rx-hinge {
-        position: absolute;
-        inset: 0;
-        transform-style: preserve-3d;
-        transform-origin: 50% 0%;
-        transform: rotateX(var(--rx, 0deg));
-        will-change: transform;
-      }
-      .rx-${uid} .rx-face {
-        position: absolute;
-        inset: 0;
-        border-radius: 7px;
-        backface-visibility: hidden;
-        -webkit-backface-visibility: hidden;
-        box-shadow: 0 1px 0 rgba(27, 42, 74, 0.08);
-      }
-      .rx-${uid} .rx-face-front {
-        background: var(--face, var(--rx-front));
-        border: 0.5px solid rgba(27, 42, 74, 0.1);
-      }
-      .rx-${uid} .rx-face-back {
-        background: var(--rx-mid);
-        border: 0.5px solid rgba(27, 42, 74, 0.08);
-        transform: rotateX(180deg);
-      }
-      .rx-${uid} .rx-glyph {
-        position: absolute;
-        left: 14%;
-        top: 16%;
-        width: 72%;
-        height: 58%;
-      }
-      .rx-${uid} .rx-glyph svg { width: 100%; height: 100%; display: block; }
-      .rx-${uid} .rx-word {
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: 8px;
-        text-align: center;
-        font: 650 18px/1 "Syne", "Segoe UI", system-ui, sans-serif;
-        letter-spacing: -0.04em;
-        color: var(--rx-frame);
-        z-index: 4;
-      }
-      .rx-${uid}[data-motion='intro'] .rx-hinge,
-      .rx-${uid}[data-motion='search'] .rx-hinge,
-      .rx-${uid}[data-motion='busy'] .rx-hinge {
-        animation: rx-flip-${uid} var(--dur, 1.15s) cubic-bezier(.4,.05,.2,1) var(--loop, both);
-        animation-delay: var(--d, 0ms);
-      }
-      .rx-${uid}[data-motion='intro'] .rx-hinge { --dur: 1.2s; --loop: both; }
-      .rx-${uid}[data-motion='search'] .rx-hinge { --dur: .75s; --loop: both; }
-      .rx-${uid}[data-motion='busy'] .rx-hinge { --dur: 1.15s; --loop: infinite; }
-      .rx-${uid}[data-motion='idle'] .rx-hinge { animation: none; }
-      @keyframes rx-flip-${uid} {
-        from { transform: rotateX(var(--rx, 0deg)); }
-        to   { transform: rotateX(calc(var(--rx, 0deg) - 360deg)); }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .rx-${uid} .rx-hinge { animation: none !important; transform: rotateX(var(--rx, 0deg)) !important; }
-        .rx-${uid} .rx-scene { transform: rotateY(-16deg) rotateX(8deg) !important; }
-      }
-    `
-    document.head.appendChild(el)
-  }
-
-  let uidCounter = 0
 
   function mountLogo(host) {
-    const uid = `site${++uidCounter}`
     const size = Number.parseFloat(host.dataset.size || '48') || 48
-    const variant = host.dataset.variant || 'icon'
     const tone = host.dataset.tone || 'ink'
     const accent = host.dataset.accent || '#111111'
     const animate = host.dataset.animate !== 'false'
     const motionAttr = host.dataset.motion || (animate ? 'intro' : 'idle')
     const reduced = prefersReducedMotion()
-    const compact = variant === 'compact'
-    const showWordmark = variant === 'full'
-    const palette = logoPalette(accent, tone)
-    const rests = compact ? [REST_X[0], REST_X[2], REST_X[5]] : REST_X
-    const front = rests.length - 1
-    const scale = size / BASE_W
-    const motion = reduced ? 'idle' : motionAttr
+    const { color, background } = markColors(accent, tone)
+    const busy = !reduced && (motionAttr === 'busy' || motionAttr === 'search' || motionAttr === 'intro')
 
-    ensureStyles(uid)
+    host.style.display = 'inline-flex'
+    host.style.lineHeight = '0'
+    host.innerHTML = renderSvg(0, color, background, size, busy)
 
-    const cards = rests
-      .map((angle, i) => {
-        const depth = i === front ? 20 : -6 - (front - i) * 8
-        const flipOrder = front - i
-        const glyph =
-          i === front
-            ? `<div class="rx-glyph"><svg viewBox="0 0 80 56" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="18" cy="16" r="10" fill="var(--rx-detail)" /><path d="M2 48 Q2 30 18 30 Q34 30 34 48 Z" fill="var(--rx-detail)" /><rect x="42" y="10" width="34" height="6" rx="3" fill="var(--rx-line)" /><rect x="42" y="24" width="26" height="6" rx="3" fill="var(--rx-line)" /></svg></div>`
-            : ''
-        return `<div class="rx-card" style="--z:${depth}px;--face:${faceFill(i, rests.length)};z-index:${i + 1}"><div class="rx-hinge" style="--rx:${angle}deg;--d:${DELAYS[flipOrder] || `${flipOrder * 80}ms`}"><div class="rx-face rx-face-front">${glyph}</div><div class="rx-face rx-face-back"></div></div></div>`
-      })
-      .join('')
+    if (!busy) return
 
-    host.innerHTML = `
-      <div class="rx-${uid}" data-motion="${motion}" data-word="${showWordmark ? '1' : '0'}" style="--rx-frame:${palette.frame};--rx-knob:${palette.knob};--rx-front:${palette.cardFront};--rx-near:${palette.cardNear};--rx-mid:${palette.cardMid};--rx-far:${palette.cardFar};--rx-detail:${palette.detail};--rx-line:${palette.lines};--rx-size:${size}px;--rx-scale:${scale}" role="img" aria-label="Rolodex">
-        <div class="rx-viewport">
-          <div class="rx-scene">
-            <svg class="rx-stand" viewBox="0 0 ${BASE_W} ${BASE_H}" width="${BASE_W}" height="${BASE_H}" aria-hidden="true">
-              <path d="M48 58 L24 168 L216 168 L192 58" fill="none" stroke="var(--rx-frame)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" opacity="0.2" />
-              <path d="M45 55 L20 165 L220 165 L195 55" fill="none" stroke="var(--rx-frame)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
-              <path d="M20 165 L220 165" fill="none" stroke="var(--rx-frame)" stroke-width="11" stroke-linecap="round" />
-            </svg>
-            <div class="rx-cards">${cards}</div>
-            <svg class="rx-axle" viewBox="0 0 ${BASE_W} ${BASE_H}" width="${BASE_W}" height="${BASE_H}" aria-hidden="true">
-              <rect x="52" y="44" width="136" height="22" rx="11" fill="var(--rx-frame)" />
-              <rect x="56" y="47" width="128" height="6" rx="3" fill="var(--rx-knob)" opacity="0.35" />
-              <circle cx="39" cy="55" r="15" fill="var(--rx-frame)" />
-              <circle cx="201" cy="55" r="15" fill="var(--rx-frame)" />
-              <circle cx="39" cy="55" r="5.5" fill="var(--rx-knob)" />
-              <circle cx="201" cy="55" r="5.5" fill="var(--rx-knob)" />
-            </svg>
-          </div>
-          ${showWordmark ? '<div class="rx-word">rolodex</div>' : ''}
-        </div>
-      </div>
-    `
+    const start = performance.now()
+    const flipMs = motionAttr === 'search' ? 500 : 650
+    let raf = 0
+    const tick = (now) => {
+      host.innerHTML = renderSvg(flipProgress(now - start, flipMs), color, background, size, true)
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
 
-    if (!reduced && motion === 'intro') {
+    if (motionAttr === 'intro' || motionAttr === 'search') {
+      const stopAt = motionAttr === 'search' ? 900 : 1900
       window.setTimeout(() => {
-        const mark = host.querySelector(`.rx-${uid}`)
-        if (mark) mark.setAttribute('data-motion', 'idle')
-      }, 1900)
+        cancelAnimationFrame(raf)
+        host.innerHTML = renderSvg(0, color, background, size, false)
+      }, stopAt)
     }
   }
 
