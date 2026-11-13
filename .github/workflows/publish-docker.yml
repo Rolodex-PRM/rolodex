@@ -5,16 +5,24 @@ on:
     types: [published]
   workflow_dispatch:
     inputs:
-      version:
-        description: "Docker image version (e.g. 1.0.0 or v1.0.0)"
+      channel:
+        description: "release tags latest + semver; dev tags only gallinij/rolodex:dev"
         required: true
+        type: choice
+        options:
+          - release
+          - dev
+        default: release
+      version:
+        description: "Semver for release channel (e.g. 1.0.0 or v1.0.0). Ignored for dev."
+        required: false
         type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: publish-docker
+  group: publish-docker-${{ github.event_name == 'workflow_dispatch' && inputs.channel || 'release' }}
   cancel-in-progress: false
 
 jobs:
@@ -36,16 +44,27 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Require version for release channel
+        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.channel == 'release') }}
+        run: |
+          version='${{ inputs.version || github.event.release.tag_name }}'
+          if [ -z "$version" ]; then
+            echo '::error::version is required for the release channel (e.g. 0.2.1).'
+            exit 1
+          fi
+
       - name: Generate Docker metadata
         id: meta
         uses: docker/metadata-action@v6
         with:
           images: gallinij/rolodex
           tags: |
-            type=semver,pattern={{version}},value=${{ inputs.version || github.event.release.tag_name }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.version || github.event.release.tag_name }}
-            type=semver,pattern={{major}},value=${{ inputs.version || github.event.release.tag_name }}
-            type=raw,value=latest
+            type=raw,value=dev,enable=${{ github.event_name == 'workflow_dispatch' && inputs.channel == 'dev' }}
+            type=sha,prefix=dev-,format=short,enable=${{ github.event_name == 'workflow_dispatch' && inputs.channel == 'dev' }}
+            type=semver,pattern={{version}},value=${{ inputs.version || github.event.release.tag_name }},enable=${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.channel == 'release') }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.version || github.event.release.tag_name }},enable=${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.channel == 'release') }}
+            type=semver,pattern={{major}},value=${{ inputs.version || github.event.release.tag_name }},enable=${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.channel == 'release') }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.channel == 'release') }}
 
       - name: Build and publish Docker image
         uses: docker/build-push-action@v7
