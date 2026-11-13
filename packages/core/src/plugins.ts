@@ -151,14 +151,31 @@ function readManifest(dir: string, manifestPath: string): DiscoveredPlugin | nul
   return { id, name, version, description, settings, permissions, rolodex, compatible: !rolodex || rolodexRangeIncludes(rolodex, rolodexVersion()), entryPath }
 }
 
+/** Community catalog. Independent of Rolodex releases; override with PLUGIN_REGISTRY_URL (empty disables fetch). */
+export const DEFAULT_PLUGIN_REGISTRY_URL =
+  'https://raw.githubusercontent.com/Rolodex-PRM/rolodex-plugins/main/dist/index.json'
+
+const REGISTRY_CACHE_MS = 5 * 60 * 1000
+
+type RegistryCache = { at: number; url: string; entries: RegistryEntry[] }
+
+let registryCache: RegistryCache | null = null
+
+export function pluginRegistryUrl() {
+  if (process.env.PLUGIN_REGISTRY_URL != null) return process.env.PLUGIN_REGISTRY_URL.trim()
+  return DEFAULT_PLUGIN_REGISTRY_URL
+}
+
 export function registryDirectories() {
   const here = path.dirname(fileURLToPath(import.meta.url))
+  const extra = process.env.PLUGIN_REGISTRY_DIR?.trim()
   const candidates = [
+    extra || '',
     path.resolve(here, '../../../registry/plugins'),
     path.resolve(process.cwd(), 'registry/plugins'),
     path.resolve(process.cwd(), '../../registry/plugins'),
   ]
-  return [...new Set(candidates)].filter((dir) => existsSync(dir) && statSync(dir).isDirectory())
+  return [...new Set(candidates.filter(Boolean))].filter((dir) => existsSync(dir) && statSync(dir).isDirectory())
 }
 
 export function readRegistry(dirs = registryDirectories()): RegistryEntry[] {
@@ -183,6 +200,51 @@ export function readRegistry(dirs = registryDirectories()): RegistryEntry[] {
     }
   }
   return [...found.values()]
+}
+
+export function parseRegistryIndex(payload: unknown): RegistryEntry[] {
+  const list = Array.isArray(payload)
+    ? payload
+    : payload && typeof payload === 'object' && Array.isArray((payload as { plugins?: unknown }).plugins)
+      ? (payload as { plugins: unknown[] }).plugins
+      : []
+  const found = new Map<string, RegistryEntry>()
+  for (const item of list) {
+    const result = parseRegistryEntry(item)
+    if (result.entry && !result.problems.length) found.set(result.entry.id, result.entry)
+  }
+  return [...found.values()]
+}
+
+async function fetchRemoteRegistry(fetchImpl: typeof fetch = fetch): Promise<RegistryEntry[] | null> {
+  const url = pluginRegistryUrl()
+  if (!url) return null
+  if (registryCache && registryCache.url === url && Date.now() - registryCache.at < REGISTRY_CACHE_MS) {
+    return registryCache.entries
+  }
+  try {
+    const response = await fetchImpl(url, {
+      headers: { Accept: 'application/json', 'User-Agent': 'Rolodex' },
+      signal: AbortSignal.timeout(15_000),
+    })
+    if (!response.ok) return registryCache?.url === url ? registryCache.entries : null
+    const entries = parseRegistryIndex(await response.json())
+    registryCache = { at: Date.now(), url, entries }
+    return entries
+  } catch {
+    return registryCache?.url === url ? registryCache.entries : null
+  }
+}
+
+/** Remote rolodex-plugins index is source of truth; local dirs are offline/dev fallback only. */
+export async function loadRegistry(options: { fetch?: typeof fetch; dirs?: string[] } = {}): Promise<RegistryEntry[]> {
+  const remote = await fetchRemoteRegistry(options.fetch)
+  if (remote && remote.length) return remote
+  return readRegistry(options.dirs ?? registryDirectories())
+}
+
+export function clearRegistryCache() {
+  registryCache = null
 }
 
 function settingValues(settings: PluginSetting[], stored: unknown) {
@@ -223,7 +285,7 @@ export async function listWorkspacePlugins(db: Database, userId: string, workspa
   const saved = await db.select().from(workspacePlugins).where(eq(workspacePlugins.workspaceId, workspaceId))
   const enabled = new Set(saved.filter((row) => row.enabled).map((row) => row.pluginId))
   const stored = new Map(saved.map((row) => [row.pluginId, row.settings]))
-  const registry = readRegistry()
+  const registry = await loadRegistry()
   await installRegistryReleases(registry)
   const host = rolodexVersion()
   const listed = new Set(registry.map((entry) => entry.id))
@@ -257,7 +319,8 @@ export async function listWorkspacePlugins(db: Database, userId: string, workspa
 
 export async function setWorkspacePlugin(db: Database, userId: string, workspaceId: string, pluginId: string, enabled: boolean) {
   await requireManager(db, userId, workspaceId)
-  await installRegistryReleases(readRegistry().filter((entry) => entry.id === pluginId))
+  const registry = await loadRegistry()
+  await installRegistryReleases(registry.filter((entry) => entry.id === pluginId))
   const plugin = discoverPlugins().find((item) => item.id === pluginId)
   if (!plugin) throw new AppError(404, 'Plugin not found')
   if (!plugin.compatible) throw new AppError(400, 'This plugin is for a different Rolodex version')
@@ -270,7 +333,7 @@ export async function setWorkspacePlugin(db: Database, userId: string, workspace
     .from(workspacePlugins)
     .where(and(eq(workspacePlugins.workspaceId, workspaceId), eq(workspacePlugins.pluginId, pluginId)))
     .limit(1)
-  return presentPlugin(plugin, enabled, row?.settings, readRegistry().some((entry) => entry.id === plugin.id))
+  return presentPlugin(plugin, enabled, row?.settings, registry.some((entry) => entry.id === plugin.id))
 }
 
 export async function updatePluginSettings(db: Database, userId: string, workspaceId: string, pluginId: string, input: unknown) {
@@ -290,7 +353,8 @@ export async function updatePluginSettings(db: Database, userId: string, workspa
     .update(workspacePlugins)
     .set({ settings: values })
     .where(and(eq(workspacePlugins.workspaceId, workspaceId), eq(workspacePlugins.pluginId, pluginId)))
-  return presentPlugin(plugin, true, values, readRegistry().some((entry) => entry.id === plugin.id))
+  const registry = await loadRegistry()
+  return presentPlugin(plugin, true, values, registry.some((entry) => entry.id === plugin.id))
 }
 
 async function enabledPlugin(db: Database, userId: string, workspaceId: string, pluginId: string) {

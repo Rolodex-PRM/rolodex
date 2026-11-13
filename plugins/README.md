@@ -5,7 +5,7 @@ A plugin adds one page to the bar under the main navigation. It cannot change pe
 The plugin space has three parts:
 
 - `plugin-sdk/` — manifest checks, `createMockHost`, and the `rolodex-plugin` command
-- `registry/` — one JSON file per listed plugin; the page itself stays in its own repository
+- [rolodex-plugins](https://github.com/Rolodex-PRM/rolodex-plugins) — community catalog (`dist/index.json`); the page itself stays in its own repository
 - `plugin-skill/` — instructions a coding agent follows when it builds a plugin
 
 Put a folder in `plugins/` (or in `DATA_DIR/plugins`, or the directory named by `PLUGINS_DIR`):
