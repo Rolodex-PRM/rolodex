@@ -2,12 +2,12 @@
 
 The contract for a Rolodex plugin page. The host injects `window.rolodex` into a sandboxed frame. This package is how you describe the page, try the bridge without a server, and check the manifest before you copy the folder onto a server.
 
-Two folders sit next to this one:
+Next to this package:
 
-- `registry/` is the static index. One JSON file per plugin. The code stays in your repository.
+- [rolodex-plugins](https://github.com/Rolodex-PRM/rolodex-plugins) is the community catalog. One JSON file per plugin. The code stays in your repository.
 - `plugin-skill/` teaches a coding agent the same rules. Copy `plugin-skill/skills/rolodex-plugin` into the repository where you build the plugin.
 
-You can build and run a plugin with only a folder under `plugins/`. The registry matters when another Rolodex should list it.
+You can build and run a plugin with only a folder under `plugins/`. The remote catalog matters when another Rolodex should list it.
 
 ## Commands
 

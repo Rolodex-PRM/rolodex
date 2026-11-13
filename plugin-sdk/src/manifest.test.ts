@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -47,11 +47,26 @@ describe('plugin manifest', () => {
     expect(explained.manifest).toBeNull()
   })
 
-  it('reads the scratch pad registry entry', () => {
-    const file = new URL('../../registry/plugins/scratch-pad.json', import.meta.url)
-    const parsed = parseRegistryEntry(JSON.parse(readFileSync(file, 'utf8')))
+  it('reads a registry entry shaped like the community catalog', () => {
+    const parsed = parseRegistryEntry({
+      id: 'scratch-pad',
+      name: 'Scratch pad',
+      version: '1.0.0',
+      description: 'A note that stays inside this plugin.',
+      entry: 'index.html',
+      repo: 'example/scratch-pad',
+      release: 'v1.0.0',
+      sha256: 'b'.repeat(64),
+      rolodex: '>=0.1.0 <1.0.0',
+      license: 'AGPL-3.0-only',
+    })
     expect(parsed.problems).toEqual([])
-    expect(parsed.entry).toMatchObject({ id: 'scratch-pad', repo: 'jeffgallini/rolodex', path: 'plugins/scratch-pad', rolodex: '>=0.1.0 <1.0.0' })
+    expect(parsed.entry).toMatchObject({
+      id: 'scratch-pad',
+      repo: 'example/scratch-pad',
+      release: 'v1.0.0',
+      rolodex: '>=0.1.0 <1.0.0',
+    })
   })
 
   it('accepts this Rolodex line and refuses the next major version', () => {

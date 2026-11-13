@@ -118,9 +118,10 @@ and nothing is pushed directly to `main` or `staging`.
 ## Plugins
 
 Rolodex has a plugin system. See `plugin-sdk/README.md` for the plugin
-SDK, `plugins/README.md` for the bundled plugins, and `registry/README.md`
-for the plugin registry. Plugins are installed from pinned release tag
-archives, so a plugin pull request should say which release it targets.
+SDK, `plugins/README.md` for bundled examples, and
+[rolodex-plugins](https://github.com/Rolodex-PRM/rolodex-plugins) for the
+community catalog. Plugins are installed from pinned release tag archives
+listed there; catalog updates do not require a Rolodex release.
 
 ## Reporting bugs and security problems
 
