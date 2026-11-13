@@ -12,7 +12,23 @@ export { twoFactorPolicy, setTwoFactorPolicy, twoFactorStatus, startEnrollment, 
 export { trashPolicy, setTrashPolicy } from './trash'
 export { syncStatus } from './sync-status'
 export { buildAppleSyncProfile } from './apple-profile'
-export { listWorkspacePlugins, setWorkspacePlugin, updatePluginSettings, pluginDocument, callPlugin, downloadPluginFile, composePluginDocument, discoverPlugins, pluginDirectories } from './plugins'
+export {
+  listWorkspacePlugins,
+  setWorkspacePlugin,
+  updatePluginSettings,
+  pluginDocument,
+  callPlugin,
+  downloadPluginFile,
+  composePluginDocument,
+  discoverPlugins,
+  pluginDirectories,
+  loadRegistry,
+  readRegistry,
+  parseRegistryIndex,
+  pluginRegistryUrl,
+  DEFAULT_PLUGIN_REGISTRY_URL,
+  clearRegistryCache,
+} from './plugins'
 export { listConnectedAccounts, saveMailboxAccount, saveCalendarAccount, deleteConnectedAccount, syncConnectedAccount } from './accounts'
 export {
   listContacts,

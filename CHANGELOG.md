@@ -7,6 +7,13 @@ image tags.
 
 ## Unreleased
 
+### Changed
+
+- Plugin discovery uses the remote [rolodex-plugins](https://github.com/Rolodex-PRM/rolodex-plugins)
+  catalog (`dist/index.json`) instead of the in-repo `registry/plugins`
+  files. Override with `PLUGIN_REGISTRY_URL` / `PLUGIN_REGISTRY_DIR`.
+  Catalog updates no longer require a Rolodex release.
+
 ### Added
 
 - SECURITY.md, with a private vulnerability reporting path and a list of
