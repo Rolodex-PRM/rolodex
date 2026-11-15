@@ -2,6 +2,7 @@ import { createElement, useEffect, useMemo, useRef, useState } from 'react'
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { api, apiUrl, send, type ContactSummary, type MapSettings, type Place } from './api'
 import { AuthImage } from './immich-photos'
+import { ensureStylesheet, loadLeafletMarkerCluster } from './leaflet'
 import { mapboxStyle, tileTemplate } from './map-themes'
 import { font, theme } from './theme'
 
@@ -451,19 +452,15 @@ export function ContactsMap({
 }
 
 function mountLeaflet(node: HTMLDivElement, settings: MapSettings) {
-  return import('leaflet').then(async (loaded) => {
-    const L = ('default' in loaded && loaded.default ? loaded.default : loaded) as typeof import('leaflet') & {
+  return loadLeafletMarkerCluster().then(async (leafletApi) => {
+    type ClusterApi = typeof leafletApi & {
       markerClusterGroup: (options?: object) => import('leaflet').LayerGroup & {
         clearLayers: () => void
         addLayers: (layers: import('leaflet').Layer[]) => void
       }
     }
-    ;(window as unknown as { L: typeof L }).L = L
-    ensureStylesheet('leaflet-css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css')
-    ensureStylesheet('leaflet-markercluster-css', 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css')
-    ensureStylesheet('leaflet-markercluster-default-css', 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css')
+    const L = leafletApi as ClusterApi
     ensurePinStyle()
-    await loadMarkerCluster()
     const view = L.map(node, { zoomControl: false }).setView([29.425967, -98.486142], 4)
     L.control.zoom({ position: 'bottomright' }).addTo(view)
     const template = tileTemplate(settings.tileUrl, settings.cartoKey)
@@ -500,7 +497,7 @@ function mountLeaflet(node: HTMLDivElement, settings: MapSettings) {
         view.invalidateSize()
       }, 200)
     }
-    const api: MapHandle = {
+    const handle: MapHandle = {
       remove: () => {
         window.clearTimeout(sizeTimer)
         view.remove()
@@ -537,7 +534,7 @@ function mountLeaflet(node: HTMLDivElement, settings: MapSettings) {
       },
     }
     refreshSize()
-    return api
+    return handle
   })
 }
 
@@ -608,25 +605,6 @@ function togglePin(node: HTMLElement, key: string) {
   toggle?.(key)
 }
 
-function loadMarkerCluster() {
-  if (Platform.OS !== 'web') return Promise.resolve()
-  if ((window as unknown as { L?: { markerClusterGroup?: unknown } }).L?.markerClusterGroup) return Promise.resolve()
-  return new Promise<void>((resolve, reject) => {
-    const existing = document.getElementById('leaflet-markercluster-js')
-    if (existing) {
-      existing.addEventListener('load', () => resolve())
-      existing.addEventListener('error', () => reject(new Error('Marker cluster could not load')))
-      return
-    }
-    const script = document.createElement('script')
-    script.id = 'leaflet-markercluster-js'
-    script.src = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'
-    script.onload = () => resolve()
-    script.onerror = () => reject(new Error('Marker cluster could not load'))
-    document.head.appendChild(script)
-  })
-}
-
 function loadMapLibre() {
   const current = (window as unknown as { maplibregl?: MapLibre }).maplibregl
   if (current) return Promise.resolve(current)
@@ -662,15 +640,6 @@ function ensurePinStyle() {
   style.id = 'rolodex-pin-style'
   style.textContent = '.rolodex-pin{background:transparent;border:none;} .marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background:rgba(47,111,237,.18)} .marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background:#2f6fed;color:#fff;font-family:inherit}'
   document.head.appendChild(style)
-}
-
-function ensureStylesheet(id: string, href: string) {
-  if (document.getElementById(id)) return
-  const link = document.createElement('link')
-  link.id = id
-  link.rel = 'stylesheet'
-  link.href = href
-  document.head.appendChild(link)
 }
 
 const styles = StyleSheet.create({

@@ -1,6 +1,7 @@
 import { createElement, useEffect, useRef } from 'react'
 import { Platform, StyleSheet, Text, View } from 'react-native'
 import type { MapSettings } from './api'
+import { ensureStylesheet, loadLeaflet } from './leaflet'
 import { alamo, mapboxStyle, tileTemplate } from './map-themes'
 import { font, theme } from './theme'
 
@@ -122,10 +123,8 @@ async function mountLeaflet(
   report: (lat: number, lon: number) => void,
   cancelled: () => boolean,
 ) {
-  ensureStylesheet('leaflet-css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css')
-  const loaded = await import('leaflet')
+  const L = await loadLeaflet()
   if (cancelled()) return
-  const L = ('default' in loaded && loaded.default ? loaded.default : loaded) as typeof import('leaflet')
   const tiles = tileTemplate(tileUrl, cartoKey)
   const view = L.map(node, { zoomControl: true }).setView([point.lat, point.lon], 15)
   L.tileLayer(tiles.url, {
@@ -196,15 +195,6 @@ function loadMapLibre() {
     script.onerror = () => reject(new Error('MapLibre could not load'))
     document.head.appendChild(script)
   })
-}
-
-function ensureStylesheet(id: string, href: string) {
-  if (document.getElementById(id)) return
-  const link = document.createElement('link')
-  link.id = id
-  link.rel = 'stylesheet'
-  link.href = href
-  document.head.appendChild(link)
 }
 
 const styles = StyleSheet.create({

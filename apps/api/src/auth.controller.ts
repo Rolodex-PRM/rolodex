@@ -30,6 +30,8 @@ import {
   pushPublic,
   pushSubscriptionSchema,
   acceptInvite,
+  forgotPasswordAvailable,
+  forgotPasswordSchema,
   passwordResetSchema,
   previewInvite,
   publicAppearance,
@@ -37,6 +39,7 @@ import {
   registerSchema,
   createFirstAdmin,
   registerUser,
+  requestPasswordReset,
   setupRequired,
   resetPassword,
   revokeAppPassword,
@@ -144,6 +147,17 @@ export class AuthController {
   @Get('auth/invites/preview')
   invitePreview(@Query('token') token: string | undefined) {
     return previewInvite(this.db, token ?? '')
+  }
+
+  @Get('auth/forgot')
+  forgotAvailable() {
+    return forgotPasswordAvailable(this.db)
+  }
+
+  @Post('auth/forgot')
+  forgot(@Body() body: unknown, @Req() req: AuthedRequest) {
+    if (!loginLimiter(req.ip || 'local')) throw new AppError(429, 'Too many attempts. Try again in a minute.')
+    return requestPasswordReset(this.db, parseBody(forgotPasswordSchema, body).email)
   }
 
   @Post('auth/reset')

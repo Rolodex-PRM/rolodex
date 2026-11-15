@@ -9,6 +9,7 @@
     "expo-router": "~58.0.28",
     "expo-status-bar": "~58.0.4",
     "leaflet": "1.9.4",
+    "libphonenumber-js": "^1.13.16",
     "qrcode": "^1.5.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",

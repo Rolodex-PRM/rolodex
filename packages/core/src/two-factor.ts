@@ -14,14 +14,15 @@ const emailCodeMs = 10 * 60 * 1000
 
 type Method = 'authenticator' | 'email'
 type Ticket = { purpose: 'mfa' | 'enroll'; userId: string; secret?: string; exp: number }
-type Policy = { required: boolean; authenticator: boolean; email: boolean }
+type Policy = { required: boolean; authenticator: boolean; email: boolean; forgotPassword: boolean }
 
 export async function twoFactorPolicy(db: Database): Promise<Policy> {
-  const stored = await readSettings(db, settingKey, { twoFactorRequired: false, authenticator: true, email: true })
+  const stored = await readSettings(db, settingKey, { twoFactorRequired: false, authenticator: true, email: true, forgotPassword: false })
   return {
     required: stored.twoFactorRequired === true,
     authenticator: stored.authenticator !== false,
     email: stored.email !== false,
+    forgotPassword: stored.forgotPassword === true,
   }
 }
 
@@ -30,7 +31,12 @@ export async function setTwoFactorPolicy(db: Database, userId: string, workspace
   if (input.required && !input.authenticator && !input.email) {
     throw new AppError(400, 'Keep an authenticator app or email codes while a second factor is required')
   }
-  await writeSettings(db, settingKey, { twoFactorRequired: input.required, authenticator: input.authenticator, email: input.email })
+  await writeSettings(db, settingKey, {
+    twoFactorRequired: input.required,
+    authenticator: input.authenticator,
+    email: input.email,
+    forgotPassword: input.forgotPassword,
+  })
   return twoFactorPolicy(db)
 }
 
