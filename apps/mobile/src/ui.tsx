@@ -1,14 +1,58 @@
 import { useEffect, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View, type TextInputInstance, type TextInputProps, type ViewProps } from 'react-native'
+import { Platform, Pressable, StyleSheet, Text, TextInput, View, type TextInputInstance, type TextInputProps, type ViewProps } from 'react-native'
 import { useAccent } from './accent'
 import { font, theme } from './theme'
 
-export function Field({ label, hint, style, ...props }: { label: string; hint?: string; style?: ViewProps['style'] } & TextInputProps) {
+export function Field({ label, hint, style, value, onChangeText, onFocus, ...props }: { label: string; hint?: string; style?: ViewProps['style'] } & TextInputProps) {
+  const input = useRef<TextInputInstance>(null)
+  const valueRef = useRef(value)
+  const onChangeRef = useRef(onChangeText)
+  valueRef.current = value
+  onChangeRef.current = onChangeText
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return
+    const node = input.current as unknown as HTMLInputElement | null
+    if (!node || typeof node.addEventListener !== 'function') return
+
+    function sync() {
+      const next = node?.value ?? ''
+      if (next === (valueRef.current ?? '')) return
+      onChangeRef.current?.(next)
+    }
+
+    node.addEventListener('input', sync)
+    node.addEventListener('change', sync)
+    node.addEventListener('animationstart', sync)
+    const ticks = [0, 50, 100, 200, 400, 800, 1600].map((ms) => window.setTimeout(sync, ms))
+    return () => {
+      node.removeEventListener('input', sync)
+      node.removeEventListener('change', sync)
+      node.removeEventListener('animationstart', sync)
+      for (const tick of ticks) window.clearTimeout(tick)
+    }
+  }, [])
+
   return (
     <View style={[styles.field, style]}>
       <Text style={styles.label}>{label}</Text>
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}
-      <TextInput placeholderTextColor={theme.muted} style={styles.input} {...props} />
+      <TextInput
+        ref={input}
+        placeholderTextColor={theme.muted}
+        style={styles.input}
+        value={value}
+        onChangeText={onChangeText}
+        onFocus={(event) => {
+          if (Platform.OS === 'web') {
+            const node = input.current as unknown as HTMLInputElement | null
+            const next = node?.value ?? ''
+            if (next !== (valueRef.current ?? '')) onChangeText?.(next)
+          }
+          onFocus?.(event)
+        }}
+        {...props}
+      />
     </View>
   )
 }

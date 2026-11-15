@@ -16,6 +16,10 @@ export const passwordResetSchema = z.object({
   password: z.string().min(8).max(200),
 })
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().email().max(200),
+})
+
 export const registrationPolicySchema = z.object({
   inviteOnly: z.boolean(),
 })
@@ -398,6 +402,7 @@ export const twoFactorPolicySchema = z.object({
   required: z.boolean(),
   authenticator: z.boolean(),
   email: z.boolean(),
+  forgotPassword: z.boolean(),
 })
 
 export const mfaTicketSchema = z.object({

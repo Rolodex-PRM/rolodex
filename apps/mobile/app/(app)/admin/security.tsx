@@ -6,12 +6,13 @@ import { useAuth } from '../../../src/auth'
 import { font, theme } from '../../../src/theme'
 import { Notice } from '../../../src/ui'
 
-type Policy = { required: boolean; authenticator: boolean; email: boolean }
+type Policy = { required: boolean; authenticator: boolean; email: boolean; forgotPassword: boolean }
 
 export default function SecurityPage() {
   const { workspace } = useAuth()
-  const [policy, setPolicy] = useState<Policy>({ required: false, authenticator: true, email: true })
+  const [policy, setPolicy] = useState<Policy>({ required: false, authenticator: true, email: true, forgotPassword: false })
   const [inviteOnly, setInviteOnly] = useState(true)
+  const [emailReady, setEmailReady] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -19,6 +20,9 @@ export default function SecurityPage() {
     if (!workspace) return
     api<Policy>(`/api/workspaces/${workspace.id}/security`).then(setPolicy).catch((caught: Error) => setError(caught.message))
     api<{ inviteOnly: boolean }>(`/api/workspaces/${workspace.id}/registration`).then((row) => setInviteOnly(row.inviteOnly)).catch((caught: Error) => setError(caught.message))
+    api<{ email: { enabled: boolean } }>(`/api/workspaces/${workspace.id}/server/notifications`)
+      .then((row) => setEmailReady(row.email.enabled === true))
+      .catch(() => setEmailReady(false))
   }, [workspace])
 
   function save(next: Policy, done: string) {
@@ -81,6 +85,21 @@ export default function SecurityPage() {
         detail="Sends a 6-digit code to the person's sign-in email. Turn on email under Notifications first, then send a test from Settings."
         on={policy.email}
         onPress={() => save({ ...policy, email: !policy.email }, !policy.email ? 'Email codes are on' : 'Email codes are off')}
+      />
+      <SwitchRow
+        label="Allow forgot password"
+        detail={
+          emailReady
+            ? 'Shows Forgot password on the sign-in page and emails a reset link. Turn on email under Notifications first.'
+            : 'Turn on email under Notifications first. Until SMTP is ready, the sign-in page will not show Forgot password.'
+        }
+        on={policy.forgotPassword}
+        onPress={() =>
+          save(
+            { ...policy, forgotPassword: !policy.forgotPassword },
+            !policy.forgotPassword ? 'Forgot password is on' : 'Forgot password is off',
+          )
+        }
       />
     </View>
   )
