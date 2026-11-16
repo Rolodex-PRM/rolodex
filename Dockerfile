@@ -26,6 +26,7 @@ RUN pnpm install --frozen-lockfile --filter @rolodex/api... --filter @rolodex/ca
 
 FROM node:22-alpine
 RUN apk add --no-cache nginx postgresql-client ca-certificates openssl \
+  && apk upgrade --no-cache \
   && mkdir -p /usr/share/nginx/html \
   && rm -f /etc/nginx/http.d/default.conf
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate \
