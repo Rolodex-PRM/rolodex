@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en" data-version-url="version.json">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quick start — Rolodex</title>
+    <meta
+      name="description"
+      content="A short path to run Rolodex with Docker Compose: copy two files, set secrets, start the containers, create the admin."
+    />
+    <meta name="theme-color" content="#1b2a4a" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" href="rolodex-mark.svg" type="image/svg+xml" />
+  </head>
+  <body class="doc-page">
+    <header class="site-header" id="top">
+      <div class="wrap nav">
+        <a class="brand" href="index.html" aria-label="Rolodex home">
+          <span class="brand-logo" data-rolodex-logo data-variant="icon" data-size="34" data-animate="false"></span>
+          <span>rolodex</span>
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+        <ul class="nav-links" id="nav-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a aria-current="page" href="quick-start.html">Quick start</a></li>
+          <li><a href="install/docker-compose.html">Docker Compose</a></li>
+          <li><a href="install/environment-variables.html">Environment</a></li>
+          <li><a href="roadmap.html">Roadmap</a></li>
+          <li>
+            <a class="nav-cta" href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub</a>
+          </li>
+        </ul>
+      </div>
+    </header>
+
+    <main>
+      <section class="doc-hero wrap">
+        <p class="section-kicker">Overview</p>
+        <h1>Quick start</h1>
+        <p class="doc-lede">
+          A no-choices path to install Rolodex and try it. When you are ready for upgrades, reverse proxies, or every
+          setting, use the Docker Compose and environment guides.
+        </p>
+        <p class="version-line">Current docs target <a data-rolodex-version rel="noopener noreferrer"></a>.</p>
+      </section>
+
+      <section class="section doc-section">
+        <div class="wrap doc-layout">
+          <aside class="doc-toc" aria-label="On this page">
+            <p class="doc-toc-title">On this page</p>
+            <ol>
+              <li><a href="#requirements">Requirements</a></li>
+              <li><a href="#setup">Set up the server</a></li>
+              <li><a href="#web">Try the web app</a></li>
+              <li><a href="#phone">Point a phone at it</a></li>
+              <li><a href="#next">Where to go next</a></li>
+            </ol>
+          </aside>
+
+          <div class="doc-body">
+            <h2 id="requirements">Requirements</h2>
+            <ul>
+              <li>A machine that can run Docker and Docker Compose</li>
+              <li>About 1&nbsp;GB of RAM free for Postgres and Rolodex together</li>
+              <li>One open HTTP port (8080 by default)</li>
+            </ul>
+
+            <h2 id="setup">Set up the server</h2>
+
+            <h3>Step 1 — Get the files</h3>
+            <p>
+              Clone the repository, or copy <code>docker-compose.yml</code> and <code>.env.example</code> from the
+              <a href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub repo</a> into an empty
+              folder.
+            </p>
+            <div class="install-panel" data-install>
+              <div class="install-toolbar">
+                <div class="install-tabs" role="tablist" aria-label="Get files">
+                  <button type="button" role="tab" aria-selected="true" data-tab="clone">Clone</button>
+                  <button type="button" role="tab" aria-selected="false" data-tab="curl">curl</button>
+                </div>
+                <button class="copy-btn" type="button" data-copy>Copy</button>
+              </div>
+              <pre id="panel-clone" role="tabpanel"><code>git clone https://github.com/Rolodex-PRM/rolodex.git
+cd rolodex
+cp .env.example .env</code></pre>
+              <pre id="panel-curl" role="tabpanel" hidden><code>mkdir rolodex && cd rolodex
+curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/Rolodex-PRM/rolodex/main/docker-compose.yml
+curl -fsSL -o .env https://raw.githubusercontent.com/Rolodex-PRM/rolodex/main/.env.example</code></pre>
+            </div>
+
+            <h3>Step 2 — Set secrets in <code>.env</code></h3>
+            <p>Before the machine is reachable by anyone else, change at least:</p>
+            <ul>
+              <li><code>POSTGRES_PASSWORD</code> — database password</li>
+              <li><code>CREDENTIALS_KEY</code> — 32-byte base64 secret for encrypted credentials</li>
+            </ul>
+            <pre class="doc-code"><code>node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"</code></pre>
+            <p>
+              Leave <code>ROLODEX_IMAGE=gallinij/rolodex:latest</code> unless you want a pinned tag. Full variable
+              reference:
+              <a href="install/environment-variables.html">Environment variables</a>.
+            </p>
+
+            <h3>Step 3 — Start the containers</h3>
+            <pre class="doc-code"><code>docker compose pull
+docker compose up -d</code></pre>
+            <p>
+              Two services start: Postgres and Rolodex. One published port serves the website, <code>/api/</code>,
+              CardDAV, and CalDAV. Details and the compose file live on
+              <a href="install/docker-compose.html">Docker Compose</a>.
+            </p>
+
+            <h2 id="web">Try the web app</h2>
+            <p>
+              Open <code>http://localhost:8080</code>, or <code>http://&lt;this-machine&gt;:8080</code> from another
+              device on the LAN. Change <code>PORT</code> in <code>.env</code> if 8080 is taken, then run
+              <code>docker compose up -d</code> again.
+            </p>
+            <p>The first visit creates the administrator. Later accounts stay invite-only until you open registration under Admin → Security.</p>
+            <figure class="shot doc-shot">
+              <img
+                src="images/login.png"
+                alt="Rolodex sign-in screen after a fresh install"
+                width="1024"
+                height="601"
+                loading="lazy"
+              />
+              <figcaption>Sign-in after the first administrator account exists.</figcaption>
+            </figure>
+
+            <h2 id="phone">Point a phone at it</h2>
+            <ol class="doc-steps">
+              <li>Open Rolodex in the browser at the address phones should use (LAN or your domain behind a proxy).</li>
+              <li>Under Settings, create a named sync client password. Do not put the website password on the phone.</li>
+              <li>
+                Add a CardDAV account and a CalDAV account (iPhone/iPad), or one DAVx5 account on Android, using that
+                email and client password against the same base URL.
+              </li>
+            </ol>
+            <p>
+              On a plain LAN URL, leave SSL off and keep the port. Through a domain, open the site once over HTTPS so
+              Settings can pick up the public origin. Set <code>PUBLIC_URL</code> only when phones must use a different
+              origin than the browser.
+            </p>
+
+            <h2 id="next">Where to go next</h2>
+            <ul class="doc-next">
+              <li><a href="install/docker-compose.html">Docker Compose</a> — recommended production layout, volumes, and upgrades</li>
+              <li><a href="install/environment-variables.html">Environment variables</a> — every setting and what it changes</li>
+              <li><a href="https://github.com/Rolodex-PRM/rolodex/blob/main/README.md#backups" rel="noopener noreferrer">Backups</a> — Postgres dump plus the uploads volume</li>
+              <li><a href="roadmap.html">Roadmap</a> — what is planned through 1.0</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-row">
+        <div>
+          <div class="footer-brand">
+            <span data-rolodex-logo data-variant="icon" data-size="40" data-animate="false"></span>
+            <span>rolodex</span>
+          </div>
+          <p>Self-hosted relationship manager. Active development.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="index.html">Home</a>
+          <a href="install/docker-compose.html">Docker Compose</a>
+          <a href="install/environment-variables.html">Environment</a>
+          <a href="roadmap.html">Roadmap</a>
+          <a href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script src="logo.js"></script>
+    <script src="site.js"></script>
+    <script src="docs.js"></script>
+  </body>
+</html>
