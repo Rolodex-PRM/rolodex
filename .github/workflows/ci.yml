@@ -85,66 +85,76 @@ jobs:
         run: pnpm run audit
 
   docker:
-    name: Docker (${{ matrix.platform }})
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-            node_arch: x64
-            image_arch: amd64
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
-            node_arch: arm64
-            image_arch: arm64
+    name: Docker multi-arch
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build image (no push)
+      - name: Build linux/amd64 and linux/arm64 (no push)
         uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
-          platforms: ${{ matrix.platform }}
+          platforms: linux/amd64,linux/arm64
+          push: false
+          cache-from: type=gha,scope=docker-multiarch
+          cache-to: type=gha,mode=min,scope=docker-multiarch
+
+      - name: Load amd64 image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
           push: false
           load: true
-          tags: rolodex:ci
-          cache-from: type=gha,scope=docker-${{ matrix.platform }}
-          cache-to: type=gha,mode=max,scope=docker-${{ matrix.platform }}
+          tags: rolodex:ci-amd64
+          cache-from: type=gha,scope=docker-multiarch
 
-      - name: Assert image architecture
+      - name: Load arm64 image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/arm64
+          push: false
+          load: true
+          tags: rolodex:ci-arm64
+          cache-from: type=gha,scope=docker-multiarch
+
+      - name: Assert image architectures
         run: |
           set -eux
-          arch="$(docker image inspect rolodex:ci --format '{{.Architecture}}')"
-          if [ "$arch" != "${{ matrix.image_arch }}" ]; then
-            echo "::error::expected image architecture ${{ matrix.image_arch }}, got $arch"
-            exit 1
-          fi
+          amd64="$(docker image inspect rolodex:ci-amd64 --format '{{.Architecture}}')"
+          arm64="$(docker image inspect rolodex:ci-arm64 --format '{{.Architecture}}')"
+          [ "$amd64" = amd64 ]
+          [ "$arm64" = arm64 ]
 
-      - name: Smoke-test native modules
+      - name: Smoke-test native modules on amd64 and arm64
         run: |
           set -eux
-          docker run --rm --platform "${{ matrix.platform }}" rolodex:ci \
-            node --input-type=module -e "
-              import process from 'node:process';
-              import { hash, verify } from '@node-rs/argon2';
-
-              if (process.arch !== '${{ matrix.node_arch }}') {
-                console.error('unexpected process.arch:', process.arch);
-                process.exit(1);
-              }
-
-              const digest = await hash('rolodex-ci');
-              if (!(await verify(digest, 'rolodex-ci'))) {
-                console.error('argon2 verify failed');
-                process.exit(1);
-              }
-
-              console.log('native smoke ok', process.arch, process.platform);
-            "
+          smoke() {
+            local platform="$1" tag="$2" expected_arch="$3"
+            docker run --rm --platform "$platform" -e EXPECTED_ARCH="$expected_arch" "$tag" \
+              node --input-type=module -e '
+                import process from "node:process";
+                import { hash, verify } from "@node-rs/argon2";
+                if (process.arch !== process.env.EXPECTED_ARCH) {
+                  console.error("unexpected process.arch:", process.arch);
+                  process.exit(1);
+                }
+                const digest = await hash("rolodex-ci");
+                if (!(await verify(digest, "rolodex-ci"))) process.exit(1);
+                console.log("native smoke ok", process.arch, process.platform);
+              '
+          }
+          smoke linux/amd64 rolodex:ci-amd64 x64
+          smoke linux/arm64 rolodex:ci-arm64 arm64
