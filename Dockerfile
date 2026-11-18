@@ -1,4 +1,6 @@
-FROM node:22-alpine AS web
+# JS/web stages are arch-independent; build them on the builder host.
+# The final stage stays on the target arch for native addons (e.g. @node-rs/argon2).
+FROM --platform=$BUILDPLATFORM node:22-alpine AS web
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
@@ -9,7 +11,7 @@ ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL
 RUN pnpm install --frozen-lockfile --filter @rolodex/mobile... \
   && pnpm --filter @rolodex/mobile export
 
-FROM node:22-alpine AS build
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./

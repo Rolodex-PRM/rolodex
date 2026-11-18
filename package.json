@@ -23,6 +23,11 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": ["esbuild"],
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-fc5q-39xc-vjpf"
+      ]
+    },
     "overrides": {
       "esbuild": "^0.28.2",
       "tinypool": "^2.1.1",
