@@ -1,6 +1,6 @@
 # JS/web stages are arch-independent; build them on the builder host.
 # The final stage stays on the target arch for native addons (e.g. @node-rs/argon2).
-FROM --platform=$BUILDPLATFORM node:22-alpine AS web
+FROM --platform=$BUILDPLATFORM node:26-alpine AS web
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
@@ -11,7 +11,7 @@ ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL
 RUN pnpm install --frozen-lockfile --filter @rolodex/mobile... \
   && pnpm --filter @rolodex/mobile export
 
-FROM --platform=$BUILDPLATFORM node:22-alpine AS build
+FROM --platform=$BUILDPLATFORM node:26-alpine AS build
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
@@ -26,7 +26,7 @@ COPY scripts/docker-bundle.mjs ./scripts/docker-bundle.mjs
 RUN pnpm install --frozen-lockfile --filter @rolodex/api... --filter @rolodex/carddav... --filter rolodex \
   && node scripts/docker-bundle.mjs
 
-FROM node:22-alpine
+FROM node:26-alpine
 RUN apk add --no-cache nginx postgresql-client ca-certificates openssl \
   && apk upgrade --no-cache \
   && mkdir -p /usr/share/nginx/html \
