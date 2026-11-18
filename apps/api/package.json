@@ -12,7 +12,7 @@
     "@aws-sdk/client-s3": "^3.901.0",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "@nestjs/common": "^11.1.6",
-    "@nestjs/core": "^11.1.6",
+    "@nestjs/core": "^12.5.0",
     "@nestjs/platform-express": "^11.1.6",
     "@rolodex/core": "workspace:*",
     "@rolodex/db": "workspace:*",
