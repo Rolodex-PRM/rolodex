@@ -85,7 +85,7 @@ jobs:
         run: pnpm run audit
 
   docker:
-    name: Docker multi-arch
+    name: Docker build
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
