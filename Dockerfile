@@ -39,7 +39,7 @@ RUN apk upgrade --no-cache \
   && mkdir -p /usr/share/nginx/html \
   && rm -f /etc/nginx/http.d/default.conf \
   && nginx -v \
-  && apk info -v nginx openssl libssl3 libcrypto3 musl
+  && apk list -I nginx openssl libssl3 libcrypto3 musl
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate \
   && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /app
