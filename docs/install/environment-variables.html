@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en" data-version-url="../version.json">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Environment variables — Rolodex</title>
+    <meta
+      name="description"
+      content="Rolodex environment variables for Docker Compose and local development: ports, secrets, storage, plugins, and maps."
+    />
+    <meta name="theme-color" content="#1b2a4a" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="icon" href="../favicon.ico" sizes="any" />
+    <link rel="icon" href="../rolodex-mark.svg" type="image/svg+xml" />
+  </head>
+  <body class="doc-page">
+    <header class="site-header" id="top">
+      <div class="wrap nav">
+        <a class="brand" href="../index.html" aria-label="Rolodex home">
+          <span class="brand-logo" data-rolodex-logo data-variant="icon" data-size="34" data-animate="false"></span>
+          <span>rolodex</span>
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+        <ul class="nav-links" id="nav-links">
+          <li><a href="../index.html">Home</a></li>
+          <li><a href="../quick-start.html">Quick start</a></li>
+          <li><a href="docker-compose.html">Docker Compose</a></li>
+          <li><a aria-current="page" href="environment-variables.html">Environment</a></li>
+          <li><a href="../roadmap.html">Roadmap</a></li>
+          <li>
+            <a class="nav-cta" href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub</a>
+          </li>
+        </ul>
+      </div>
+    </header>
+
+    <main>
+      <section class="doc-hero wrap">
+        <p class="section-kicker">Install</p>
+        <h1>Environment variables</h1>
+        <p class="doc-lede">
+          Everything lives in <code>.env</code> next to <code>docker-compose.yml</code>. Compose injects the database
+          URL and data directory for the Rolodex service. Replace sample secrets before the machine is reachable by
+          anyone else.
+        </p>
+        <p class="version-line">Reference for <a data-rolodex-version rel="noopener noreferrer"></a>.</p>
+      </section>
+
+      <section class="section doc-section configure">
+        <div class="wrap doc-layout">
+          <aside class="doc-toc" aria-label="On this page">
+            <p class="doc-toc-title">On this page</p>
+            <ol>
+              <li><a href="#required">Required for Docker</a></li>
+              <li><a href="#url-ports">Public URL &amp; ports</a></li>
+              <li><a href="#http-dev">HTTP &amp; development</a></li>
+              <li><a href="#plugins">Plugins</a></li>
+              <li><a href="#storage">Storage, backups &amp; maps</a></li>
+            </ol>
+          </aside>
+
+          <div class="doc-body env-groups">
+            <div class="doc-callout">
+              Generate a credentials key with
+              <code>node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"</code>.
+              After any port change, run <code>docker compose up -d</code> again.
+            </div>
+
+            <article class="env-group" id="required">
+              <h2>Required for Docker</h2>
+              <p class="env-intro">Set these before <code>docker compose up</code> on a shared or public host.</p>
+              <div class="env-table-wrap">
+                <table class="env-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Variable</th>
+                      <th scope="col">Default</th>
+                      <th scope="col">What it does</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>ROLODEX_IMAGE</code></td>
+                      <td><code>gallinij/rolodex:latest</code></td>
+                      <td>Image Compose pulls. Use a version tag for pinned upgrades, or build from this repository instead.</td>
+                    </tr>
+                    <tr>
+                      <td><code>PORT</code></td>
+                      <td><code>8080</code></td>
+                      <td>One public HTTP port: website, <code>/api</code>, <code>/carddav</code>, and <code>/caldav</code>. TLS belongs to your proxy or tunnel.</td>
+                    </tr>
+                    <tr>
+                      <td><code>POSTGRES_USER</code></td>
+                      <td><code>rolodex</code></td>
+                      <td>Postgres role name. Compose builds <code>DATABASE_URL</code> from this, the password, and the database name.</td>
+                    </tr>
+                    <tr>
+                      <td><code>POSTGRES_PASSWORD</code></td>
+                      <td><code>rolodex</code></td>
+                      <td>Postgres password. Change it before exposure. If the volume already exists, update <code>.env</code> and Postgres together.</td>
+                    </tr>
+                    <tr>
+                      <td><code>POSTGRES_DB</code></td>
+                      <td><code>rolodex</code></td>
+                      <td>Database name created on first boot.</td>
+                    </tr>
+                    <tr>
+                      <td><code>CREDENTIALS_KEY</code></td>
+                      <td>sample local key</td>
+                      <td>32-byte base64 secret for encrypted credentials. Generate a new one for production.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="env-group" id="url-ports">
+              <h2>Public URL &amp; ports</h2>
+              <p class="env-intro">Most installs only need <code>PORT</code>. Set a public URL when phones should not use the browser origin.</p>
+              <div class="env-table-wrap">
+                <table class="env-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Variable</th>
+                      <th scope="col">Default</th>
+                      <th scope="col">What it does</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>PUBLIC_URL</code></td>
+                      <td>unset</td>
+                      <td>Public site origin when phones use a tunnel or DNS name, for example <code>https://rolodex.example.com</code>. Leave unset when the browser address is already correct.</td>
+                    </tr>
+                    <tr>
+                      <td><code>POSTGRES_PORT</code></td>
+                      <td><code>5472</code></td>
+                      <td>Host port for Postgres on <code>127.0.0.1</code> — for backups and local tools. Inside Compose, Postgres still listens on 5432.</td>
+                    </tr>
+                    <tr>
+                      <td><code>API_PORT</code></td>
+                      <td><code>4100</code></td>
+                      <td>Local <code>pnpm dev</code> only. Docker keeps the API on an internal port behind the gateway.</td>
+                    </tr>
+                    <tr>
+                      <td><code>CARDDAV_PORT</code></td>
+                      <td><code>4101</code></td>
+                      <td>Local <code>pnpm dev</code> sync port. Docker serves CardDAV/CalDAV on <code>PORT</code> instead.</td>
+                    </tr>
+                    <tr>
+                      <td><code>WEB_DEV_PORT</code></td>
+                      <td><code>4181</code></td>
+                      <td>Expo web dev server port. Unused by Docker.</td>
+                    </tr>
+                    <tr>
+                      <td><code>S3_PORT</code> / <code>S3_CONSOLE_PORT</code></td>
+                      <td><code>9100</code> / <code>9101</code></td>
+                      <td>MinIO ports when you start the optional <code>s3</code> Compose profile for local development.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="env-group" id="http-dev">
+              <h2>HTTP &amp; development</h2>
+              <p class="env-intro">These matter for <code>pnpm</code> on your machine. Docker reads the browser origin unless you set <code>PUBLIC_URL</code>.</p>
+              <div class="env-table-wrap">
+                <table class="env-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Variable</th>
+                      <th scope="col">Default</th>
+                      <th scope="col">What it does</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>DATABASE_URL</code></td>
+                      <td>localhost Postgres URL</td>
+                      <td>Connection string for local processes. Docker overrides this to talk to the <code>postgres</code> service.</td>
+                    </tr>
+                    <tr>
+                      <td><code>PUBLIC_APP_URL</code></td>
+                      <td><code>http://localhost:4181</code></td>
+                      <td>App origin during local development.</td>
+                    </tr>
+                    <tr>
+                      <td><code>CORS_ORIGIN</code></td>
+                      <td>local web ports</td>
+                      <td>Browser origins allowed to call the API with cookies in development.</td>
+                    </tr>
+                    <tr>
+                      <td><code>COOKIE_SECURE</code></td>
+                      <td><code>false</code></td>
+                      <td>Set <code>true</code> when a local API is reached over HTTPS. Docker follows the forwarded protocol instead.</td>
+                    </tr>
+                    <tr>
+                      <td><code>EXPO_PUBLIC_API_URL</code></td>
+                      <td><code>http://localhost:4100</code></td>
+                      <td>Dev server only. The Docker site calls <code>/api</code> on the same host.</td>
+                    </tr>
+                    <tr>
+                      <td><code>PUBLIC_CARDDAV_URL</code></td>
+                      <td><code>http://localhost:4101</code></td>
+                      <td>Direct CardDAV URL for local sync testing. Public Docker installs use <code>/carddav</code> and <code>/caldav</code> on <code>PORT</code>.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="env-group" id="plugins">
+              <h2>Plugins</h2>
+              <p class="env-intro">Optional paths for bundled plugins and the community catalog.</p>
+              <div class="env-table-wrap">
+                <table class="env-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Variable</th>
+                      <th scope="col">Default</th>
+                      <th scope="col">What it does</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>PLUGINS_DIR</code></td>
+                      <td>unset</td>
+                      <td>Extra plugin folders. The project <code>plugins/</code> directory and <code>DATA_DIR/plugins</code> are always read.</td>
+                    </tr>
+                    <tr>
+                      <td><code>PLUGIN_REGISTRY_URL</code></td>
+                      <td>GitHub catalog index</td>
+                      <td>Community plugin catalog URL. Set empty to skip the network and use only local registry sources.</td>
+                    </tr>
+                    <tr>
+                      <td><code>PLUGIN_REGISTRY_DIR</code></td>
+                      <td>unset</td>
+                      <td>Folder of <code>*.json</code> catalog entries used when the remote index is disabled or empty.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="env-group" id="storage">
+              <h2>Storage, backups &amp; maps</h2>
+              <p class="env-intro">Docker stores uploads on the <code>uploads</code> volume unless you point it at S3. Map keys are optional.</p>
+              <div class="env-table-wrap">
+                <table class="env-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Variable</th>
+                      <th scope="col">Default</th>
+                      <th scope="col">What it does</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>DOCKER_S3_ENDPOINT</code></td>
+                      <td>unset</td>
+                      <td>When set, Docker uses this S3 endpoint instead of the uploads volume. Compose maps it onto <code>S3_ENDPOINT</code> inside the container.</td>
+                    </tr>
+                    <tr>
+                      <td><code>S3_ENDPOINT</code></td>
+                      <td><code>http://127.0.0.1:9100</code></td>
+                      <td>S3-compatible endpoint for <code>pnpm</code> development. Start MinIO with <code>docker compose --profile s3 up minio -d</code>.</td>
+                    </tr>
+                    <tr>
+                      <td><code>S3_REGION</code></td>
+                      <td><code>us-east-1</code></td>
+                      <td>S3 region string passed to the client.</td>
+                    </tr>
+                    <tr>
+                      <td><code>S3_ACCESS_KEY</code> / <code>S3_SECRET_KEY</code></td>
+                      <td>sample keys</td>
+                      <td>Credentials for MinIO or another S3 store. Also seed the optional MinIO service.</td>
+                    </tr>
+                    <tr>
+                      <td><code>S3_BUCKET</code></td>
+                      <td><code>rolodex</code></td>
+                      <td>Bucket name for uploaded files when S3 is in use.</td>
+                    </tr>
+                    <tr>
+                      <td><code>BACKUP_DIR</code></td>
+                      <td><code>./backups</code></td>
+                      <td>Where <code>scripts/backup.sh</code> writes dumps and upload archives on the host.</td>
+                    </tr>
+                    <tr>
+                      <td><code>GOOGLE_MAPS_API_KEY</code></td>
+                      <td>blank</td>
+                      <td>Optional. Leave blank for OpenStreetMap. Can also be saved under Admin → Map.</td>
+                    </tr>
+                    <tr>
+                      <td><code>MAPBOX_ACCESS_TOKEN</code></td>
+                      <td>blank</td>
+                      <td>Optional Mapbox token. Same Admin page can store it later.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-row">
+        <div>
+          <div class="footer-brand">
+            <span data-rolodex-logo data-variant="icon" data-size="40" data-animate="false"></span>
+            <span>rolodex</span>
+          </div>
+          <p>Self-hosted relationship manager. Active development.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="../index.html">Home</a>
+          <a href="../quick-start.html">Quick start</a>
+          <a href="docker-compose.html">Docker Compose</a>
+          <a href="../roadmap.html">Roadmap</a>
+          <a href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script src="../logo.js"></script>
+    <script src="../site.js"></script>
+    <script src="../docs.js"></script>
+  </body>
+</html>
