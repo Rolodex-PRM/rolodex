@@ -13,6 +13,13 @@ image tags.
   catalog (`dist/index.json`) instead of the in-repo `registry/plugins`
   files. Override with `PLUGIN_REGISTRY_URL` / `PLUGIN_REGISTRY_DIR`.
   Catalog updates no longer require a Rolodex release.
+- Documentation site: Immich-style Quick start, Docker Compose, and
+  Environment variables pages, plus a public roadmap through 1.0.
+  Screenshots are used once each (network hero, contacts feature,
+  sign-in on quick start).
+- Staging → main pull requests must bump workspace package versions,
+  add a dated CHANGELOG heading, and set `docs/version.json` to the same
+  version (`scripts/check-release-docs.mjs`).
 
 ### Added
 
