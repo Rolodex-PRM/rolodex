@@ -1,4 +1,5 @@
-# Guard: only the staging branch may merge into main.
+# Guard: only the staging branch may merge into main, and that merge must
+# bump the app version, changelog, and docs version stamp together.
 #
 # Branch protection alone cannot say where a pull request comes from,
 # so this check fails any pull request to main whose source branch is
@@ -28,3 +29,20 @@ jobs:
             exit 1
           fi
           echo "Source branch is staging. This pull request may merge into main."
+
+  check-release-docs:
+    name: Version, changelog, and docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Require version, changelog, and docs stamp
+        run: node scripts/check-release-docs.mjs --base-ref "origin/${{ github.base_ref }}"
