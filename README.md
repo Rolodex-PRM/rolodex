@@ -13,19 +13,23 @@ Rolodex is a self-hosted relationship manager. One server holds the people, the 
 
 Product site: [rolodex-prm.github.io/rolodex](https://rolodex-prm.github.io/rolodex/) (served from [`docs/`](docs/)).
 
+Docs: [Quick start](https://rolodex-prm.github.io/rolodex/quick-start.html) · [Docker Compose](https://rolodex-prm.github.io/rolodex/install/docker-compose.html) · [Environment variables](https://rolodex-prm.github.io/rolodex/install/environment-variables.html) · [Roadmap](https://rolodex-prm.github.io/rolodex/roadmap.html)
+
 The first visit creates the administrator. After that, registration is invite-only until an administrator turns open registration on under Admin → Security.
 
 <p>
-  <img src="docs/images/login.png" alt="Rolodex sign-in screen" width="100%">
-  <img src="docs/images/network.png" alt="Rolodex relationship network" width="49%">
-  <img src="docs/images/contact.png" alt="Rolodex contacts list" width="49%">
+  <img src="docs/images/network.png" alt="Relationship network: people connected by named ties" width="100%">
+</p>
+<p>
+  <img src="docs/images/contact.png" alt="Contacts list in the Rolodex book" width="49%">
+  <img src="docs/images/login.png" alt="Sign-in after a fresh install" width="49%">
 </p>
 
 ## Run it with Docker
 
-Two containers: Postgres, and Rolodex. Rolodex listens on one HTTP port. That port is the website, `/api/`, and CardDAV/CalDAV.
+Two containers: Postgres, and Rolodex. Rolodex listens on one HTTP port. That port is the website, `/api/`, and CardDAV/CalDAV. For the guided path, use the [quick start](https://rolodex-prm.github.io/rolodex/quick-start.html); the [Docker Compose](https://rolodex-prm.github.io/rolodex/install/docker-compose.html) and [environment variables](https://rolodex-prm.github.io/rolodex/install/environment-variables.html) pages cover production detail.
 
-The published image is `gallinij/rolodex:latest`. Publishing a GitHub Release builds that tag and moves `latest` to the same image (manual dispatch is also available). Pull requests run typecheck, tests, `pnpm audit`, and a Docker build that does not push.
+The published image is `gallinij/rolodex:latest`. Publishing a GitHub Release builds that tag and moves `latest` to the same image (manual dispatch is also available). Pull requests run typecheck, tests, `pnpm audit`, and a Docker build that does not push. Merging `staging` into `main` also requires a version bump, changelog release notes, and an updated `docs/version.json`.
 
 ```sh
 cp .env.example .env

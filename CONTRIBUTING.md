@@ -20,9 +20,10 @@ so small, focused contributions land fastest.
 - Do not include secrets, passwords, tokens, real contact details, or
   real personal data in a commit, an issue, a test, or a screenshot.
   Use clearly fake values such as `example.com` addresses.
-- Do not bump version numbers in a pull request. The maintainer bumps
-  versions when a release is cut, so the tag, the package versions, and
-  the changelog stay in step.
+- Do not bump version numbers on feature pull requests into `staging`.
+  The maintainer bumps versions on the `staging` → `main` release pull
+  request so the tag, the package versions, the changelog, and
+  `docs/version.json` stay in step.
 
 ## Before you start
 
@@ -87,7 +88,13 @@ and nothing is pushed directly to `main` or `staging`.
 - `main` is what is released. It is protected: pull requests only, no
   direct pushes, no force pushes, and no deleting the branch. A check
   in `.github/workflows/require-staging-for-main.yml` fails any pull
-  request to `main` whose source branch is not `staging`.
+  request to `main` whose source branch is not `staging`. The same
+  workflow also requires a release docs check: the root and workspace
+  `package.json` versions must bump above `main`, `CHANGELOG.md` must
+  gain a dated heading for that version, and `docs/version.json` must
+  match. Run
+  `node scripts/check-release-docs.mjs --base-ref origin/main`
+  locally before opening the staging → main pull request.
 - `staging` is where work is integrated and tested together. It is
   protected the same way: pull requests only, no direct pushes, no
   force pushes.
@@ -107,11 +114,14 @@ and nothing is pushed directly to `main` or `staging`.
   in one pull request are hard to review.
 - Explain what changed and why, and how you tested it. Add screenshots
   for a visible change.
-- Update the docs when behavior changes. `docs/PRODUCT.md` describes
-  field-by-field behavior, roles, and admin pages, and the README
-  describes setup.
+- Update the docs when behavior changes. The product site under `docs/`
+  has Quick start, Docker Compose, Environment variables, and Roadmap
+  pages; `docs/PRODUCT.md` describes field-by-field behavior, roles,
+  and admin pages; the README describes setup.
 - Add an entry under `Unreleased` in CHANGELOG.md for a user-visible
-  change.
+  change. When cutting the staging → main release, move those notes
+  under a new `## X.Y.Z - YYYY-MM-DD` heading and bump every workspace
+  package plus `docs/version.json` to the same version.
 - Keep the pull request template checklist honest. Do not tick a box for
   a test you did not run.
 
