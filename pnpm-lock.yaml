@@ -30,14 +30,14 @@ importers:
         specifier: ^1.32.2
         version: 1.32.2(zod@4.6.7)
       '@nestjs/common':
-        specifier: ^11.1.6
-        version: 11.2.8(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        specifier: ^12.5.0
+        version: 12.5.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/core':
         specifier: ^11.1.6
-        version: 11.2.8(@nestjs/common@11.2.8(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.2.8)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 11.2.8(@nestjs/common@12.5.0(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.2.8)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/platform-express':
         specifier: ^11.1.6
-        version: 11.2.8(@nestjs/common@11.2.8(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.8)
+        version: 11.2.8(@nestjs/common@12.5.0(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.8)
       '@rolodex/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -76,14 +76,14 @@ importers:
   apps/carddav:
     dependencies:
       '@nestjs/common':
-        specifier: ^11.1.6
-        version: 11.2.8(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        specifier: ^12.5.0
+        version: 12.5.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/core':
         specifier: ^11.1.6
-        version: 11.2.8(@nestjs/common@11.2.8(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.2.8)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 11.2.8(@nestjs/common@12.5.0(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.2.8)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/platform-express':
         specifier: ^11.1.6
-        version: 11.2.8(@nestjs/common@11.2.8(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.8)
+        version: 11.2.8(@nestjs/common@12.5.0(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.8)
       '@rolodex/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -1208,8 +1208,8 @@ packages:
       '@cfworker/json-schema':
         optional: true
 
-  '@nestjs/common@11.2.8':
-    resolution: {integrity: sha512-5NobtSscYwgS9r2p+ADCJCu9Fy164wRuGVTUJxoa5I3rLIVjRFWFlV+UA37bKf8Om+4tSGJe4j92zOVnISbdbw==}
+  '@nestjs/common@12.5.0':
+    resolution: {integrity: sha512-3pid0u/4ILXS7fvliSZp5lvPxAqGVTgbQQ06qv6zZdyqaofhpTeQbWjZjdpbsBhNm5BhEaMh38JKBE2p0hoCJQ==}
     peerDependencies:
       class-transformer: '>=0.4.1'
       class-validator: '>=0.13.2'
@@ -1805,8 +1805,11 @@ packages:
     resolution: {integrity: sha512-r7jh49VJxGerfAcTQA6gXcKc+98zOp/tqRwzYjgOE+iSQsP6cEU1hq2QzbuipmP68QtYdY9wKEhiCQZIzHgZ4Q==}
     engines: {node: '>=18.0.0'}
 
-  '@tokenizer/inflate@0.4.1':
-    resolution: {integrity: sha512-2mAv+8pkG6GIZiF1kNg1jAjh27IDxEPKwdGul3snfztFerfPGI1LjDezZp3i7BElXompqEtPmoPx6c2wgtWsOA==}
+  '@standard-schema/spec@1.1.0':
+    resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
+
+  '@tokenizer/inflate@0.6.1':
+    resolution: {integrity: sha512-EuqSyHdOXN61cc5/rsW6uUn1TJZJGZr56jlkUbsLwVJ6uHgvwQyFkYfOCf+zzPFAYjftPk1WeJnEhpLVvzbm1A==}
     engines: {node: '>=18'}
 
   '@tokenizer/token@0.3.0':
@@ -2798,9 +2801,9 @@ packages:
   fetch-nodeshim@0.4.10:
     resolution: {integrity: sha512-m6I8ALe4L4XpdETy7MJZWs6L1IVMbjs99bwbpIKphxX+0CTns4IKDWJY0LWfr4YsFjfg+z1TjzTMU8lKl8rG0w==}
 
-  file-type@21.3.4:
-    resolution: {integrity: sha512-Ievi/yy8DS3ygGvT47PjSfdFoX+2isQueoYP1cntFW1JLYAuS4GD7NUPGg4zv2iZfV52uDyk5w5Z0TdpRS6Q1g==}
-    engines: {node: '>=20'}
+  file-type@22.3.0:
+    resolution: {integrity: sha512-PrPedgnnWl5bWz3JHgar0QSzRvzeyFh7dZ9JpYOgcPZu4KALS9zw4MMa6qXRYyjeBsAlpaWB2boLuG991+0HIQ==}
+    engines: {node: '>=22'}
 
   fill-range@7.1.1:
     resolution: {integrity: sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg==}
@@ -3997,8 +4000,8 @@ packages:
   strnum@2.5.1:
     resolution: {integrity: sha512-UM4nTLWzQiDBseVxUGxN0wJzIk0UU89Qi7pKXz9qISo+lhviJikTuikBsK/oFRlpvYHvSdz0TVoLyQ+sEpYwxA==}
 
-  strtok3@10.6.3:
-    resolution: {integrity: sha512-MD8mENgyXMr2mDaDfzP3RWYDSyYQxIIou7HhCiCJiBekrsoDtUG0id3vYnjDfY9ndOEbazFXe13Qw6u/1AB8ew==}
+  strtok3@10.8.0:
+    resolution: {integrity: sha512-e6bW3fD6V01DPmcbLfNtn0cjsiHvTKS/hivgbzqYMfHb/nLes4QQ0H5QBxlkPQayF4xv08AvlSgptGwN86Eemw==}
     engines: {node: '>=18'}
 
   structured-headers@0.4.1:
@@ -4062,8 +4065,8 @@ packages:
     resolution: {integrity: sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==}
     engines: {node: '>=0.6'}
 
-  token-types@6.1.2:
-    resolution: {integrity: sha512-dRXchy+C0IgK8WPC6xvCHFRIWYUbqqdEIKPaKo/AcTUNzwLTK6AH7RjdLWsEZcAN/TBdtfUw3PYEgPr5VPr6ww==}
+  token-types@6.2.0:
+    resolution: {integrity: sha512-s9euYHM//T3loJtbNUYdbAzsMlvKBeRS+XCLFy+UGosMQH19Hwjap5k19i4PPAEJJBsVIpMpVTxl4fIqCuNfUg==}
     engines: {node: '>=14.16'}
 
   toqr@0.1.1:
@@ -4074,6 +4077,9 @@ packages:
 
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
+
+  tslib@2.9.1:
+    resolution: {integrity: sha512-a4Ux9VKuIMHsOS7ENbEq6hK2ZGYIT27Rtl0E4eD9KqwxhKiQeMZE/9xb3IdYwWaSOyIBQLExhQgXDTYoiCxnWA==}
 
   tsx@4.23.15:
     resolution: {integrity: sha512-Yiex1Ovn8z2xPpOWckIiysV1SSyRMY9BkLF++q0yKiDxCqRhosKfMg3janKkiLBwZ5c/YryloKwGZcrEmtwxKw==}
@@ -4390,7 +4396,7 @@ snapshots:
       '@aws-sdk/types': 3.975.0
       '@smithy/core': 3.38.0
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/client-s3@3.1160.0':
     dependencies:
@@ -4415,7 +4421,7 @@ snapshots:
       '@smithy/signature-v4': 5.7.5
       '@smithy/types': 4.19.0
       bowser: 2.15.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/credential-provider-env@3.972.79':
     dependencies:
@@ -4423,7 +4429,7 @@ snapshots:
       '@aws-sdk/types': 3.975.0
       '@smithy/core': 3.38.0
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/credential-provider-http@3.972.81':
     dependencies:
@@ -4433,7 +4439,7 @@ snapshots:
       '@smithy/fetch-http-handler': 5.8.0
       '@smithy/node-http-handler': 4.14.0
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/credential-provider-ini@3.973.24':
     dependencies:
@@ -4449,7 +4455,7 @@ snapshots:
       '@smithy/core': 3.38.0
       '@smithy/credential-provider-imds': 4.5.2
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/credential-provider-login@3.972.86':
     dependencies:
@@ -4458,7 +4464,7 @@ snapshots:
       '@aws-sdk/types': 3.975.0
       '@smithy/core': 3.38.0
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/credential-provider-node@3.972.91':
     dependencies:
@@ -4472,7 +4478,7 @@ snapshots:
       '@smithy/core': 3.38.0
       '@smithy/credential-provider-imds': 4.5.2
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/credential-provider-process@3.972.79':
     dependencies:
@@ -4480,7 +4486,7 @@ snapshots:
       '@aws-sdk/types': 3.975.0
       '@smithy/core': 3.38.0
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/credential-provider-sso@3.973.23':
     dependencies:
@@ -4490,7 +4496,7 @@ snapshots:
       '@aws-sdk/types': 3.975.0
       '@smithy/core': 3.38.0
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/credential-provider-web-identity@3.972.85':
     dependencies:
@@ -4499,7 +4505,7 @@ snapshots:
       '@aws-sdk/types': 3.975.0
       '@smithy/core': 3.38.0
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/middleware-sdk-s3@3.972.84':
     dependencies:
@@ -4508,7 +4514,7 @@ snapshots:
       '@aws-sdk/types': 3.975.0
       '@smithy/core': 3.38.0
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/nested-clients@3.997.53':
     dependencies:
@@ -4519,14 +4525,14 @@ snapshots:
       '@smithy/fetch-http-handler': 5.8.0
       '@smithy/node-http-handler': 4.14.0
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/signature-v4-multi-region@3.996.50':
     dependencies:
       '@aws-sdk/types': 3.975.0
       '@smithy/signature-v4': 5.7.5
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/token-providers@3.1160.0':
     dependencies:
@@ -4535,17 +4541,17 @@ snapshots:
       '@aws-sdk/types': 3.975.0
       '@smithy/core': 3.38.0
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/types@3.975.0':
     dependencies:
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/xml-builder@3.972.42':
     dependencies:
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws/lambda-invoke-store@0.3.0': {}
 
@@ -5715,21 +5721,22 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@nestjs/common@11.2.8(reflect-metadata@0.2.2)(rxjs@7.8.2)':
+  '@nestjs/common@12.5.0(reflect-metadata@0.2.2)(rxjs@7.8.2)':
     dependencies:
-      file-type: 21.3.4
+      '@standard-schema/spec': 1.1.0
+      file-type: 22.3.0
       iterare: 1.2.1
       load-esm: 1.0.3
       reflect-metadata: 0.2.2
       rxjs: 7.8.2
-      tslib: 2.8.1
+      tslib: 2.9.1
       uid: 2.0.2
     transitivePeerDependencies:
       - supports-color
 
-  '@nestjs/core@11.2.8(@nestjs/common@11.2.8(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.2.8)(reflect-metadata@0.2.2)(rxjs@7.8.2)':
+  '@nestjs/core@11.2.8(@nestjs/common@12.5.0(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.2.8)(reflect-metadata@0.2.2)(rxjs@7.8.2)':
     dependencies:
-      '@nestjs/common': 11.2.8(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 12.5.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
       fast-safe-stringify: 2.1.1
       iterare: 1.2.1
       path-to-regexp: 8.4.2
@@ -5738,12 +5745,12 @@ snapshots:
       tslib: 2.8.1
       uid: 2.0.2
     optionalDependencies:
-      '@nestjs/platform-express': 11.2.8(@nestjs/common@11.2.8(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.8)
+      '@nestjs/platform-express': 11.2.8(@nestjs/common@12.5.0(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.8)
 
-  '@nestjs/platform-express@11.2.8(@nestjs/common@11.2.8(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.8)':
+  '@nestjs/platform-express@11.2.8(@nestjs/common@12.5.0(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.8)':
     dependencies:
-      '@nestjs/common': 11.2.8(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/core': 11.2.8(@nestjs/common@11.2.8(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.2.8)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 12.5.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 11.2.8(@nestjs/common@12.5.0(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.2.8)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       cors: 2.8.6
       express: 5.2.1
       multer: 2.5.0
@@ -6192,40 +6199,43 @@ snapshots:
   '@smithy/core@3.38.0':
     dependencies:
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@smithy/credential-provider-imds@4.5.2':
     dependencies:
       '@smithy/core': 3.38.0
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@smithy/fetch-http-handler@5.8.0':
     dependencies:
       '@smithy/core': 3.38.0
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@smithy/node-http-handler@4.14.0':
     dependencies:
       '@smithy/core': 3.38.0
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@smithy/signature-v4@5.7.5':
     dependencies:
       '@smithy/core': 3.38.0
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@smithy/types@4.19.0':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
-  '@tokenizer/inflate@0.4.1':
+  '@standard-schema/spec@1.1.0': {}
+
+  '@tokenizer/inflate@0.6.1':
     dependencies:
       debug: 4.4.3
-      token-types: 6.1.2
+      strtok3: 10.8.0
+      token-types: 6.2.0
     transitivePeerDependencies:
       - supports-color
 
@@ -7183,11 +7193,11 @@ snapshots:
 
   fetch-nodeshim@0.4.10: {}
 
-  file-type@21.3.4:
+  file-type@22.3.0:
     dependencies:
-      '@tokenizer/inflate': 0.4.1
-      strtok3: 10.6.3
-      token-types: 6.1.2
+      '@tokenizer/inflate': 0.6.1
+      strtok3: 10.8.0
+      token-types: 6.2.0
       uint8array-extras: 1.6.0
     transitivePeerDependencies:
       - supports-color
@@ -8711,7 +8721,7 @@ snapshots:
     dependencies:
       anynum: 1.0.1
 
-  strtok3@10.6.3:
+  strtok3@10.8.0:
     dependencies:
       '@tokenizer/token': 0.3.0
 
@@ -8769,7 +8779,7 @@ snapshots:
 
   toidentifier@1.0.1: {}
 
-  token-types@6.1.2:
+  token-types@6.2.0:
     dependencies:
       '@borewit/text-codec': 0.2.3
       '@tokenizer/token': 0.3.0
@@ -8780,6 +8790,8 @@ snapshots:
   tr46@0.0.3: {}
 
   tslib@2.8.1: {}
+
+  tslib@2.9.1: {}
 
   tsx@4.23.15:
     dependencies:
