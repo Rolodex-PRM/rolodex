@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Platform, View } from 'react-native'
+import { loadLeaflet } from './leaflet'
 
 export function AddressMap({ lat, lon }: { lat: number; lon: number }) {
   const host = useRef<HTMLDivElement | null>(null)
@@ -10,10 +11,8 @@ export function AddressMap({ lat, lon }: { lat: number; lon: number }) {
     let map: { remove: () => void } | null = null
     let cancel = false
     let timer = 0
-    void import('leaflet').then((loaded) => {
+    void loadLeaflet().then((L) => {
       if (cancel || !node.isConnected) return
-      const L = ('default' in loaded && loaded.default ? loaded.default : loaded) as typeof import('leaflet')
-      ensureStylesheet('leaflet-css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css')
       const view = L.map(node, { zoomControl: false, attributionControl: false, scrollWheelZoom: false }).setView([lat, lon], 14)
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(view)
       const icon = L.divIcon({
@@ -38,13 +37,4 @@ export function AddressMap({ lat, lon }: { lat: number; lon: number }) {
 
   if (Platform.OS !== 'web') return null
   return <View style={{ height: 140, borderRadius: 12, overflow: 'hidden', marginTop: 8 }} ref={(node) => { host.current = node as unknown as HTMLDivElement }} />
-}
-
-function ensureStylesheet(id: string, href: string) {
-  if (document.getElementById(id)) return
-  const link = document.createElement('link')
-  link.id = id
-  link.rel = 'stylesheet'
-  link.href = href
-  document.head.appendChild(link)
 }

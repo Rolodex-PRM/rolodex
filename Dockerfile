@@ -1,4 +1,6 @@
-FROM node:22-trixie-slim AS web
+# JS/web stages are arch-independent; build them on the builder host.
+# The final stage stays on the target arch for native addons (e.g. @node-rs/argon2).
+FROM --platform=$BUILDPLATFORM node:22-alpine AS web
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
@@ -9,7 +11,7 @@ ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL
 RUN pnpm install --frozen-lockfile --filter @rolodex/mobile... \
   && pnpm --filter @rolodex/mobile export
 
-FROM node:22-trixie-slim AS build
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
@@ -24,13 +26,22 @@ COPY scripts/docker-bundle.mjs ./scripts/docker-bundle.mjs
 RUN pnpm install --frozen-lockfile --filter @rolodex/api... --filter @rolodex/carddav... --filter rolodex \
   && node scripts/docker-bundle.mjs
 
-FROM node:22-trixie-slim
-RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d && chmod +x /usr/sbin/policy-rc.d \
-  && apt-get update \
-  && apt-get install -y --no-install-recommends nginx postgresql-client ca-certificates openssl \
-  && apt-get upgrade -y \
-  && rm -rf /var/lib/apt/lists/* /etc/nginx/sites-enabled/default
-RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
+FROM node:22-alpine
+# Pin security floors for Alpine packages Docker Hub/Scout flag on :dev/:latest.
+# nginx 1.30.7 and openssl 3.5.9-r1 close the Nov 2026 advisories; apk upgrade
+# refreshes the rest of the base (libssl/libcrypto, zlib, …) before install.
+RUN apk upgrade --no-cache \
+  && apk add --no-cache \
+       "nginx>=1.30.7-r0" \
+       "openssl>=3.5.9-r1" \
+       postgresql-client \
+       ca-certificates \
+  && mkdir -p /usr/share/nginx/html \
+  && rm -f /etc/nginx/http.d/default.conf \
+  && nginx -v \
+  && apk list -I nginx openssl libssl3 libcrypto3 musl
+RUN corepack enable && corepack prepare pnpm@10.33.3 --activate \
+  && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 # Hoist filtered runtime deps so bundled entrypoints can resolve packages from /app/node_modules.
@@ -53,7 +64,7 @@ COPY packages/db/drizzle ./packages/db/drizzle
 COPY plugins ./plugins
 COPY registry ./registry
 COPY scripts/docker-app.mjs ./scripts/docker-app.mjs
-COPY nginx/rolodex.conf /etc/nginx/conf.d/default.conf
+COPY nginx/rolodex.conf /etc/nginx/http.d/default.conf
 COPY nginx/rolodex-proxy.inc /etc/nginx/rolodex-proxy.inc
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 COPY --from=build /app/apps/carddav/dist ./apps/carddav/dist

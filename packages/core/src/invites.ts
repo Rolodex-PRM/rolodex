@@ -6,9 +6,10 @@ import { registerUser } from './auth'
 import { AppError } from './errors'
 import { normalizeEmail } from './normalize'
 import { hashPassword } from './passwords'
-import { publicAppUrl, sendAccountEmail } from './notify'
+import { emailNotificationsEnabled, publicAppUrl, sendAccountEmail } from './notify'
 import { readSettings, writeSettings } from './server-store'
 import { hashToken, newToken } from './secrets'
+import { twoFactorPolicy } from './two-factor'
 import type { passwordResetSchema, registerSchema } from './validation'
 
 const policyKey = 'auth.registration'
@@ -105,25 +106,46 @@ export async function sendPasswordReset(db: Database, actorId: string, workspace
     .where(and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, memberId)))
     .limit(1)
   if (!member) throw new AppError(404, 'Member not found')
+  await deliverPasswordReset(db, member.userId, member.email, 'A workspace administrator asked to reset your Rolodex password.')
+  return { ok: true }
+}
+
+export async function forgotPasswordAvailable(db: Database) {
+  const policy = await twoFactorPolicy(db)
+  if (!policy.forgotPassword) return { available: false }
+  return { available: await emailNotificationsEnabled(db) }
+}
+
+export async function requestPasswordReset(db: Database, emailInput: string) {
+  const available = await forgotPasswordAvailable(db)
+  if (!available.available) throw new AppError(400, 'Forgot password is turned off')
+  const email = normalizeEmail(emailInput)
+  const [user] = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.email, email)).limit(1)
+  if (user) {
+    await deliverPasswordReset(db, user.id, user.email, 'Someone asked to reset your Rolodex password.')
+  }
+  return { ok: true }
+}
+
+async function deliverPasswordReset(db: Database, userId: string, email: string, reason: string) {
   const token = newToken()
-  await db.delete(passwordResets).where(eq(passwordResets.userId, member.userId))
+  await db.delete(passwordResets).where(eq(passwordResets.userId, userId))
   const [row] = await db
     .insert(passwordResets)
-    .values({ userId: member.userId, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + resetMs) })
+    .values({ userId, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + resetMs) })
     .returning({ id: passwordResets.id })
   const link = `${await publicAppUrl(db)}/reset-password?token=${encodeURIComponent(token)}`
   try {
     await sendAccountEmail(
       db,
-      member.email,
+      email,
       'Reset your Rolodex password',
-      `A workspace administrator asked to reset your Rolodex password.\n\nChoose a new password:\n${link}\n\nThis link expires in 2 hours. If you did not expect this, you can ignore it.`,
+      `${reason}\n\nChoose a new password:\n${link}\n\nThis link expires in 2 hours. If you did not expect this, you can ignore it.`,
     )
   } catch (error) {
     if (row) await db.delete(passwordResets).where(eq(passwordResets.id, row.id))
     throw error
   }
-  return { ok: true }
 }
 
 export async function resetPassword(db: Database, input: z.infer<typeof passwordResetSchema>) {

@@ -84,9 +84,23 @@ jobs:
       - name: Audit dependencies
         run: pnpm run audit
 
-  docker:
-    name: Docker build
-    runs-on: ubuntu-latest
+  # Native runners per arch. Cross-building arm64 under QEMU crashes pnpm with SIGILL.
+  docker-platform:
+    name: Docker (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            node_arch: x64
+            image_arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            node_arch: arm64
+            image_arch: arm64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -99,8 +113,49 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          platforms: ${{ matrix.platform }}
           push: false
           load: true
           tags: rolodex:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=docker-${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=docker-${{ matrix.platform }}
+
+      - name: Assert image architecture
+        run: |
+          set -eux
+          arch="$(docker image inspect rolodex:ci --format '{{.Architecture}}')"
+          if [ "$arch" != "${{ matrix.image_arch }}" ]; then
+            echo "::error::expected image architecture ${{ matrix.image_arch }}, got $arch"
+            exit 1
+          fi
+
+      - name: Smoke-test native modules
+        run: |
+          set -eux
+          docker run --rm --platform "${{ matrix.platform }}" rolodex:ci \
+            node --input-type=module -e "
+              import process from 'node:process';
+              import { hash, verify } from '@node-rs/argon2';
+
+              if (process.arch !== '${{ matrix.node_arch }}') {
+                console.error('unexpected process.arch:', process.arch);
+                process.exit(1);
+              }
+
+              const digest = await hash('rolodex-ci');
+              if (!(await verify(digest, 'rolodex-ci'))) {
+                console.error('argon2 verify failed');
+                process.exit(1);
+              }
+
+              console.log('native smoke ok', process.arch, process.platform);
+            "
+
+  # Exact name required by branch protection.
+  docker:
+    name: Docker build
+    needs: [docker-platform]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All platform Docker builds passed
+        run: echo "linux/amd64 and linux/arm64 images built and smoke-tested."

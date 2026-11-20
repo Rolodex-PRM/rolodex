@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en" data-version-url="version.json">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Roadmap — Rolodex</title>
+    <meta
+      name="description"
+      content="Rolodex product roadmap from multi-arch Docker images through the 1.0 release."
+    />
+    <meta name="theme-color" content="#1b2a4a" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" href="rolodex-mark.svg" type="image/svg+xml" />
+  </head>
+  <body class="doc-page">
+    <header class="site-header" id="top">
+      <div class="wrap nav">
+        <a class="brand" href="index.html" aria-label="Rolodex home">
+          <span class="brand-logo" data-rolodex-logo data-variant="icon" data-size="34" data-animate="false"></span>
+          <span>rolodex</span>
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+        <ul class="nav-links" id="nav-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="quick-start.html">Quick start</a></li>
+          <li><a href="install/docker-compose.html">Docker Compose</a></li>
+          <li><a href="install/environment-variables.html">Environment</a></li>
+          <li><a aria-current="page" href="roadmap.html">Roadmap</a></li>
+          <li>
+            <a class="nav-cta" href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub</a>
+          </li>
+        </ul>
+      </div>
+    </header>
+
+    <main>
+      <section class="doc-hero wrap">
+        <p class="section-kicker">Project</p>
+        <h1>Roadmap</h1>
+        <p class="doc-lede">
+          Planned milestones toward 1.0. Dates are not promised; order reflects what should harden next for
+          self-hosters. Current docs target <a data-rolodex-version rel="noopener noreferrer"></a>.
+        </p>
+      </section>
+
+      <section class="section doc-section">
+        <div class="wrap">
+          <ol class="roadmap-list">
+            <li>
+              <div class="roadmap-version">v0.3.0</div>
+              <div>
+                <h2>Multi-arch support <span class="roadmap-shipped">shipped</span></h2>
+                <p>
+                  Publish and verify Docker images for common CPU architectures so ARM hosts (including many NAS and
+                  cloud instances) pull the same tags as amd64.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div class="roadmap-version">v0.4.0</div>
+              <div>
+                <h2>Backup and restore support</h2>
+                <p>
+                  Make backup and restore a first-class path: clearer scripts, docs, and in-app guidance so an owner can
+                  move Postgres and uploads with confidence.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div class="roadmap-version">v0.5.0</div>
+              <div>
+                <h2>Finalizing the contact page</h2>
+                <p>
+                  Finish the person record as the daily workspace: layout, fields, history, and the actions people use
+                  every day.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div class="roadmap-version">v0.6.0</div>
+              <div>
+                <h2>More robust relationships</h2>
+                <p>
+                  Strengthen named ties, households, and the network map so relationships stay accurate as the book
+                  grows.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div class="roadmap-version">v0.7.0</div>
+              <div>
+                <h2>Mobile support and UX</h2>
+                <p>
+                  Focus on phone and small-screen use of the web app, plus the friction that shows up when sync clients
+                  and the site disagree.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div class="roadmap-version">v0.8.0</div>
+              <div>
+                <h2>Docs, support help, and Discord</h2>
+                <p>
+                  Expand install and operations docs, add clearer help for common failures, and open a Discord for
+                  community support.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div class="roadmap-version">v0.9.0</div>
+              <div>
+                <h2>Long-term name and branding</h2>
+                <p>
+                  Confirm the product name, mark, and visual language for the long haul before calling the project
+                  stable.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div class="roadmap-version">v1.0.0</div>
+              <div>
+                <h2>Full release</h2>
+                <p>
+                  Public 1.0: marketing push, clearer upgrade promises, and much more care about breaking changes.
+                </p>
+              </div>
+            </li>
+          </ol>
+
+          <p class="compare-note">
+            Ideas and bug reports still belong in GitHub Discussions and issues. This roadmap is a guide for
+            maintainers, not a contract.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-row">
+        <div>
+          <div class="footer-brand">
+            <span data-rolodex-logo data-variant="icon" data-size="40" data-animate="false"></span>
+            <span>rolodex</span>
+          </div>
+          <p>Self-hosted relationship manager. Active development.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="index.html">Home</a>
+          <a href="quick-start.html">Quick start</a>
+          <a href="install/docker-compose.html">Docker Compose</a>
+          <a href="install/environment-variables.html">Environment</a>
+          <a href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script src="logo.js"></script>
+    <script src="site.js"></script>
+    <script src="docs.js"></script>
+  </body>
+</html>

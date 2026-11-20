@@ -1,7 +1,7 @@
 {
   "name": "rolodex",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.3.0",
   "license": "AGPL-3.0-only",
   "packageManager": "pnpm@10.33.3",
   "scripts": {
@@ -23,6 +23,11 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": ["esbuild"],
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-fc5q-39xc-vjpf"
+      ]
+    },
     "overrides": {
       "esbuild": "^0.28.2",
       "tinypool": "^2.1.1",

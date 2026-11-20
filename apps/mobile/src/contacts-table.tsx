@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import type { ContactSummary } from './api'
 import { AuthImage } from './immich-photos'
+import { formatPhone } from './phone'
 import { font, theme } from './theme'
 
 type Key = 'displayName' | 'organizationName' | 'title' | 'primaryEmail' | 'primaryPhone' | 'city' | 'tags'
@@ -30,21 +31,27 @@ const emptyFilters: Filters = {
 
 function cell(contact: ContactSummary, key: Key) {
   if (key === 'tags') return contact.tags.map((tag) => tag.name).join(', ')
+  if (key === 'primaryPhone') {
+    const phone = contact.primaryPhone?.trim()
+    return phone ? formatPhone(phone) : ''
+  }
   return contact[key] ?? ''
 }
 
-export function ContactsTable({ 
-  contacts, 
-  onOpen, 
-  bulkActionMode = false, 
-  selectedIds = new Set(), 
-  onToggleSelect 
-}: { 
+export function ContactsTable({
+  contacts,
+  onOpen,
+  bulkActionMode = false,
+  selectedIds = new Set(),
+  onToggleSelect,
+  onSelectMany,
+}: {
   contacts: ContactSummary[]
   onOpen: (contact: ContactSummary) => void
   bulkActionMode?: boolean
   selectedIds?: Set<string>
   onToggleSelect?: (id: string) => void
+  onSelectMany?: (ids: string[], selected: boolean) => void
 }) {
   const [sortKey, setSortKey] = useState<Key>('displayName')
   const [direction, setDirection] = useState<'asc' | 'desc'>('asc')
@@ -100,6 +107,10 @@ export function ContactsTable({
     })
   }
 
+  const shownIds = shown.map((contact) => contact.id)
+  const allShownSelected = shownIds.length > 0 && shownIds.every((id) => selectedIds.has(id))
+  const someShownSelected = shownIds.some((id) => selectedIds.has(id))
+
   return (
     <View style={styles.wrap}>
       <TextInput
@@ -112,6 +123,20 @@ export function ContactsTable({
       <ScrollView horizontal showsHorizontalScrollIndicator style={styles.tableScroll}>
         <View style={styles.table}>
           <View style={styles.head}>
+            {bulkActionMode ? (
+              <View style={styles.selectCol}>
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: allShownSelected ? true : someShownSelected ? 'mixed' : false }}
+                  onPress={() => onSelectMany?.(shownIds, !allShownSelected)}
+                  style={styles.selectHit}
+                >
+                  <View style={[styles.checkbox, allShownSelected && styles.checkboxChecked, someShownSelected && !allShownSelected && styles.checkboxMixed]}>
+                    {allShownSelected ? <Text style={styles.checkmark}>✓</Text> : someShownSelected ? <Text style={styles.checkmark}>–</Text> : null}
+                  </View>
+                </Pressable>
+              </View>
+            ) : null}
             {columns.map((column) => (
               <View key={column.key} style={[styles.col, column.key === 'displayName' && styles.nameCol]}>
                 <Pressable onPress={() => sort(column.key)}>
@@ -175,7 +200,7 @@ export function ContactsTable({
               style={[styles.row, bulkActionMode && selectedIds.has(contact.id) && styles.rowSelected]}
             >
               {bulkActionMode ? (
-                <View style={styles.col}>
+                <View style={styles.selectCol}>
                   <View style={[styles.checkbox, selectedIds.has(contact.id) && styles.checkboxChecked]}>
                     {selectedIds.has(contact.id) ? <Text style={styles.checkmark}>✓</Text> : null}
                   </View>
@@ -219,6 +244,8 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', gap: 8, padding: 12, backgroundColor: theme.bg, borderBottomWidth: 1, borderBottomColor: theme.border },
   row: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.border },
   rowSelected: { backgroundColor: theme.accentMuted },
+  selectCol: { width: 28, minWidth: 28, alignItems: 'center', justifyContent: 'center' },
+  selectHit: { padding: 4 },
   col: { flex: 1, minWidth: 90, gap: 6 },
   nameCol: { flex: 1.4, minWidth: 140 },
   headText: { fontFamily: font, fontSize: 12, fontWeight: '700', color: theme.text },
@@ -230,6 +257,7 @@ const styles = StyleSheet.create({
   dropdownEmpty: { fontFamily: font, fontSize: 12, color: theme.muted, padding: 10, textAlign: 'center' },
   checkbox: { width: 16, height: 16, borderWidth: 1, borderColor: theme.border, borderRadius: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surface },
   checkboxChecked: { backgroundColor: theme.text, borderColor: theme.text },
+  checkboxMixed: { backgroundColor: theme.text, borderColor: theme.text },
   checkmark: { fontFamily: font, fontSize: 10, color: theme.on, fontWeight: '700' },
   person: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: theme.accentMuted, alignItems: 'center', justifyContent: 'center' },

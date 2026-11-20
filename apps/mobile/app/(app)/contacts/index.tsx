@@ -4,9 +4,11 @@ import { Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, 
 import { api, type AddressBook, type ContactSummary } from '../../../src/api'
 import { ContactsMap } from '../../../src/contacts-map'
 import { ContactsTable } from '../../../src/contacts-table'
+import { TagField } from '../../../src/fields'
 import { AuthImage } from '../../../src/immich-photos'
 import { useAuth } from '../../../src/auth'
 import { Loader } from '../../../src/logo'
+import { formatPhone } from '../../../src/phone'
 import { font, theme } from '../../../src/theme'
 import { Button } from '../../../src/ui'
 
@@ -32,6 +34,9 @@ export default function Contacts() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkActionMode, setBulkActionMode] = useState(false)
   const [showBulkMenu, setShowBulkMenu] = useState(false)
+  const [showBulkTag, setShowBulkTag] = useState(false)
+  const [bulkTagNames, setBulkTagNames] = useState<string[]>([])
+  const [bulkBusy, setBulkBusy] = useState(false)
   const canWrite = workspace?.role === 'owner' || workspace?.role === 'administrator' || workspace?.role === 'editor'
 
   useEffect(() => {
@@ -134,15 +139,29 @@ export default function Contacts() {
     setSelectedIds(new Set(rows.map((contact) => contact.id)))
   }
 
+  function selectMany(ids: string[], selected: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      for (const id of ids) {
+        if (selected) next.add(id)
+        else next.delete(id)
+      }
+      return next
+    })
+  }
+
   function clearSelection() {
     setSelectedIds(new Set())
     setBulkActionMode(false)
+    setShowBulkMenu(false)
+    setShowBulkTag(false)
+    setBulkTagNames([])
   }
 
   async function bulkDelete() {
     if (!workspace || selectedIds.size === 0) return
     if (!confirm(`Delete ${selectedIds.size} contact${selectedIds.size === 1 ? '' : 's'}?`)) return
-    
+
     try {
       await Promise.all(
         Array.from(selectedIds).map((id) =>
@@ -151,9 +170,46 @@ export default function Contacts() {
       )
       setRows((current) => current.filter((contact) => !selectedIds.has(contact.id)))
       clearSelection()
+    } catch (caught) {
+      setError((caught as Error).message)
+    }
+  }
+
+  async function bulkTag() {
+    if (!workspace || selectedIds.size === 0 || !bulkTagNames.length) return
+    setBulkBusy(true)
+    setError('')
+    try {
+      const selected = rows.filter((contact) => selectedIds.has(contact.id))
+      const updated = await Promise.all(
+        selected.map(async (contact) => {
+          const merged = [...contact.tags.map((tag) => tag.name)]
+          for (const name of bulkTagNames) {
+            if (!merged.some((tag) => tag.toLowerCase() === name.toLowerCase())) merged.push(name)
+          }
+          const saved = await api<ContactSummary>(`/api/workspaces/${contact.workspaceId}/contacts/${contact.id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ tagNames: merged }),
+          })
+          return saved
+        }),
+      )
+      const byId = new Map(updated.map((contact) => [contact.id, contact]))
+      setRows((current) => current.map((contact) => byId.get(contact.id) ?? contact))
+      const known = new Set(tags.map((tag) => tag.name.toLowerCase()))
+      const created = bulkTagNames.filter((name) => !known.has(name.toLowerCase()))
+      if (created.length) {
+        api<{ id: string; name: string }[]>(`/api/workspaces/${workspace.id}/tags`)
+          .then(setTags)
+          .catch(() => undefined)
+      }
+      setShowBulkTag(false)
+      setBulkTagNames([])
       setShowBulkMenu(false)
     } catch (caught) {
       setError((caught as Error).message)
+    } finally {
+      setBulkBusy(false)
     }
   }
 
@@ -161,6 +217,10 @@ export default function Contacts() {
     setBulkActionMode(!bulkActionMode)
     if (bulkActionMode) {
       clearSelection()
+    } else {
+      setShowBulkMenu(false)
+      setShowBulkTag(false)
+      setBulkTagNames([])
     }
   }
 
@@ -196,17 +256,43 @@ export default function Contacts() {
         </View>
       </View>
       {bulkActionMode && selectedIds.size > 0 ? (
-        <View style={styles.bulkActions}>
-          <Button label="Select all" tone="ghost" onPress={selectAll} />
-          <Button label="Clear" tone="ghost" onPress={clearSelection} />
-          <Pressable onPress={() => setShowBulkMenu(!showBulkMenu)} style={styles.bulkMenuButton}>
-            <Text style={styles.bulkMenuButtonText}>Actions ▼</Text>
-          </Pressable>
-          {showBulkMenu ? (
-            <View style={styles.bulkMenu}>
-              <Pressable onPress={bulkDelete} style={styles.bulkMenuItem}>
-                <Text style={styles.bulkMenuItemTextDanger}>Delete selected</Text>
+        <View style={styles.bulkBar}>
+          <View style={styles.bulkActions}>
+            <Button label="Select all" tone="ghost" onPress={selectAll} />
+            <Button label="Clear" tone="ghost" onPress={clearSelection} />
+            <View style={styles.bulkMenuWrap}>
+              <Pressable onPress={() => setShowBulkMenu(!showBulkMenu)} style={styles.bulkMenuButton}>
+                <Text style={styles.bulkMenuButtonText}>Actions ▼</Text>
               </Pressable>
+              {showBulkMenu ? (
+                <View style={styles.bulkMenu}>
+                  <Pressable
+                    onPress={() => {
+                      setShowBulkTag(true)
+                      setShowBulkMenu(false)
+                    }}
+                    style={styles.bulkMenuItem}
+                  >
+                    <Text style={styles.bulkMenuItemText}>Add tags</Text>
+                  </Pressable>
+                  <Pressable onPress={() => void bulkDelete()} style={styles.bulkMenuItem}>
+                    <Text style={styles.bulkMenuItemTextDanger}>Delete selected</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+            </View>
+          </View>
+          {showBulkTag ? (
+            <View style={styles.bulkTagPanel}>
+              <TagField tags={bulkTagNames} suggestions={tags.map((tag) => tag.name)} onChange={setBulkTagNames} />
+              <View style={styles.bulkTagActions}>
+                <Button label="Cancel" tone="ghost" onPress={() => { setShowBulkTag(false); setBulkTagNames([]) }} />
+                <Button
+                  label={bulkBusy ? 'Saving' : `Apply to ${selectedIds.size}`}
+                  onPress={() => void bulkTag()}
+                  disabled={bulkBusy || !bulkTagNames.length}
+                />
+              </View>
             </View>
           ) : null}
         </View>
@@ -240,12 +326,13 @@ export default function Contacts() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {!loaded ? <Loader /> : null}
       {loaded && view === 'table' ? (
-        <ContactsTable 
-          contacts={rows} 
-          onOpen={(contact) => router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)} 
+        <ContactsTable
+          contacts={rows}
+          onOpen={(contact) => router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)}
           bulkActionMode={bulkActionMode}
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
+          onSelectMany={selectMany}
         />
       ) : null}
       {loaded && view === 'map' ? <ContactsMap contacts={rows} canWrite={canWrite} onOpen={(contact) => router.push(`/contacts/${contact.id}?workspace=${contact.workspaceId}`)} /> : null}
@@ -289,7 +376,7 @@ export default function Contacts() {
             </View>
             <Text style={styles.name}>{contact.displayName}</Text>
             <Text style={styles.detail}>{[contact.title, contact.organizationName].filter(Boolean).join(' · ') || 'No organization'}</Text>
-            <Text style={styles.detail}>{contact.primaryEmail || contact.primaryPhone || 'No email or phone'}</Text>
+            <Text style={styles.detail}>{contact.primaryEmail || (contact.primaryPhone ? formatPhone(contact.primaryPhone) : '') || 'No email or phone'}</Text>
             <View style={styles.cardTags}>
               {contact.addressBooks.map((book) => (
                 <Text key={book.id} style={styles.book}>{book.name}</Text>
@@ -347,13 +434,17 @@ const styles = StyleSheet.create({
   tagActive: { backgroundColor: theme.text },
   tagText: { fontFamily: font, color: theme.text, fontSize: 12 },
   tagTextActive: { color: theme.on },
-  bulkActions: { flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: 12, backgroundColor: theme.surface, borderRadius: 16, borderWidth: 1, borderColor: theme.border },
+  bulkBar: { gap: 12, padding: 12, backgroundColor: theme.surface, borderRadius: 16, borderWidth: 1, borderColor: theme.border, zIndex: 20 },
+  bulkActions: { flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
+  bulkMenuWrap: { position: 'relative', zIndex: 30 },
   bulkMenuButton: { backgroundColor: theme.text, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center' },
   bulkMenuButtonText: { color: theme.on, fontFamily: font, fontSize: 14, fontWeight: '600' },
   bulkMenu: { position: 'absolute', top: '100%', right: 0, marginTop: 4, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 12, minWidth: 180, zIndex: 1000, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
   bulkMenuItem: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border },
   bulkMenuItemText: { fontFamily: font, fontSize: 14, color: theme.text },
   bulkMenuItemTextDanger: { fontFamily: font, fontSize: 14, color: theme.danger },
+  bulkTagPanel: { gap: 10 },
+  bulkTagActions: { flexDirection: 'row', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' },
   grid: { gap: 12 },
   gridWide: { flexDirection: 'row', flexWrap: 'wrap' },
   card: { backgroundColor: theme.surface, borderRadius: 22, borderWidth: 1, borderColor: theme.border, padding: 18, gap: 6, width: '100%', maxWidth: 340, position: 'relative' },

@@ -23,12 +23,14 @@ export default function SignIn() {
   const [pending, setPending] = useState(false)
   const [oauth, setOauth] = useState<{ enabled: boolean; buttonText: string; autoLaunch: boolean } | null>(null)
   const [inviteOnly, setInviteOnly] = useState(false)
+  const [forgotAvailable, setForgotAvailable] = useState(false)
   const [mailed, setMailed] = useState('')
   const [info, setInfo] = useState('')
 
   useEffect(() => {
     api<{ enabled: boolean; buttonText: string; autoLaunch: boolean }>('/api/auth/oauth').then(setOauth).catch(() => setOauth(null))
     api<{ inviteOnly: boolean }>('/api/auth/registration').then((policy) => setInviteOnly(policy.inviteOnly)).catch(() => setInviteOnly(false))
+    api<{ available: boolean }>('/api/auth/forgot').then((row) => setForgotAvailable(row.available)).catch(() => setForgotAvailable(false))
   }, [])
 
   useEffect(() => {
@@ -137,8 +139,31 @@ export default function SignIn() {
         />
       ) : (
         <>
-          <Field label="Email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} placeholder="you@email.com" onSubmitEditing={() => void submit()} />
-          <Field label="Password" secureTextEntry value={password} onChangeText={setPassword} onSubmitEditing={() => void submit()} />
+          <Field
+            label="Email"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+            textContentType="emailAddress"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@email.com"
+            onSubmitEditing={() => void submit()}
+          />
+          <Field
+            label="Password"
+            secureTextEntry
+            autoComplete="current-password"
+            textContentType="password"
+            value={password}
+            onChangeText={setPassword}
+            onSubmitEditing={() => void submit()}
+          />
+          {forgotAvailable ? (
+            <Text style={styles.forgot}>
+              <Link href="/forgot-password" style={styles.link}>Forgot password?</Link>
+            </Text>
+          ) : null}
           <Pressable
             accessibilityRole="checkbox"
             accessibilityState={{ checked: remember }}
@@ -175,6 +200,7 @@ function firstParam(value: string | string[] | undefined) {
 
 const styles = StyleSheet.create({
   footer: { fontFamily: font, color: theme.muted, textAlign: 'center', marginTop: 4 },
+  forgot: { fontFamily: font, color: theme.muted, textAlign: 'right', marginTop: -4 },
   link: { fontFamily: font, color: theme.text, fontWeight: '700' },
   remember: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   rememberLabel: { fontFamily: font, color: theme.text, fontWeight: '600' },

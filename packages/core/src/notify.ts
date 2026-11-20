@@ -213,6 +213,11 @@ export async function publicAppUrl(db: Database) {
   return (settings.appUrl || defaults.appUrl).replace(/\/$/, '')
 }
 
+export async function emailNotificationsEnabled(db: Database) {
+  const settings = await readNotificationSettings(db)
+  return settings.email.enabled === true
+}
+
 export async function sendAccountEmail(db: Database, to: string, subject: string, text: string) {
   const settings = await readNotificationSettings(db)
   if (!settings.email.enabled) throw new AppError(400, 'Turn on email first')

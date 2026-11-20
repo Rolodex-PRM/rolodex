@@ -5,6 +5,7 @@ import { AddressMap } from './address-map'
 import { api, send, type Contact, type OrgMembership } from './api'
 import { useAccent } from './accent'
 import { Icon } from './icons'
+import { formatPhone } from './phone'
 import { socialHref, socialTitle, SocialIcon } from './socials'
 import { font, theme } from './theme'
 import { DateField, Panel } from './ui'
@@ -350,15 +351,6 @@ function Category({ icon, title, empty, children }: { icon: 'phone' | 'mail' | '
   )
 }
 
-function formatPhone(value: string) {
-  const digits = value.replace(/\D/g, '')
-  const national = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits
-  if (national.length === 10) {
-    const formatted = `(${national.slice(0, 3)}) ${national.slice(3, 6)}-${national.slice(6)}`
-    return digits.length === 11 ? `+1 ${formatted}` : formatted
-  }
-  return value
-}
 
 function formatDate(value: string | null) {
   if (!value) return ''
