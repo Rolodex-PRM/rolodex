@@ -13,6 +13,7 @@ apps/mobile/web-build
 docker-bundle
 docker-native
 backups
+scripts/test/.fixture-state
 *.tsbuildinfo
 .DS_Store
 Thumbs.db

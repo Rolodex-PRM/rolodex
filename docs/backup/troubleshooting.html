@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en" data-version-url="../version.json">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Recovery troubleshooting — Rolodex</title>
+    <meta
+      name="description"
+      content="Common Rolodex backup and restore failures: checksums, Postgres, uploads volume, CREDENTIALS_KEY, and partial recovery."
+    />
+    <meta name="theme-color" content="#1b2a4a" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="icon" href="../favicon.ico" sizes="any" />
+    <link rel="icon" href="../rolodex-mark.svg" type="image/svg+xml" />
+  </head>
+  <body class="doc-page">
+    <header class="site-header" id="top">
+      <div class="wrap nav">
+        <a class="brand" href="../index.html" aria-label="Rolodex home">
+          <span class="brand-logo" data-rolodex-logo data-variant="icon" data-size="34" data-animate="false"></span>
+          <span>rolodex</span>
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+        <ul class="nav-links" id="nav-links">
+          <li><a href="../index.html">Home</a></li>
+          <li><a href="../quick-start.html">Quick start</a></li>
+          <li><a href="../install/docker-compose.html">Docker Compose</a></li>
+          <li><a aria-current="page" href="backup-guide.html">Backup</a></li>
+          <li><a href="../roadmap.html">Roadmap</a></li>
+          <li>
+            <a class="nav-cta" href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub</a>
+          </li>
+        </ul>
+      </div>
+    </header>
+
+    <main>
+      <section class="doc-hero wrap">
+        <p class="section-kicker">Backup &amp; recovery</p>
+        <h1>Recovery troubleshooting</h1>
+        <p class="doc-lede">
+          Common failures when creating, verifying, or restoring backups — and what to do next.
+        </p>
+        <p class="version-line">Docs for <a data-rolodex-version rel="noopener noreferrer"></a>.</p>
+      </section>
+
+      <section class="section doc-section">
+        <div class="wrap doc-layout">
+          <aside class="doc-toc" aria-label="On this page">
+            <p class="doc-toc-title">On this page</p>
+            <ol>
+              <li><a href="#backup-fail">Backup fails</a></li>
+              <li><a href="#verify-fail">Verification fails</a></li>
+              <li><a href="#restore-fail">Restore fails</a></li>
+              <li><a href="#postgres">Database container</a></li>
+              <li><a href="#uploads">Uploads volume</a></li>
+              <li><a href="#key">Wrong encryption key</a></li>
+              <li><a href="#partial">Partial recovery</a></li>
+            </ol>
+          </aside>
+
+          <div class="doc-body">
+            <div class="doc-callout">
+              <strong>Related guides:</strong>
+              <a href="backup-guide.html">Backup</a> ·
+              <a href="restore-guide.html">Restore</a> ·
+              <a href="migration-guide.html">Migration</a>
+            </div>
+
+            <h2 id="backup-fail">Backup fails or leaves a <code>.partial</code> folder</h2>
+            <ul>
+              <li>Confirm <code>docker compose ps</code> shows healthy <code>postgres</code>.</li>
+              <li>Confirm the uploads volume exists (<code>docker volume ls | findstr uploads</code> / <code>grep uploads</code>).</li>
+              <li>Remove the incomplete <code>*.partial</code> directory and run <code>./scripts/backup.sh</code> again.</li>
+              <li>A published stamp directory is only created after success — do not invent missing files by hand.</li>
+            </ul>
+
+            <h2 id="verify-fail">Verification fails</h2>
+            <ul>
+              <li><strong>Checksum mismatch</strong> — the files were altered or truncated in transit. Re-copy from the source backup.</li>
+              <li><strong>Missing artifact</strong> — incomplete folder; use a full stamp from <code>backup.sh</code>.</li>
+              <li><strong>Unsupported format_version</strong> — upgrade Rolodex scripts/docs to a release that understands that manifest, or restore with matching tooling.</li>
+              <li><strong>pg_restore / isolated restore error</strong> — dump is corrupt; create a new backup from a healthy install.</li>
+            </ul>
+
+            <h2 id="restore-fail">Restore refuses to run</h2>
+            <ul>
+              <li>Add <code>--confirm</code>. Without it the script exits without changes.</li>
+              <li>Preflight must pass (checksums, manifest, dump list, archive paths).</li>
+              <li>Target Postgres major must not be older than the backup’s major version.</li>
+            </ul>
+
+            <h2 id="postgres">Database container failed or volume is gone</h2>
+            <pre class="doc-code"><code>docker compose up -d postgres
+# wait until healthy
+docker compose up -d
+./scripts/restore.sh backups/STAMP --confirm</code></pre>
+            <p>
+              If Postgres data is unrecoverable, remove the broken volume only when you have a verified backup, then
+              recreate and restore:
+            </p>
+            <pre class="doc-code"><code>docker compose down
+docker volume rm PROJECT_postgres-data
+docker compose up -d
+./scripts/restore.sh backups/STAMP --confirm</code></pre>
+            <p>Replace <code>PROJECT_postgres-data</code> with the name from <code>docker volume ls</code>.</p>
+
+            <h2 id="uploads">Uploads volume missing</h2>
+            <p>
+              Start Compose once so it creates the <code>uploads</code> volume, then restore. The restore script clears
+              and repopulates that volume from <code>uploads.tar.gz</code>. Database-only downloads from Settings cannot
+              rebuild files.
+            </p>
+
+            <h2 id="key">Integrations broken after restore</h2>
+            <p>
+              People and files may look fine while Immich/mailbox/API credentials fail. Set
+              <code>CREDENTIALS_KEY</code> in <code>.env</code> to the value from the original install, then
+              <code>docker compose up -d</code> again. There is no way to decrypt those rows without the key.
+            </p>
+
+            <h2 id="partial">Interrupted restore</h2>
+            <p>
+              If the script stopped after restoring the database but before uploads, the app may start with mismatched
+              files. Do not assume health from a green container alone. Re-run
+              <code>./scripts/restore.sh … --confirm</code> from a verified backup, or recreate both volumes and restore
+              into a clean Compose project.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-row">
+        <div>
+          <div class="footer-brand">
+            <span data-rolodex-logo data-variant="icon" data-size="40" data-animate="false"></span>
+            <span>rolodex</span>
+          </div>
+          <p>Self-hosted relationship manager. Active development.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="../index.html">Home</a>
+          <a href="backup-guide.html">Backup</a>
+          <a href="restore-guide.html">Restore</a>
+          <a href="migration-guide.html">Migration</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script src="../logo.js"></script>
+    <script src="../site.js"></script>
+    <script src="../docs.js"></script>
+  </body>
+</html>

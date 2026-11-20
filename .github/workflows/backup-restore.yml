@@ -1,0 +1,85 @@
+name: Backup and Restore
+
+on:
+  pull_request:
+  push:
+    branches: [main, staging]
+
+concurrency:
+  group: backup-restore-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backup-restore:
+    name: Round-trip backup and restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          chmod +x scripts/backup.sh scripts/restore.sh scripts/verify-backup.sh \
+            scripts/test/seed-backup-fixture.sh scripts/test/verify-restore.sh \
+            scripts/test/negative-backup-cases.sh
+
+      - name: Start Compose stack
+        run: docker compose up -d --build
+
+      - name: Wait for health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/ >/dev/null; then
+              echo "Rolodex is up"
+              exit 0
+            fi
+            sleep 5
+          done
+          docker compose ps
+          docker compose logs --tail=200
+          exit 1
+
+      - name: Seed fixture data
+        run: ./scripts/test/seed-backup-fixture.sh
+
+      - name: Create backup
+        id: backup
+        run: |
+          ./scripts/backup.sh
+          STAMP=$(ls -1 backups | tail -n 1)
+          echo "path=backups/$STAMP" >> "$GITHUB_OUTPUT"
+          ls -la "backups/$STAMP"
+
+      - name: Verify backup
+        run: ./scripts/verify-backup.sh "${{ steps.backup.outputs.path }}"
+
+      - name: Negative cases
+        run: ./scripts/test/negative-backup-cases.sh "${{ steps.backup.outputs.path }}"
+
+      - name: Destroy persistent data
+        run: docker compose down -v
+
+      - name: Recreate environment
+        run: |
+          docker compose up -d
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/ >/dev/null; then
+              echo "Rolodex is up"
+              exit 0
+            fi
+            sleep 5
+          done
+          docker compose ps
+          docker compose logs --tail=200
+          exit 1
+
+      - name: Restore backup
+        run: ./scripts/restore.sh "${{ steps.backup.outputs.path }}" --confirm
+
+      - name: Verify restored application
+        run: ./scripts/test/verify-restore.sh

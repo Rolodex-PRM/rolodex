@@ -13,7 +13,7 @@ Rolodex is a self-hosted relationship manager. One server holds the people, the 
 
 Product site: [rolodex-prm.github.io/rolodex](https://rolodex-prm.github.io/rolodex/) (served from [`docs/`](docs/)).
 
-Docs: [Quick start](https://rolodex-prm.github.io/rolodex/quick-start.html) · [Docker Compose](https://rolodex-prm.github.io/rolodex/install/docker-compose.html) · [Environment variables](https://rolodex-prm.github.io/rolodex/install/environment-variables.html) · [Roadmap](https://rolodex-prm.github.io/rolodex/roadmap.html)
+Docs: [Quick start](https://rolodex-prm.github.io/rolodex/quick-start.html) · [Docker Compose](https://rolodex-prm.github.io/rolodex/install/docker-compose.html) · [Environment variables](https://rolodex-prm.github.io/rolodex/install/environment-variables.html) · [Backup](https://rolodex-prm.github.io/rolodex/backup/backup-guide.html) · [Roadmap](https://rolodex-prm.github.io/rolodex/roadmap.html)
 
 The first visit creates the administrator. After that, registration is invite-only until an administrator turns open registration on under Admin → Security.
 
@@ -64,9 +64,19 @@ Field-by-field behavior, roles, and the admin pages are in [docs/PRODUCT.md](doc
 
 The phone receives the name, phone numbers, email addresses, postal address, birthday, and the card note. Create a named client password under Settings and use that with the sign-in email. iPhone and iPad add a CardDAV account and a separate CalDAV account. Android can use DAVx5. Mac uses Internet Accounts. Thunderbird and other CardDAV or CalDAV apps use the base URL.
 
-## Backups
+## Backup & Recovery
 
-`scripts/backup.sh` writes a PostgreSQL dump and a tar of the uploads volume. `scripts/restore.sh backups/<stamp>` restores both. An owner can also download a database dump from Settings when `pg_dump` is on the PATH.
+Complete recovery needs PostgreSQL **and** the uploads volume, plus the original `CREDENTIALS_KEY` stored separately (it is not inside the archive).
+
+```sh
+./scripts/backup.sh
+./scripts/verify-backup.sh backups/<stamp>
+./scripts/restore.sh backups/<stamp> --confirm
+```
+
+Guides: [Backup](https://rolodex-prm.github.io/rolodex/backup/backup-guide.html) · [Restore](https://rolodex-prm.github.io/rolodex/backup/restore-guide.html) · [Migration](https://rolodex-prm.github.io/rolodex/backup/migration-guide.html) · [Troubleshooting](https://rolodex-prm.github.io/rolodex/backup/troubleshooting.html)
+
+A Settings download is **database-only** and is not a full backup. Prefer the scripts above (also summarized under Admin → Backup & Recovery).
 
 ## Development
 

@@ -1,0 +1,2 @@
+*.sh text eol=lf
+scripts/lib/*.sh text eol=lf

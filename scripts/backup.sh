@@ -1,18 +1,88 @@
 #!/bin/sh
 set -eu
+
 ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
-STAMP=$(date -u +%Y%m%dT%H%M%SZ)
-OUT=${1:-"$ROOT/backups/$STAMP"}
-mkdir -p "$OUT"
-echo "Writing PostgreSQL dump"
-docker compose -f "$ROOT/docker-compose.yml" exec -T postgres pg_dump -U rolodex -d rolodex --clean --if-exists --no-owner > "$OUT/database.sql"
-archive() {
-  volume=$(docker volume ls -q --filter name="$1" | head -n 1)
-  if [ -n "$volume" ]; then
-    echo "Archiving $volume"
-    docker run --rm -v "$volume":/data:ro -v "$OUT":/backup alpine:3 tar -C /data -cf "/backup/$2" .
+# shellcheck source=lib/backup-common.sh
+. "$ROOT/scripts/lib/backup-common.sh"
+
+require_docker
+
+STAMP=$(date -u +%Y-%m-%d_%H%M%S)
+DEST_ARG=${1:-}
+if [ -n "$DEST_ARG" ]; then
+  case "$DEST_ARG" in
+    /*) OUT=$DEST_ARG ;;
+    *) OUT="$ROOT/$DEST_ARG" ;;
+  esac
+else
+  OUT="$ROOT/backups/$STAMP"
+fi
+
+PARENT=$(dirname "$OUT")
+BASE=$(basename "$OUT")
+PARTIAL="$PARENT/${BASE}.partial"
+
+if [ -e "$OUT" ]; then
+  die "backup destination already exists: $OUT"
+fi
+if [ -e "$PARTIAL" ]; then
+  die "incomplete backup directory already exists: $PARTIAL (remove it and retry)"
+fi
+
+mkdir -p "$PARENT"
+mkdir -p "$PARTIAL"
+chmod 700 "$PARTIAL" 2>/dev/null || true
+
+APP_STOPPED=0
+cleanup() {
+  code=$?
+  if [ "$APP_STOPPED" = 1 ]; then
+    start_rolodex || true
   fi
+  if [ "$code" -ne 0 ] && [ -d "$PARTIAL" ]; then
+    log "Removing incomplete backup at $PARTIAL"
+    rm -rf "$PARTIAL"
+  fi
+  exit "$code"
 }
-archive uploads files.tar
-archive minio-data minio.tar
-echo "Backup written to $OUT"
+trap cleanup EXIT INT TERM
+
+log "Creating backup under $PARTIAL"
+
+postgres_env
+stop_rolodex
+APP_STOPPED=1
+
+log "Dumping PostgreSQL (custom format)"
+compose exec -T postgres \
+  pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc --clean --if-exists --no-owner --no-acl \
+  >"$PARTIAL/$DATABASE_ARTIFACT"
+[ -s "$PARTIAL/$DATABASE_ARTIFACT" ] || die "database dump is empty"
+
+UPLOADS_VOLUME=$(uploads_volume_name)
+log "Archiving uploads volume ($UPLOADS_VOLUME)"
+docker run --rm \
+  -v "$UPLOADS_VOLUME":/data:ro \
+  -v "$PARTIAL":/backup \
+  alpine:3 \
+  tar -C /data -czf "/backup/$UPLOADS_ARTIFACT" .
+[ -s "$PARTIAL/$UPLOADS_ARTIFACT" ] || die "uploads archive is empty"
+
+CREATED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+APP_VERSION=$(application_version)
+PG_VERSION=$(postgres_version_string)
+[ -n "$PG_VERSION" ] || PG_VERSION="unknown"
+
+log "Writing manifest and checksums"
+write_manifest "$PARTIAL" "$CREATED_AT" "$APP_VERSION" "$PG_VERSION"
+write_checksums "$PARTIAL"
+restrict_backup_permissions "$PARTIAL"
+
+log "Publishing backup to $OUT"
+mv "$PARTIAL" "$OUT"
+
+log "Backup created successfully:"
+log "  $OUT"
+log "  $DATABASE_ARTIFACT + $UPLOADS_ARTIFACT + $MANIFEST_NAME + $CHECKSUMS_NAME"
+log "Preserve CREDENTIALS_KEY from .env separately; it is not included in this archive."
+log "Verify with: ./scripts/verify-backup.sh \"$OUT\""

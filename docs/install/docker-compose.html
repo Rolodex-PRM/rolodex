@@ -32,6 +32,7 @@
           <li><a href="../quick-start.html">Quick start</a></li>
           <li><a aria-current="page" href="docker-compose.html">Docker Compose</a></li>
           <li><a href="environment-variables.html">Environment</a></li>
+          <li><a href="../backup/backup-guide.html">Backup</a></li>
           <li><a href="../roadmap.html">Roadmap</a></li>
           <li>
             <a class="nav-cta" href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub</a>
@@ -209,6 +210,11 @@ CREDENTIALS_KEY=replace-with-32-byte-base64
               </li>
               <li>
                 Put TLS on a reverse proxy or tunnel in front of <code>PORT</code>. Rolodex itself speaks HTTP.
+              </li>
+              <li>
+                Back up with <code>./scripts/backup.sh</code> and verify with
+                <code>./scripts/verify-backup.sh</code>. See the
+                <a href="../backup/backup-guide.html">backup guide</a>.
               </li>
             </ul>
           </div>

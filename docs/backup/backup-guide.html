@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en" data-version-url="../version.json">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Backup guide — Rolodex</title>
+    <meta
+      name="description"
+      content="Create a complete, verifiable Rolodex backup: PostgreSQL dump, uploads archive, manifest, and checksums."
+    />
+    <meta name="theme-color" content="#1b2a4a" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="icon" href="../favicon.ico" sizes="any" />
+    <link rel="icon" href="../rolodex-mark.svg" type="image/svg+xml" />
+  </head>
+  <body class="doc-page">
+    <header class="site-header" id="top">
+      <div class="wrap nav">
+        <a class="brand" href="../index.html" aria-label="Rolodex home">
+          <span class="brand-logo" data-rolodex-logo data-variant="icon" data-size="34" data-animate="false"></span>
+          <span>rolodex</span>
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+        <ul class="nav-links" id="nav-links">
+          <li><a href="../index.html">Home</a></li>
+          <li><a href="../quick-start.html">Quick start</a></li>
+          <li><a href="../install/docker-compose.html">Docker Compose</a></li>
+          <li><a aria-current="page" href="backup-guide.html">Backup</a></li>
+          <li><a href="../roadmap.html">Roadmap</a></li>
+          <li>
+            <a class="nav-cta" href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub</a>
+          </li>
+        </ul>
+      </div>
+    </header>
+
+    <main>
+      <section class="doc-hero wrap">
+        <p class="section-kicker">Backup &amp; recovery</p>
+        <h1>Backup guide</h1>
+        <p class="doc-lede">
+          Create a complete backup of PostgreSQL and uploaded files. A backup is only finished when both parts succeed
+          and checksums are written.
+        </p>
+        <p class="version-line">Docs for <a data-rolodex-version rel="noopener noreferrer"></a>.</p>
+      </section>
+
+      <section class="section doc-section">
+        <div class="wrap doc-layout">
+          <aside class="doc-toc" aria-label="On this page">
+            <p class="doc-toc-title">On this page</p>
+            <ol>
+              <li><a href="#what">What is backed up</a></li>
+              <li><a href="#create">Create a backup</a></li>
+              <li><a href="#inspect">Inspect the backup</a></li>
+              <li><a href="#verify">Verify</a></li>
+              <li><a href="#key">Encryption key</a></li>
+              <li><a href="#retain">Retention</a></li>
+              <li><a href="#windows">Windows notes</a></li>
+            </ol>
+          </aside>
+
+          <div class="doc-body">
+            <div class="doc-callout">
+              <strong>Related guides:</strong>
+              <a href="restore-guide.html">Restore</a> ·
+              <a href="migration-guide.html">Migration</a> ·
+              <a href="troubleshooting.html">Troubleshooting</a>
+            </div>
+
+            <h2 id="what">What a complete backup includes</h2>
+            <ul>
+              <li><strong>PostgreSQL</strong> — logical custom-format dump of the whole database.</li>
+              <li><strong>Uploads</strong> — the Compose <code>uploads</code> volume (<code>/data</code>), including attachments and installed plugins stored there.</li>
+              <li><strong>Manifest + checksums</strong> — version metadata and SHA-256 hashes for every artifact.</li>
+            </ul>
+            <p>
+              The backup does <strong>not</strong> include <code>.env</code>, <code>CREDENTIALS_KEY</code>, or Docker
+              Compose files. Keep those separately. If you use MinIO / S3 (<code>DOCKER_S3_ENDPOINT</code> or the
+              <code>s3</code> profile), back up that object store with your own tooling — it is outside the standard
+              Rolodex backup format.
+            </p>
+            <p>
+              While the backup runs, the script stops the <code>rolodex</code> service briefly so the database dump and
+              uploads archive stay consistent, then starts it again.
+            </p>
+
+            <h2 id="create">Create a backup</h2>
+            <p>From the directory that contains <code>docker-compose.yml</code> (Linux, macOS, WSL, or Git Bash):</p>
+            <pre class="doc-code"><code>./scripts/backup.sh</code></pre>
+            <p>Optional destination directory:</p>
+            <pre class="doc-code"><code>./scripts/backup.sh /mnt/nas/rolodex-backups/2026-11-20_093000</code></pre>
+            <p>Default layout:</p>
+            <pre class="doc-code"><code>backups/
+└── 2026-11-20_093000/
+    ├── database.dump
+    ├── uploads.tar.gz
+    ├── manifest.json
+    └── checksums.sha256</code></pre>
+            <p>
+              Artifacts are written to a <code>.partial</code> directory first. Only after both components and checksums
+              succeed is the folder renamed to the final stamp. A failed run does not leave a directory that looks
+              complete.
+            </p>
+            <p>
+              Prefer copying finished backups to another disk or machine. A backup on the same disk as the live install
+              does not protect against disk failure.
+            </p>
+
+            <h2 id="inspect">Inspect the backup</h2>
+            <pre class="doc-code"><code>ls -la backups/2026-11-20_093000
+cat backups/2026-11-20_093000/manifest.json
+cat backups/2026-11-20_093000/checksums.sha256</code></pre>
+            <p>
+              <code>manifest.json</code> records the application version, PostgreSQL version, creation time, and
+              component filenames. Use it when restoring on another host.
+            </p>
+
+            <h2 id="verify">Verify without touching production</h2>
+            <pre class="doc-code"><code>./scripts/verify-backup.sh backups/2026-11-20_093000</code></pre>
+            <p>
+              Verification checks checksums, the manifest, the uploads archive listing, and restores the dump into a
+              disposable Postgres container. The live Rolodex containers stay running. Successful verification is not
+              the same as a production restore — see the <a href="restore-guide.html">restore guide</a>.
+            </p>
+
+            <h2 id="key">Preserve <code>CREDENTIALS_KEY</code></h2>
+            <p>
+              Integration credentials in the database are encrypted with <code>CREDENTIALS_KEY</code> from
+              <code>.env</code>. Restoring the database without that exact key leaves encrypted values present but
+              unusable. Store the key in a password manager or sealed note — never only inside the backup folder, and
+              never commit it to git.
+            </p>
+
+            <h2 id="retain">Keep multiple generations</h2>
+            <p>
+              Keep several stamped directories (daily/weekly). Rolodex does not prune old backups; use your NAS, cron, or
+              restic/CronMaster schedule. Always run <code>verify-backup.sh</code> on a copy before you rely on it.
+            </p>
+
+            <h2 id="windows">Windows notes</h2>
+            <p>
+              Run the shell scripts from WSL or Git Bash in the repo (or compose) directory. In PowerShell you can still
+              call them through bash:
+            </p>
+            <pre class="doc-code"><code>bash ./scripts/backup.sh
+bash ./scripts/verify-backup.sh backups/2026-11-20_093000</code></pre>
+            <p>
+              A download from Settings → Backup is <strong>database-only</strong>. It is not a complete backup. Use
+              <code>scripts/backup.sh</code> for recovery.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-row">
+        <div>
+          <div class="footer-brand">
+            <span data-rolodex-logo data-variant="icon" data-size="40" data-animate="false"></span>
+            <span>rolodex</span>
+          </div>
+          <p>Self-hosted relationship manager. Active development.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="../index.html">Home</a>
+          <a href="restore-guide.html">Restore</a>
+          <a href="migration-guide.html">Migration</a>
+          <a href="troubleshooting.html">Troubleshooting</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script src="../logo.js"></script>
+    <script src="../site.js"></script>
+    <script src="../docs.js"></script>
+  </body>
+</html>

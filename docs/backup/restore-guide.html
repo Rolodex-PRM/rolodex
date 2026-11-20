@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en" data-version-url="../version.json">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Restore guide — Rolodex</title>
+    <meta
+      name="description"
+      content="Restore a Rolodex installation from a verified backup directory: preflight, database, uploads, and checks."
+    />
+    <meta name="theme-color" content="#1b2a4a" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="icon" href="../favicon.ico" sizes="any" />
+    <link rel="icon" href="../rolodex-mark.svg" type="image/svg+xml" />
+  </head>
+  <body class="doc-page">
+    <header class="site-header" id="top">
+      <div class="wrap nav">
+        <a class="brand" href="../index.html" aria-label="Rolodex home">
+          <span class="brand-logo" data-rolodex-logo data-variant="icon" data-size="34" data-animate="false"></span>
+          <span>rolodex</span>
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+        <ul class="nav-links" id="nav-links">
+          <li><a href="../index.html">Home</a></li>
+          <li><a href="../quick-start.html">Quick start</a></li>
+          <li><a href="../install/docker-compose.html">Docker Compose</a></li>
+          <li><a aria-current="page" href="backup-guide.html">Backup</a></li>
+          <li><a href="../roadmap.html">Roadmap</a></li>
+          <li>
+            <a class="nav-cta" href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub</a>
+          </li>
+        </ul>
+      </div>
+    </header>
+
+    <main>
+      <section class="doc-hero wrap">
+        <p class="section-kicker">Backup &amp; recovery</p>
+        <h1>Restore guide</h1>
+        <p class="doc-lede">
+          Restore replaces the live database and uploads with the contents of a backup directory. It never silently
+          merges into an existing installation.
+        </p>
+        <p class="version-line">Docs for <a data-rolodex-version rel="noopener noreferrer"></a>.</p>
+      </section>
+
+      <section class="section doc-section">
+        <div class="wrap doc-layout">
+          <aside class="doc-toc" aria-label="On this page">
+            <p class="doc-toc-title">On this page</p>
+            <ol>
+              <li><a href="#before">Before you start</a></li>
+              <li><a href="#steps">Restore steps</a></li>
+              <li><a href="#sequence">What the script does</a></li>
+              <li><a href="#after">After restore</a></li>
+              <li><a href="#failures">If restore fails</a></li>
+            </ol>
+          </aside>
+
+          <div class="doc-body">
+            <div class="doc-callout">
+              <strong>Related guides:</strong>
+              <a href="backup-guide.html">Backup</a> ·
+              <a href="migration-guide.html">Migration</a> ·
+              <a href="troubleshooting.html">Troubleshooting</a>
+            </div>
+
+            <h2 id="before">Before you start</h2>
+            <ul>
+              <li>Have a backup directory created by <code>scripts/backup.sh</code> (with manifest and checksums).</li>
+              <li>Run <code>./scripts/verify-backup.sh path/to/backup</code> first when possible.</li>
+              <li>
+                Put the original <code>CREDENTIALS_KEY</code> (and matching <code>POSTGRES_*</code> if you keep the same
+                <code>.env</code>) on the target machine.
+              </li>
+              <li>Expect existing data to be overwritten. Take a fresh backup of the current install if you might need it.</li>
+            </ul>
+
+            <h2 id="steps">Restore steps</h2>
+            <p>Compose must already be up so Postgres and volumes exist:</p>
+            <pre class="doc-code"><code>docker compose up -d
+./scripts/verify-backup.sh backups/2026-11-20_093000
+./scripts/restore.sh backups/2026-11-20_093000 --confirm</code></pre>
+            <p>
+              The <code>--confirm</code> flag is required. Without it the script exits and does not change data.
+            </p>
+            <p>PowerShell (via bash):</p>
+            <pre class="doc-code"><code>bash ./scripts/restore.sh backups/2026-11-20_093000 --confirm</code></pre>
+
+            <h2 id="sequence">What the script does</h2>
+            <ol>
+              <li><strong>Preflight</strong> — required files, checksums, manifest format, archive path safety, dump readability, Postgres major version check.</li>
+              <li><strong>Stop</strong> — stops the <code>rolodex</code> service so nothing writes during replace.</li>
+              <li><strong>Database</strong> — <code>pg_restore --clean --if-exists</code> into the Compose database.</li>
+              <li><strong>Uploads</strong> — clears the uploads volume and extracts <code>uploads.tar.gz</code>.</li>
+              <li><strong>Start</strong> — starts <code>rolodex</code> again.</li>
+            </ol>
+            <p>
+              If a stage fails, the script exits nonzero and names the stage. Do not treat a partial restore as a healthy
+              install — see <a href="troubleshooting.html">troubleshooting</a>.
+            </p>
+
+            <h2 id="after">After restore</h2>
+            <ul>
+              <li>Open the site and sign in with an existing administrator account.</li>
+              <li>Open a person who had an attachment and confirm the file loads.</li>
+              <li>If Immich, mailbox, or other integrations error on secrets, confirm <code>CREDENTIALS_KEY</code>.</li>
+              <li>Update <code>PUBLIC_URL</code> / reverse proxy if the hostname changed (migration).</li>
+            </ul>
+
+            <h2 id="failures">If restore fails mid-way</h2>
+            <p>
+              The database and uploads are separate stages. A failure after the database step may leave uploads from
+              the previous install. Re-run restore from a known-good backup after fixing the error, or recreate volumes
+              and restore into a fresh Compose project. Details:
+              <a href="troubleshooting.html">Recovery troubleshooting</a>.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-row">
+        <div>
+          <div class="footer-brand">
+            <span data-rolodex-logo data-variant="icon" data-size="40" data-animate="false"></span>
+            <span>rolodex</span>
+          </div>
+          <p>Self-hosted relationship manager. Active development.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="../index.html">Home</a>
+          <a href="backup-guide.html">Backup</a>
+          <a href="migration-guide.html">Migration</a>
+          <a href="troubleshooting.html">Troubleshooting</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script src="../logo.js"></script>
+    <script src="../site.js"></script>
+    <script src="../docs.js"></script>
+  </body>
+</html>
