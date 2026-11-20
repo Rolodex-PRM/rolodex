@@ -27,10 +27,19 @@ RUN pnpm install --frozen-lockfile --filter @rolodex/api... --filter @rolodex/ca
   && node scripts/docker-bundle.mjs
 
 FROM node:22-alpine
-RUN apk add --no-cache nginx postgresql-client ca-certificates openssl \
-  && apk upgrade --no-cache \
+# Pin security floors for Alpine packages Docker Hub/Scout flag on :dev/:latest.
+# nginx 1.30.7 and openssl 3.5.9-r1 close the Nov 2026 advisories; apk upgrade
+# refreshes the rest of the base (libssl/libcrypto, zlib, …) before install.
+RUN apk upgrade --no-cache \
+  && apk add --no-cache \
+       "nginx>=1.30.7-r0" \
+       "openssl>=3.5.9-r1" \
+       postgresql-client \
+       ca-certificates \
   && mkdir -p /usr/share/nginx/html \
-  && rm -f /etc/nginx/http.d/default.conf
+  && rm -f /etc/nginx/http.d/default.conf \
+  && nginx -v \
+  && apk list -I nginx openssl libssl3 libcrypto3 musl
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate \
   && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /app

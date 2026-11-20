@@ -7,6 +7,14 @@ image tags.
 
 ## Unreleased
 
+### Fixed
+
+- Docker image: require Alpine `nginx>=1.30.7-r0` and `openssl>=3.5.9-r1`, and
+  run `apk upgrade` before installing packages, so rebuilds clear the critical
+  nginx and high openssl CVEs reported on `gallinij/rolodex:dev`.
+- Multi-arch Docker CI/publish: build `linux/arm64` on `ubuntu-24.04-arm`
+  instead of QEMU, which was crashing `pnpm install` with SIGILL (exit 132).
+
 ### Changed
 
 - Plugin discovery uses the remote [rolodex-plugins](https://github.com/Rolodex-PRM/rolodex-plugins)
