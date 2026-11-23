@@ -28,6 +28,8 @@ services:
       # Files live in the uploads volume. Set DOCKER_S3_ENDPOINT to use S3 instead.
       S3_ENDPOINT: ${DOCKER_S3_ENDPOINT:-}
       DATA_DIR: /data
+      # Host path comes from BACKUP_DIR in .env; inside the container it is always /backups.
+      BACKUP_DIR: /backups
       API_PORT: 3000
       CARDDAV_PORT: 3001
       DOCKER_SITE: "true"
@@ -36,6 +38,7 @@ services:
       - "${PORT:-8080}:8080"
     volumes:
       - uploads:/data
+      - ${BACKUP_DIR:-./backups}:/backups
     depends_on:
       postgres:
         condition: service_healthy

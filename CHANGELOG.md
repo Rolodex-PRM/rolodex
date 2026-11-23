@@ -7,6 +7,32 @@ image tags.
 
 ## Unreleased
 
+## 0.4.0 - 2026-11-23
+
+Complete, portable, verifiable backup and restore for self-hosted installs.
+
+### Added
+
+- Host scripts for complete backup, restore, and offline verification
+  (`scripts/backup.sh`, `scripts/restore.sh`, `scripts/verify-backup.sh`)
+  with versioned manifests, SHA-256 checksums, and `.partial` staging so
+  incomplete runs never look successful.
+- Admin → Backups: create, list, download, upload, restore (confirm modal
+  with record counts), scheduled cron backups, and retention.
+- Optional `BACKUP_DIR` host bind mount (default `./backups`) for in-app
+  and script archives, kept off the uploads volume.
+- Dedicated docs: backup, restore, migration, and troubleshooting guides,
+  plus a README Backup & Recovery section.
+- CI round-trip workflow (`.github/workflows/backup-restore.yml`) with
+  fixture seed, negative cases, destroy/recreate volumes, and restore
+  verification (counts, login, attachment hash, encryption key).
+
+### Changed
+
+- Workspace package versions and `docs/version.json` aligned at 0.4.0.
+- Settings “Download database SQL” remains available as a database-only
+  export and is clearly distinguished from a complete backup.
+
 ## 0.3.0 - 2026-11-20
 
 Multi-arch Docker support: the same Hub tags work on amd64 and arm64 hosts.

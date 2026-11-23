@@ -162,6 +162,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-rolodex}:${POSTGRES_PASSWORD:-rolodex}@postgres:5432/${POSTGRES_DB:-rolodex}
       S3_ENDPOINT: ${DOCKER_S3_ENDPOINT:-}
       DATA_DIR: /data
+      BACKUP_DIR: /backups
       API_PORT: 3000
       CARDDAV_PORT: 3001
       DOCKER_SITE: "true"
@@ -170,6 +171,7 @@ services:
       - "${PORT:-8080}:8080"
     volumes:
       - uploads:/data
+      - ${BACKUP_DIR:-./backups}:/backups
     depends_on:
       postgres:
         condition: service_healthy

@@ -2,9 +2,10 @@ import 'reflect-metadata'
 import { Module } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
-import { dispatchDueNotifications, loadEnv, syncDueImmich } from '@rolodex/core'
+import { dispatchDueNotifications, loadEnv, runScheduledBackups, syncDueImmich } from '@rolodex/core'
 import { createDb } from '@rolodex/db'
 import { AuthController } from './auth.controller'
+import { BackupsController } from './backups.controller'
 import { DataController } from './data.controller'
 import { PluginsController } from './plugins.controller'
 import { AppExceptionFilter, DB, STORAGE } from './http'
@@ -12,7 +13,7 @@ import { mountMcp } from './mcp'
 import { ensureBucket, objectStorage } from './storage'
 
 @Module({
-  controllers: [AuthController, DataController, PluginsController],
+  controllers: [AuthController, BackupsController, DataController, PluginsController],
   providers: [
     {
       provide: DB,
@@ -70,6 +71,13 @@ async function main() {
   }
   dispatchNotifications()
   setInterval(dispatchNotifications, 5 * 60 * 1000)
+  const scheduledBackups = () => {
+    void runScheduledBackups(database).catch((error: unknown) => {
+      console.warn(error instanceof Error ? error.message : 'Scheduled backup failed')
+    })
+  }
+  scheduledBackups()
+  setInterval(scheduledBackups, 15 * 60 * 1000)
 }
 
 void main()

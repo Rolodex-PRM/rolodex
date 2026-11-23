@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process'
 import {
   addOrganizationMember,
   agenda,
@@ -1085,21 +1084,6 @@ export class DataController {
     return importAddressBook(this.db, req.user.id, bookId, parseBody(importSchema, body))
   }
 
-  @Post('backups')
-  async backup(@Req() req: AuthedRequest, @Res() res: Response) {
-    const workspaces = await listWorkspaces(this.db, req.user.id)
-    if (!workspaces.some((workspace) => workspace.role === 'owner')) {
-      throw new AppError(403, 'Only an owner can create a backup')
-    }
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const sql = await dumpDatabase()
-    res.setHeader('Content-Type', 'application/sql; charset=utf-8')
-    res.setHeader('Content-Disposition', `attachment; filename="rolodex-${stamp}.sql"`)
-    res.setHeader('X-Content-Type-Options', 'nosniff')
-    res.setHeader('Cache-Control', 'no-store')
-    res.send(sql)
-  }
-
   @Get('workspaces/:workspaceId/security')
   security(@Req() req: AuthedRequest, @Param('workspaceId') workspaceId: string) {
     return twoFactorPolicy(this.db).then(async (policy) => {
@@ -1411,28 +1395,3 @@ function sendBytes(res: Response, bytes: Buffer, contentType: string, filename: 
   res.send(bytes)
 }
 
-function dumpDatabase() {
-  const databaseUrl = process.env.DATABASE_URL
-  if (!databaseUrl) throw new AppError(500, 'DATABASE_URL is not configured')
-  return new Promise<Buffer>((resolve, reject) => {
-    const child = spawn('pg_dump', ['--dbname', databaseUrl, '--clean', '--if-exists', '--no-owner'], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-    const chunks: Buffer[] = []
-    let errorText = ''
-    child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk))
-    child.stderr.on('data', (chunk: Buffer) => {
-      errorText += chunk.toString()
-    })
-    child.on('error', () => {
-      reject(new AppError(501, 'pg_dump is not available. Run scripts/backup.sh from a host with PostgreSQL client tools.'))
-    })
-    child.on('close', (code) => {
-      if (code !== 0) {
-        reject(new AppError(500, errorText.trim() || 'Backup failed'))
-        return
-      }
-      resolve(Buffer.concat(chunks))
-    })
-  })
-}

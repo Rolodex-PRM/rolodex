@@ -63,8 +63,8 @@ export default function Settings() {
     setBackup('')
     setBackupError('')
     try {
-      await download('/api/backups', `rolodex-${new Date().toISOString().slice(0, 10)}.sql`)
-      setBackup('Database SQL downloaded. Use scripts/backup.sh for a complete backup with uploads.')
+      await download('/api/backups/database', `rolodex-${new Date().toISOString().slice(0, 10)}.sql`)
+      setBackup('Database SQL downloaded. Use Admin → Backups for a complete backup with uploads.')
     } catch (caught) {
       setBackupError(caught instanceof Error ? caught.message : 'Backup failed')
     }
@@ -165,7 +165,7 @@ export default function Settings() {
         <Text style={styles.name}>Database-only download</Text>
         <Text style={styles.meta}>
           Owners can download a SQL dump of the database when pg_dump is available. This is not a complete backup — it
-          does not include uploaded files. For recovery, use scripts/backup.sh (see Admin → Backup & Recovery).
+          does not include uploaded files. For recovery, use Admin → Backup & Recovery.
         </Text>
         <Button label="Download database SQL" tone="ghost" onPress={() => void runBackup()} />
         {backupError ? <Notice text={backupError} /> : null}

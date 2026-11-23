@@ -15,7 +15,17 @@ if [ -n "$DEST_ARG" ]; then
     *) OUT="$ROOT/$DEST_ARG" ;;
   esac
 else
-  OUT="$ROOT/backups/$STAMP"
+  # Prefer BACKUP_DIR from the environment or .env (same host path Compose mounts).
+  if [ -z "${BACKUP_DIR:-}" ] && [ -f "$ROOT/.env" ]; then
+    BACKUP_DIR=$(sed -n 's/^[[:space:]]*BACKUP_DIR[[:space:]]*=[[:space:]]*//p' "$ROOT/.env" | head -n 1 | tr -d '\r' | sed 's/^["'\'']//; s/["'\'']$//')
+  fi
+  BACKUP_ROOT=${BACKUP_DIR:-"$ROOT/backups"}
+  case "$BACKUP_ROOT" in
+    /* | [A-Za-z]:*) ;;
+    ./*) BACKUP_ROOT="$ROOT/${BACKUP_ROOT#./}" ;;
+    *) BACKUP_ROOT="$ROOT/$BACKUP_ROOT" ;;
+  esac
+  OUT="$BACKUP_ROOT/$STAMP"
 fi
 
 PARENT=$(dirname "$OUT")
@@ -72,9 +82,10 @@ CREATED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 APP_VERSION=$(application_version)
 PG_VERSION=$(postgres_version_string)
 [ -n "$PG_VERSION" ] || PG_VERSION="unknown"
+STATS_JSON=$(collect_backup_stats || true)
 
 log "Writing manifest and checksums"
-write_manifest "$PARTIAL" "$CREATED_AT" "$APP_VERSION" "$PG_VERSION"
+write_manifest "$PARTIAL" "$CREATED_AT" "$APP_VERSION" "$PG_VERSION" "$STATS_JSON"
 write_checksums "$PARTIAL"
 restrict_backup_permissions "$PARTIAL"
 

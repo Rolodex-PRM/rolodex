@@ -155,18 +155,55 @@ validate_manifest() {
     || die "manifest does not reference $UPLOADS_ARTIFACT"
 }
 
+collect_backup_stats() {
+  # Prints a JSON object with row counts, or nothing if the query fails.
+  postgres_env
+  row=$(
+    compose exec -T postgres \
+      psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -F ',' -c \
+      "SELECT
+        (SELECT COUNT(*) FROM users),
+        (SELECT COUNT(*) FROM workspaces),
+        (SELECT COUNT(*) FROM contacts WHERE deleted_at IS NULL),
+        (SELECT COUNT(*) FROM contacts WHERE deleted_at IS NOT NULL),
+        (SELECT COUNT(*) FROM activities WHERE deleted_at IS NULL),
+        (SELECT COUNT(*) FROM notes WHERE deleted_at IS NULL),
+        (SELECT COUNT(*) FROM relationships),
+        (SELECT COUNT(*) FROM attachments);" 2>/dev/null || true
+  )
+  [ -n "$row" ] || return 0
+  users=$(printf '%s' "$row" | cut -d, -f1)
+  workspaces=$(printf '%s' "$row" | cut -d, -f2)
+  contacts=$(printf '%s' "$row" | cut -d, -f3)
+  trashed=$(printf '%s' "$row" | cut -d, -f4)
+  interactions=$(printf '%s' "$row" | cut -d, -f5)
+  notes=$(printf '%s' "$row" | cut -d, -f6)
+  relationships=$(printf '%s' "$row" | cut -d, -f7)
+  attachments=$(printf '%s' "$row" | cut -d, -f8)
+  case "$users$workspaces$contacts$trashed$interactions$notes$relationships$attachments" in
+    *[!0-9]*) return 0 ;;
+  esac
+  printf '{"users":%s,"workspaces":%s,"contacts":%s,"trashed_contacts":%s,"interactions":%s,"notes":%s,"relationships":%s,"attachments":%s}' \
+    "$users" "$workspaces" "$contacts" "$trashed" "$interactions" "$notes" "$relationships" "$attachments"
+}
+
 write_manifest() {
   dir=$1
   created_at=$2
   app_version=$3
   pg_version=$4
+  stats_json=${5:-}
+  stats_block=""
+  if [ -n "$stats_json" ]; then
+    stats_block=$(printf ',\n  "stats": %s' "$stats_json")
+  fi
   cat >"$dir/$MANIFEST_NAME" <<EOF
 {
   "format_version": $BACKUP_FORMAT_VERSION,
   "application": "rolodex",
   "application_version": "$(json_escape "$app_version")",
   "created_at": "$(json_escape "$created_at")",
-  "postgres_version": "$(json_escape "$pg_version")",
+  "postgres_version": "$(json_escape "$pg_version")"$(printf '%s' "$stats_block"),
   "components": {
     "database": {
       "file": "$DATABASE_ARTIFACT",

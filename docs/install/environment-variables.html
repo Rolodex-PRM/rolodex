@@ -294,7 +294,11 @@
                     <tr>
                       <td><code>BACKUP_DIR</code></td>
                       <td><code>./backups</code></td>
-                      <td>Where <code>scripts/backup.sh</code> writes dumps and upload archives on the host.</td>
+                      <td>
+                        Host folder for backups. Compose bind-mounts it to <code>/backups</code> in the app container
+                        (in-app Admin backups). Host scripts use the same path by default. Point it at another disk or
+                        NAS to keep archives off the uploads volume.
+                      </td>
                     </tr>
                     <tr>
                       <td><code>GOOGLE_MAPS_API_KEY</code></td>

@@ -139,4 +139,26 @@ if (parsed.token !== 'fixture-secret-token') {
 }
 NODE
 
+# Wrong CREDENTIALS_KEY must fail to decrypt (recovery prerequisite).
+WRONG_KEY=$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64'))")
+set +e
+CREDENTIALS_KEY="$WRONG_KEY" CIPHER="$CIPHER" NONCE="$NONCE" node <<'NODE'
+const { createDecipheriv } = require('crypto')
+const key = Buffer.from(process.env.CREDENTIALS_KEY, 'base64')
+const iv = Buffer.from(process.env.NONCE, 'base64')
+const data = Buffer.from(process.env.CIPHER, 'base64')
+const tag = data.subarray(data.length - 16)
+const body = data.subarray(0, data.length - 16)
+const decipher = createDecipheriv('aes-256-gcm', key, iv)
+decipher.setAuthTag(tag)
+Buffer.concat([decipher.update(body), decipher.final()])
+NODE
+wrong_status=$?
+set -e
+if [ "$wrong_status" -eq 0 ]; then
+  echo "error: wrong CREDENTIALS_KEY unexpectedly decrypted credentials" >&2
+  exit 1
+fi
+echo "Wrong CREDENTIALS_KEY correctly failed to decrypt"
+
 echo "Restore verification succeeded (counts, login, attachment hash, encryption key)"

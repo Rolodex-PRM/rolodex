@@ -10,6 +10,30 @@ export { registrationPolicy, setRegistrationPolicy, inviteUser, previewInvite, a
 export { publicAppearance, setAppearance, cleanCss } from './appearance'
 export { twoFactorPolicy, setTwoFactorPolicy, twoFactorStatus, startEnrollment, confirmEnrollment, disableTwoFactor, gateUser, finishSecondFactor, sendLoginEmailCode, sendTwoFactorTest, matchEmailCode } from './two-factor'
 export { trashPolicy, setTrashPolicy } from './trash'
+export {
+  backupPolicy,
+  setBackupPolicy,
+  listBackupSummaries,
+  createCompleteBackup,
+  deleteBackup,
+  createBackupDownloadStream,
+  importBackupArchive,
+  restoreBackup,
+  runScheduledBackups,
+  requireBackupOwner,
+  type BackupPolicy,
+  type BackupStats,
+  type BackupSummary,
+} from './backups'
+export {
+  assertCron,
+  describeCron,
+  nextCronRuns,
+  splitCron,
+  joinCron,
+  DEFAULT_BACKUP_CRON,
+  type CronFields,
+} from './cron'
 export { syncStatus } from './sync-status'
 export { buildAppleSyncProfile } from './apple-profile'
 export {
@@ -147,7 +171,7 @@ export {
   setCustomValue,
   agenda,
 } from './crm'
-export { parseBody, registerSchema, passwordResetSchema, forgotPasswordSchema, registrationPolicySchema, appearanceSchema, loginSchema, workspaceSchema, memberSchema, memberRoleSchema, addressBookSchema, tagSchema, contactSchema, importSchema, appPasswordSchema, relationshipSchema, relationshipTypeSchema, organizationSchema, organizationMemberSchema, noteSchema, activitySchema, taskSchema, reminderSchema, completeSchema, customFieldSchema, customValueSchema, mapSettingsSchema, addressLocationSchema, addonSchema, aiSettingsSchema, calendarEventSchema, immichInstanceSchema, immichTestSchema, immichLinkSchema, immichPhotoSchema, immichAssetSchema, contactVisibilitySchema, contactOwnerSchema, coverModeSchema, contactGrantSchema, userGroupSchema, userGroupUpdateSchema, userGroupMemberSchema, contactDateSchema, oauthSettingsSchema, notificationSettingsSchema, notificationTestSchema, pushSubscriptionSchema, oauthExchangeSchema, mfaSchema, mfaTicketSchema, totpConfirmSchema, totpCodeSchema, twoFactorPolicySchema, trashPolicySchema, mailboxAccountSchema, calendarAccountSchema } from './validation'
+export { parseBody, registerSchema, passwordResetSchema, forgotPasswordSchema, registrationPolicySchema, appearanceSchema, loginSchema, workspaceSchema, memberSchema, memberRoleSchema, addressBookSchema, tagSchema, contactSchema, importSchema, appPasswordSchema, relationshipSchema, relationshipTypeSchema, organizationSchema, organizationMemberSchema, noteSchema, activitySchema, taskSchema, reminderSchema, completeSchema, customFieldSchema, customValueSchema, mapSettingsSchema, addressLocationSchema, addonSchema, aiSettingsSchema, calendarEventSchema, immichInstanceSchema, immichTestSchema, immichLinkSchema, immichPhotoSchema, immichAssetSchema, contactVisibilitySchema, contactOwnerSchema, coverModeSchema, contactGrantSchema, userGroupSchema, userGroupUpdateSchema, userGroupMemberSchema, contactDateSchema, oauthSettingsSchema, notificationSettingsSchema, notificationTestSchema, pushSubscriptionSchema, oauthExchangeSchema, mfaSchema, mfaTicketSchema, totpConfirmSchema, totpCodeSchema, twoFactorPolicySchema, trashPolicySchema, backupPolicySchema, backupRestoreSchema, mailboxAccountSchema, calendarAccountSchema } from './validation'
 export { parseVcards, serializeVcard } from './vcard'
 export { parseContactSource, rolodexContactTemplate } from './contact-import'
 export { findDuplicates, mergeContacts, workspaceNetwork, egoNetwork, contactSummary, enrichContact, calendarMonth, calendarIcs, photoMemories, groupDuplicates, enrichFromEmail, buildSummary } from './phase5'

@@ -92,7 +92,13 @@
             </p>
 
             <h2 id="create">Create a backup</h2>
-            <p>From the directory that contains <code>docker-compose.yml</code> (Linux, macOS, WSL, or Git Bash):</p>
+            <p>
+              In the app, an owner can open <strong>Admin → Backups</strong>, create a complete backup, download or
+              restore it, upload an archive, and configure automatic backups with retention. In-app backups are stored
+              on the host path set by <code>BACKUP_DIR</code> (default <code>./backups</code>, mounted at
+              <code>/backups</code> in Docker) and use the same artifact format as the host scripts.
+            </p>
+            <p>From the host (Linux, macOS, WSL, or Git Bash), in the directory that contains <code>docker-compose.yml</code>:</p>
             <pre class="doc-code"><code>./scripts/backup.sh</code></pre>
             <p>Optional destination directory:</p>
             <pre class="doc-code"><code>./scripts/backup.sh /mnt/nas/rolodex-backups/2026-11-20_093000</code></pre>
@@ -140,20 +146,24 @@ cat backups/2026-11-20_093000/checksums.sha256</code></pre>
 
             <h2 id="retain">Keep multiple generations</h2>
             <p>
-              Keep several stamped directories (daily/weekly). Rolodex does not prune old backups; use your NAS, cron, or
-              restic/CronMaster schedule. Always run <code>verify-backup.sh</code> on a copy before you rely on it.
+              Prefer several stamped directories on independent storage (another disk, NAS, or restic/CronMaster). In the
+              app, Admin → Backups can run on a cron schedule and prune older in-app backups after each successful run
+              according to the retention setting. Host-script folders under <code>BACKUP_DIR</code> are not pruned by
+              that setting unless they share the same directory. Always run <code>verify-backup.sh</code> on a copy
+              before you rely on it.
             </p>
 
             <h2 id="windows">Windows notes</h2>
             <p>
-              Run the shell scripts from WSL or Git Bash in the repo (or compose) directory. In PowerShell you can still
-              call them through bash:
+              Prefer <strong>Admin → Backups</strong> in the browser for routine create, download, upload, and restore.
+              For host scripts, use WSL or Git Bash in the repo (or compose) directory. From PowerShell you can call
+              them through bash:
             </p>
             <pre class="doc-code"><code>bash ./scripts/backup.sh
 bash ./scripts/verify-backup.sh backups/2026-11-20_093000</code></pre>
             <p>
               A download from Settings → Backup is <strong>database-only</strong>. It is not a complete backup. Use
-              <code>scripts/backup.sh</code> for recovery.
+              Admin → Backups or <code>scripts/backup.sh</code> for recovery.
             </p>
           </div>
         </div>

@@ -66,7 +66,11 @@ The phone receives the name, phone numbers, email addresses, postal address, bir
 
 ## Backup & Recovery
 
-Complete recovery needs PostgreSQL **and** the uploads volume, plus the original `CREDENTIALS_KEY` stored separately (it is not inside the archive).
+Complete recovery needs PostgreSQL **and** uploaded files, plus the original `CREDENTIALS_KEY` stored separately (it is not inside the archive).
+
+**In the app:** Admin → Backups — create, download, upload, restore, schedule automatic backups, and set retention. Archives are written to `BACKUP_DIR` on the host (default `./backups`).
+
+**On the host:**
 
 ```sh
 ./scripts/backup.sh
@@ -76,7 +80,7 @@ Complete recovery needs PostgreSQL **and** the uploads volume, plus the original
 
 Guides: [Backup](https://rolodex-prm.github.io/rolodex/backup/backup-guide.html) · [Restore](https://rolodex-prm.github.io/rolodex/backup/restore-guide.html) · [Migration](https://rolodex-prm.github.io/rolodex/backup/migration-guide.html) · [Troubleshooting](https://rolodex-prm.github.io/rolodex/backup/troubleshooting.html)
 
-A Settings download is **database-only** and is not a full backup. Prefer the scripts above (also summarized under Admin → Backup & Recovery).
+A Settings download is **database-only** and is not a full backup.
 
 ## Development
 
