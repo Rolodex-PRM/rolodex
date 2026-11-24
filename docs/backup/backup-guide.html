@@ -96,7 +96,8 @@
               In the app, an owner can open <strong>Admin → Backups</strong>, create a complete backup, download or
               restore it, upload an archive, and configure automatic backups with retention. In-app backups are stored
               on the host path set by <code>BACKUP_DIR</code> (default <code>./backups</code>, mounted at
-              <code>/backups</code> in Docker) and use the same artifact format as the host scripts.
+              <code>/backups</code> in Docker) and use the same artifact format as the host scripts. Create that host
+              folder before the first <code>docker compose up</code> so Docker does not own it as root.
             </p>
             <p>From the host (Linux, macOS, WSL, or Git Bash), in the directory that contains <code>docker-compose.yml</code>:</p>
             <pre class="doc-code"><code>./scripts/backup.sh</code></pre>

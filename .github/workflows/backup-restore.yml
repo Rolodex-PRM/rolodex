@@ -24,6 +24,9 @@ jobs:
       - name: Prepare environment
         run: |
           cp .env.example .env
+          # Create the bind-mount host dir as the runner user before Compose starts.
+          # Otherwise Docker creates ./backups as root and backup.sh cannot mkdir inside it.
+          mkdir -p backups
           chmod +x scripts/backup.sh scripts/restore.sh scripts/verify-backup.sh \
             scripts/test/seed-backup-fixture.sh scripts/test/verify-restore.sh \
             scripts/test/negative-backup-cases.sh

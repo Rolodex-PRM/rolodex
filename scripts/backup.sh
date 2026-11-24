@@ -39,7 +39,8 @@ if [ -e "$PARTIAL" ]; then
   die "incomplete backup directory already exists: $PARTIAL (remove it and retry)"
 fi
 
-mkdir -p "$PARENT"
+mkdir -p "$PARENT" \
+  || die "cannot create backup directory $PARENT (permission denied?). If Docker created it as root, fix ownership (e.g. sudo chown -R \"\$USER\" \"$PARENT\") or create the folder before compose up."
 mkdir -p "$PARTIAL"
 chmod 700 "$PARTIAL" 2>/dev/null || true
 
