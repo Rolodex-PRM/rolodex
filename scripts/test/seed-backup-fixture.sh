@@ -64,15 +64,25 @@ api() {
   method=$1
   path=$2
   body=${3:-}
+  tmp=$(mktemp)
   if [ -n "$body" ]; then
-    curl -fsS -X "$method" "$BASE_URL$path" \
+    code=$(curl -sS -o "$tmp" -w "%{http_code}" -X "$method" "$BASE_URL$path" \
       -H "Authorization: Bearer $TOKEN" \
       -H "Content-Type: application/json" \
-      -d "$body"
+      -d "$body" || true)
   else
-    curl -fsS -X "$method" "$BASE_URL$path" \
-      -H "Authorization: Bearer $TOKEN"
+    code=$(curl -sS -o "$tmp" -w "%{http_code}" -X "$method" "$BASE_URL$path" \
+      -H "Authorization: Bearer $TOKEN" || true)
   fi
+  if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+    echo "error: $method $path failed with HTTP $code" >&2
+    head -c 500 "$tmp" >&2 || true
+    echo >&2
+    rm -f "$tmp"
+    exit 1
+  fi
+  cat "$tmp"
+  rm -f "$tmp"
 }
 
 compose() {
@@ -128,8 +138,20 @@ trash=$(api POST "/api/workspaces/$WS/contacts" '{"firstName":"Trash","lastName"
 TRASH_ID=$(json_field "$trash" id)
 api DELETE "/api/workspaces/$WS/contacts/$TRASH_ID" >/dev/null
 
-rel_type=$(api POST "/api/workspaces/$WS/relationship-types" '{"label":"Colleague","reciprocalLabel":"Colleague"}')
-TYPE_ID=$(json_field "$rel_type" id)
+# Prefer a built-in type (coworker) so re-runs do not conflict; create one only if missing.
+types=$(api GET "/api/workspaces/$WS/relationship-types")
+TYPE_ID=$(printf '%s' "$types" | node -e '
+let raw = ""
+process.stdin.on("data", (chunk) => { raw += chunk })
+process.stdin.on("end", () => {
+  const rows = JSON.parse(raw)
+  const list = Array.isArray(rows) ? rows : []
+  const hit = list.find((row) => String(row.label || "").toLowerCase() === "coworker")
+    || list.find((row) => row.id)
+  if (!hit?.id) process.exit(2)
+  process.stdout.write(String(hit.id))
+})
+')
 api POST "/api/workspaces/$WS/contacts/$ALICE_ID/relationships" "{\"toContactId\":\"$BOB_ID\",\"typeId\":\"$TYPE_ID\",\"side\":\"label\"}" >/dev/null
 
 note=$(api POST "/api/workspaces/$WS/notes" "{\"contactId\":\"$ALICE_ID\",\"body\":\"Fixture private note body\",\"visibility\":\"private\"}")
@@ -142,11 +164,20 @@ FILE_HASH=$(
   else openssl dgst -sha256 "$STATE_DIR/attachment.txt" | awk '{print $NF}'
   fi
 )
-curl -fsS -X POST "$BASE_URL/api/workspaces/$WS/notes/$NOTE_ID/files" \
+file_tmp=$(mktemp)
+file_code=$(curl -sS -o "$file_tmp" -w "%{http_code}" -X POST "$BASE_URL/api/workspaces/$WS/notes/$NOTE_ID/files" \
   -H "Authorization: Bearer $TOKEN" \
-  -F "file=@$STATE_DIR/attachment.txt;type=text/plain" >/dev/null
+  -F "file=@$STATE_DIR/attachment.txt;type=text/plain" || true)
+if [ "$file_code" -lt 200 ] || [ "$file_code" -ge 300 ]; then
+  echo "error: note file upload failed with HTTP $file_code" >&2
+  head -c 500 "$file_tmp" >&2 || true
+  echo >&2
+  rm -f "$file_tmp"
+  exit 1
+fi
+rm -f "$file_tmp"
 
-api POST "/api/workspaces/$WS/calendar/events" "{\"type\":\"event\",\"summary\":\"Backup Fixture Event\",\"description\":\"Round-trip event\",\"date\":\"2030-01-15\",\"allDay\":true,\"contactId\":\"$ALICE_ID\"}" >/dev/null
+api POST "/api/workspaces/$WS/calendar/events" "{\"type\":\"meeting\",\"summary\":\"Backup Fixture Event\",\"description\":\"Round-trip event\",\"date\":\"2030-01-15\",\"allDay\":true,\"contactId\":\"$ALICE_ID\"}" >/dev/null
 api POST "/api/workspaces/$WS/tasks" "{\"title\":\"Backup fixture task\",\"notes\":\"Task body\",\"priority\":3,\"contactId\":\"$ALICE_ID\"}" >/dev/null
 
 client=$(api POST /api/app-passwords '{"label":"Backup Sync Client"}')
