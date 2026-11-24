@@ -413,6 +413,21 @@ export const trashPolicySchema = z.object({
   retentionDays: z.number().int().min(1).max(3650),
 })
 
+export const backupPolicySchema = z.object({
+  enabled: z.boolean(),
+  cron: z
+    .string()
+    .trim()
+    .min(9)
+    .max(80)
+    .regex(/^(\S+\s+){4}\S+$/, 'Use a five-field cron expression'),
+  retain: z.number().int().min(1).max(100),
+})
+
+export const backupRestoreSchema = z.object({
+  confirm: z.literal(true),
+})
+
 export const mailboxAccountSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().trim().min(1).max(80),

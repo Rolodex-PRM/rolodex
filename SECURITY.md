@@ -89,3 +89,8 @@ Out of scope:
 - Keep registration invite-only unless you mean to open it.
 - Keep backups encrypted or in a place only you can reach. A database
   dump contains your contacts.
+- Preserve `CREDENTIALS_KEY` outside the backup archive. Restoring the
+  database without that key leaves encrypted integration credentials
+  unusable. See the
+  [backup guide](https://rolodex-prm.github.io/rolodex/backup/backup-guide.html)
+  and [migration guide](https://rolodex-prm.github.io/rolodex/backup/migration-guide.html).

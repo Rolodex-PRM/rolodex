@@ -32,6 +32,7 @@
           <li><a href="../quick-start.html">Quick start</a></li>
           <li><a href="docker-compose.html">Docker Compose</a></li>
           <li><a aria-current="page" href="environment-variables.html">Environment</a></li>
+          <li><a href="../backup/backup-guide.html">Backup</a></li>
           <li><a href="../roadmap.html">Roadmap</a></li>
           <li>
             <a class="nav-cta" href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub</a>
@@ -113,7 +114,10 @@
                     <tr>
                       <td><code>CREDENTIALS_KEY</code></td>
                       <td>sample local key</td>
-                      <td>32-byte base64 secret for encrypted credentials. Generate a new one for production.</td>
+                      <td>
+                        32-byte base64 secret for encrypted credentials. Generate a new one for production. Keep the same
+                        value when restoring a backup — it is not stored inside backup archives.
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -290,7 +294,11 @@
                     <tr>
                       <td><code>BACKUP_DIR</code></td>
                       <td><code>./backups</code></td>
-                      <td>Where <code>scripts/backup.sh</code> writes dumps and upload archives on the host.</td>
+                      <td>
+                        Host folder for backups. Compose bind-mounts it to <code>/backups</code> in the app container
+                        (in-app Admin backups). Host scripts use the same path by default. Point it at another disk or
+                        NAS to keep archives off the uploads volume.
+                      </td>
                     </tr>
                     <tr>
                       <td><code>GOOGLE_MAPS_API_KEY</code></td>

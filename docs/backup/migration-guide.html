@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en" data-version-url="../version.json">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Migration guide — Rolodex</title>
+    <meta
+      name="description"
+      content="Move Rolodex to another machine or NAS using a portable backup: Docker, restore, URLs, and CREDENTIALS_KEY."
+    />
+    <meta name="theme-color" content="#1b2a4a" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="icon" href="../favicon.ico" sizes="any" />
+    <link rel="icon" href="../rolodex-mark.svg" type="image/svg+xml" />
+  </head>
+  <body class="doc-page">
+    <header class="site-header" id="top">
+      <div class="wrap nav">
+        <a class="brand" href="../index.html" aria-label="Rolodex home">
+          <span class="brand-logo" data-rolodex-logo data-variant="icon" data-size="34" data-animate="false"></span>
+          <span>rolodex</span>
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+        <ul class="nav-links" id="nav-links">
+          <li><a href="../index.html">Home</a></li>
+          <li><a href="../quick-start.html">Quick start</a></li>
+          <li><a href="../install/docker-compose.html">Docker Compose</a></li>
+          <li><a aria-current="page" href="backup-guide.html">Backup</a></li>
+          <li><a href="../roadmap.html">Roadmap</a></li>
+          <li>
+            <a class="nav-cta" href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub</a>
+          </li>
+        </ul>
+      </div>
+    </header>
+
+    <main>
+      <section class="doc-hero wrap">
+        <p class="section-kicker">Backup &amp; recovery</p>
+        <h1>Migration guide</h1>
+        <p class="doc-lede">
+          Move Rolodex to a new server or NAS. Backups are portable: they do not depend on the old Docker volume IDs or
+          absolute host paths.
+        </p>
+        <p class="version-line">Docs for <a data-rolodex-version rel="noopener noreferrer"></a>.</p>
+      </section>
+
+      <section class="section doc-section">
+        <div class="wrap doc-layout">
+          <aside class="doc-toc" aria-label="On this page">
+            <p class="doc-toc-title">On this page</p>
+            <ol>
+              <li><a href="#overview">Overview</a></li>
+              <li><a href="#steps">Steps</a></li>
+              <li><a href="#env">Environment variables</a></li>
+              <li><a href="#urls">Hostnames and URLs</a></li>
+              <li><a href="#integrations">Integrations</a></li>
+              <li><a href="#postgres">PostgreSQL version</a></li>
+            </ol>
+          </aside>
+
+          <div class="doc-body">
+            <div class="doc-callout">
+              <strong>Related guides:</strong>
+              <a href="backup-guide.html">Backup</a> ·
+              <a href="restore-guide.html">Restore</a> ·
+              <a href="troubleshooting.html">Troubleshooting</a>
+            </div>
+
+            <h2 id="overview">Overview</h2>
+            <ol>
+              <li>Back up the existing installation and verify the backup.</li>
+              <li>Install Docker on the new machine.</li>
+              <li>Copy <code>docker-compose.yml</code> and a new <code>.env</code> (with the <em>same</em> <code>CREDENTIALS_KEY</code>).</li>
+              <li>Start Compose, restore the backup, adjust URLs and the reverse proxy.</li>
+              <li>Sign in and confirm people, files, and sync clients.</li>
+            </ol>
+
+            <h2 id="steps">Steps</h2>
+            <h3>On the old machine</h3>
+            <pre class="doc-code"><code>./scripts/backup.sh /path/to/portable-backup
+./scripts/verify-backup.sh /path/to/portable-backup
+# Copy the backup folder and your CREDENTIALS_KEY to secure storage</code></pre>
+
+            <h3>On the new machine</h3>
+            <pre class="doc-code"><code>mkdir ./rolodex-app &amp;&amp; cd ./rolodex-app
+curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/Rolodex-PRM/rolodex/main/docker-compose.yml
+curl -fsSL -o .env https://raw.githubusercontent.com/Rolodex-PRM/rolodex/main/.env.example
+# Edit .env: set POSTGRES_PASSWORD, paste the original CREDENTIALS_KEY, set PORT / PUBLIC_URL
+docker compose pull
+docker compose up -d
+# Copy the backup directory onto this host, then:
+./scripts/restore.sh /path/to/portable-backup --confirm</code></pre>
+            <p>
+              If you cloned the repository instead of curling two files, run the scripts from that checkout after
+              Compose is up.
+            </p>
+
+            <h2 id="env">Required environment variables</h2>
+            <ul>
+              <li><code>CREDENTIALS_KEY</code> — <strong>must</strong> match the old install for encrypted integration credentials.</li>
+              <li><code>POSTGRES_USER</code>, <code>POSTGRES_PASSWORD</code>, <code>POSTGRES_DB</code> — used by Compose; password can be new if volumes are new.</li>
+              <li><code>PORT</code> — published HTTP port on the new host.</li>
+              <li><code>PUBLIC_URL</code> — set when phones should use a public HTTPS origin different from the browser URL.</li>
+              <li><code>ROLODEX_IMAGE</code> — pin a release close to the backup’s <code>application_version</code> when possible.</li>
+            </ul>
+            <p>Full list: <a href="../install/environment-variables.html">Environment variables</a>.</p>
+
+            <h2 id="urls">Hostnames and URLs after migration</h2>
+            <ul>
+              <li>Point the reverse proxy or Cloudflare tunnel at the new host’s <code>PORT</code>.</li>
+              <li>Open the site once through the new address so Settings can pick up the public origin.</li>
+              <li>Set or update <code>PUBLIC_URL</code> when CardDAV/CalDAV clients must use that origin.</li>
+              <li>Update phone CardDAV/CalDAV account URLs if the hostname changed; client passwords in Rolodex stay the same.</li>
+            </ul>
+
+            <h2 id="integrations">External integrations</h2>
+            <p>
+              Encrypted credentials travel inside the database dump. With the correct <code>CREDENTIALS_KEY</code> they
+              decrypt on the new host. You may still need to allowlist the new IP/hostname at the provider (Immich URL,
+              mailbox, OAuth redirect URIs). Immich photo libraries stay on Immich — only Rolodex links and settings are
+              in the backup.
+            </p>
+
+            <h2 id="postgres">Minimum PostgreSQL version</h2>
+            <p>
+              Rolodex Compose uses <strong>PostgreSQL 16</strong>. Restore onto Postgres 16 or newer of the same major
+              when possible. Restoring a dump onto an older major version is rejected by the restore script.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-row">
+        <div>
+          <div class="footer-brand">
+            <span data-rolodex-logo data-variant="icon" data-size="40" data-animate="false"></span>
+            <span>rolodex</span>
+          </div>
+          <p>Self-hosted relationship manager. Active development.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="../index.html">Home</a>
+          <a href="backup-guide.html">Backup</a>
+          <a href="restore-guide.html">Restore</a>
+          <a href="troubleshooting.html">Troubleshooting</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script src="../logo.js"></script>
+    <script src="../site.js"></script>
+    <script src="../docs.js"></script>
+  </body>
+</html>

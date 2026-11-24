@@ -63,8 +63,8 @@ export default function Settings() {
     setBackup('')
     setBackupError('')
     try {
-      await download('/api/backups', `rolodex-${new Date().toISOString().slice(0, 10)}.sql`)
-      setBackup('The database backup downloaded.')
+      await download('/api/backups/database', `rolodex-${new Date().toISOString().slice(0, 10)}.sql`)
+      setBackup('Database SQL downloaded. Use Admin → Backups for a complete backup with uploads.')
     } catch (caught) {
       setBackupError(caught instanceof Error ? caught.message : 'Backup failed')
     }
@@ -162,9 +162,12 @@ export default function Settings() {
       <SyncClients />
       <TwoFactorPanel />
       <Panel>
-        <Text style={styles.name}>Backup</Text>
-        <Text style={styles.meta}>Owners can download a database backup when pg_dump is installed. scripts/backup.sh also archives photos.</Text>
-        <Button label="Download database backup" tone="ghost" onPress={() => void runBackup()} />
+        <Text style={styles.name}>Database-only download</Text>
+        <Text style={styles.meta}>
+          Owners can download a SQL dump of the database when pg_dump is available. This is not a complete backup — it
+          does not include uploaded files. For recovery, use Admin → Backup & Recovery.
+        </Text>
+        <Button label="Download database SQL" tone="ghost" onPress={() => void runBackup()} />
         {backupError ? <Notice text={backupError} /> : null}
         {backup ? <Text style={styles.meta}>{backup}</Text> : null}
       </Panel>

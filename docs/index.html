@@ -38,6 +38,7 @@
           <li><a href="quick-start.html">Quick start</a></li>
           <li><a href="install/docker-compose.html">Install</a></li>
           <li><a href="install/environment-variables.html">Configure</a></li>
+          <li><a href="backup/backup-guide.html">Backup</a></li>
           <li><a href="roadmap.html">Roadmap</a></li>
           <li>
             <a class="nav-cta" href="https://github.com/Rolodex-PRM/rolodex" rel="noopener noreferrer">GitHub</a>
@@ -335,7 +336,7 @@ docker compose up -d --build</code></pre>
           <p class="section-kicker">Ownership</p>
           <h2>Your server. Your copies.</h2>
           <p class="section-lede">
-            Uploaded files live in the <code>uploads</code> volume. Backups are a Postgres dump plus a tar of uploads. An owner can also download a database dump from Settings when <code>pg_dump</code> is available.
+            Uploaded files live in the <code>uploads</code> volume. A complete backup is a Postgres dump plus a tar of uploads (with manifest and checksums), stored on the host path set by <code>BACKUP_DIR</code>. Owners manage them under Admin → Backups, or with the host scripts. Settings can still download a <strong>database-only</strong> SQL export — that is not a full recovery backup.
           </p>
           <div class="features-grid">
             <article>
