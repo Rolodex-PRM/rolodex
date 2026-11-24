@@ -88,23 +88,39 @@ APP_STOPPED=1
 STAGE=restore-database
 log "Restoring PostgreSQL from $DATABASE_ARTIFACT"
 postgres_env
+# Custom-format dumps must be restored from a seekable file. Piping into
+# `docker compose exec` often yields an empty database that still has tables
+# from migrations, so copy the archive into the container first (same as verify).
+PG_CID=$(compose ps -q postgres)
+[ -n "$PG_CID" ] || fail_stage "Postgres container is not running."
+docker cp "$IN/$DATABASE_ARTIFACT" "$PG_CID:/tmp/rolodex-restore.dump" \
+  || fail_stage "Could not copy database.dump into the Postgres container."
 set +e
 compose exec -T postgres \
-  pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner --no-acl - \
-  <"$IN/$DATABASE_ARTIFACT"
+  pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner --no-acl \
+  /tmp/rolodex-restore.dump
 restore_status=$?
+compose exec -T postgres rm -f /tmp/rolodex-restore.dump >/dev/null 2>&1 || true
 set -e
-# pg_restore exits 1 when some objects emit recoverable errors; require a readable schema either way.
+# pg_restore exits 1 when some objects emit recoverable errors; require schema + data.
 if ! compose exec -T postgres \
   psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'contacts';" \
   >/dev/null; then
   fail_stage "Database restore did not complete (pg_restore exit $restore_status). Do not treat the install as healthy. Re-run restore after fixing the dump, or recreate volumes and try again."
 fi
+user_count=$(compose exec -T postgres \
+  psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -c "SELECT COUNT(*) FROM users;" 2>/dev/null | tr -d '\r' || true)
+case "$user_count" in
+  '' | *[!0-9]*) user_count=0 ;;
+esac
+if [ "$user_count" -lt 1 ]; then
+  fail_stage "Database restore left no users (pg_restore exit $restore_status). The dump may not have been applied. Do not treat the install as healthy."
+fi
 if [ "$restore_status" -ne 0 ] && [ "$restore_status" -ne 1 ]; then
   fail_stage "Database restore failed with exit $restore_status. Do not treat the install as healthy."
 fi
 if [ "$restore_status" -eq 1 ]; then
-  log "pg_restore reported warnings (exit 1); contacts table is readable — continuing"
+  log "pg_restore reported warnings (exit 1); restored $user_count user(s) — continuing"
 fi
 
 STAGE=restore-uploads
